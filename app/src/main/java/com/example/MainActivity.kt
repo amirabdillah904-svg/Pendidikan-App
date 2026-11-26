@@ -13,6 +13,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.pwa.PwaViewModel
 import com.example.pwa.PwaWebViewScreen
 import com.example.ui.theme.DeptPendidikanTheme
+import java.io.File
 
 class MainActivity : ComponentActivity() {
 
@@ -20,6 +21,7 @@ class MainActivity : ComponentActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    ensureWebViewCacheDirectories()
     enableEdgeToEdge()
 
     setContent {
@@ -40,6 +42,30 @@ class MainActivity : ComponentActivity() {
           viewModel = viewModel,
           onExitApp = { finish() },
         )
+      }
+    }
+  }
+
+  private fun ensureWebViewCacheDirectories() {
+    runCatching {
+      val rootCache = applicationContext.cacheDir ?: return
+      if (!rootCache.exists()) {
+        rootCache.mkdirs()
+      }
+      val subDirs =
+        listOf(
+          "WebView/Default/HTTP Cache/Code Cache/js",
+          "WebView/Default/HTTP Cache/Code Cache/wasm",
+          "WebView/Default/HTTP Cache/Cache_Data",
+        )
+      subDirs.forEach { relPath ->
+        val dir = File(rootCache, relPath)
+        if (dir.exists() && !dir.isDirectory) {
+          dir.delete()
+        }
+        if (!dir.exists()) {
+          dir.mkdirs()
+        }
       }
     }
   }

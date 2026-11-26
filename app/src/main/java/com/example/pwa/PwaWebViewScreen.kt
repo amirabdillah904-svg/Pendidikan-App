@@ -411,7 +411,9 @@ fun PwaWebViewScreen(
               webChromeClient =
                 object : WebChromeClient() {
                   override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                    viewModel.onProgressChanged(newProgress)
+                    if (newProgress >= 100) {
+                      viewModel.onProgressChanged(100)
+                    }
                   }
 
                   override fun onShowFileChooser(

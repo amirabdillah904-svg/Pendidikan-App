@@ -96,13 +96,34 @@
   };
 })();
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('./sw.js').catch(function(err) {
-      console.warn('Service Worker:', err);
-    });
+window.__registerSwAfterSplash = function() {
+  if (window.__swRegistered || !('serviceWorker' in navigator)) return;
+  window.__swRegistered = true;
+  navigator.serviceWorker.register('./sw.js').catch(function(err) {
+    console.warn('Service Worker:', err);
   });
-}
+};
+
+window.__scriptPromises = {};
+window.ensureExternalScript = function(src, globalCheck) {
+  if (globalCheck && globalCheck()) return Promise.resolve();
+  if (window.__scriptPromises[src]) return window.__scriptPromises[src];
+  window.__scriptPromises[src] = new Promise(function(resolve, reject) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.onload = function() { resolve(); };
+    s.onerror = function() { reject(new Error('Gagal memuat skrip: ' + src)); };
+    document.head.appendChild(s);
+  });
+  return window.__scriptPromises[src];
+};
+window.ensureChartJs = function() {
+  return window.ensureExternalScript('https://cdn.jsdelivr.net/npm/chart.js', function() { return typeof window.Chart !== 'undefined'; });
+};
+window.ensureHtml2Pdf = function() {
+  return window.ensureExternalScript('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js', function() { return typeof window.html2pdf !== 'undefined'; });
+};
 </script>
 
 
@@ -129,9 +150,7 @@ brand: {
 }
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
 
 
 <style>
@@ -387,6 +406,7 @@ transform: scale3d(0.98, 0.98, 1);
 background: linear-gradient(135deg, #312E81 0%, #4F46E5 52%, #0D9488 100%);
 background-size: cover;
 background-position: center;
+background-repeat: no-repeat;
 border-radius: 22px;
 border: 1px solid rgba(110, 231, 183, 0.42);
 box-shadow: 0 16px 32px -12px rgba(79, 70, 229, 0.42);
@@ -398,8 +418,12 @@ transition: background-image 0.3s ease;
 content: "";
 position: absolute;
 inset: 0;
-background: linear-gradient(135deg, rgba(49, 46, 129, 0.80) 0%, rgba(79, 70, 229, 0.70) 55%, rgba(13, 148, 136, 0.62) 100%);
+background: linear-gradient(135deg, rgba(49, 46, 129, 0.78) 0%, rgba(79, 70, 229, 0.68) 55%, rgba(13, 148, 136, 0.58) 100%);
 pointer-events: none;
+transition: background 0.25s ease;
+}
+.hero-banner.has-custom-banner::after {
+background: linear-gradient(95deg, rgba(15, 23, 42, 0.56) 0%, rgba(15, 23, 42, 0.28) 52%, rgba(15, 23, 42, 0.12) 100%);
 }
 
 /* SweetAlert2 Styling (Crisp Light Default + High-Contrast Obsidian Dark) */
@@ -630,14 +654,26 @@ animation: shimmerSlide 1.5s ease-in-out infinite;
 }
 
 
-/* Splash Screen & Minimalist Books/Character — Clean GPU-Only 60-120fps (Light Default + Obsidian Dark) */
+/* Splash Screen — 100% Hardware GPU Compositor Layers (Zero CPU SVG Repaints, Zero Lag) */
 #splashScreen {
+position: fixed;
+inset: 0;
+z-index: 200;
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: space-between;
+padding: 24px;
+user-select: none;
+-webkit-user-select: none;
+overflow: hidden;
 background: radial-gradient(circle at 50% 30%, #EEF2FF 0%, #F8FAFC 58%, #ECFDF5 100%);
 color: #0F172A;
 contain: strict;
+transform: translateZ(0);
 backface-visibility: hidden;
 -webkit-backface-visibility: hidden;
-transition: opacity 0.42s var(--ease-smooth), transform 0.42s var(--ease-smooth), visibility 0.42s;
+transition: opacity 0.38s var(--ease-smooth), transform 0.38s var(--ease-smooth), visibility 0.38s;
 }
 html.dark #splashScreen {
 background: radial-gradient(circle at 50% 34%, #312E81 0%, #151F3A 46%, #0B1120 100%);
@@ -645,11 +681,14 @@ color: #FFFFFF;
 }
 #splashScreen.splash-hide {
 opacity: 0;
-transform: scale3d(1.03, 1.03, 1);
+transform: scale3d(1.02, 1.02, 1);
 visibility: hidden;
 pointer-events: none;
 }
 .splash-ambient-layer {
+position: absolute;
+inset: 0;
+pointer-events: none;
 background:
 radial-gradient(circle at 18% 18%, rgba(99, 102, 241, 0.16) 0%, transparent 45%),
 radial-gradient(circle at 82% 82%, rgba(52, 211, 153, 0.16) 0%, transparent 46%);
@@ -671,27 +710,21 @@ radial-gradient(circle at 85% 88%, rgba(52, 211, 153, 0.16) 0%, transparent 48%)
 }
 
 @keyframes splashHeroPop {
-0% { opacity: 0; transform: translate3d(0, 20px, 0) scale3d(0.88, 0.88, 1); }
-70% { opacity: 1; transform: translate3d(0, -3px, 0) scale3d(1.02, 1.02, 1); }
+0% { opacity: 0; transform: translate3d(0, 16px, 0) scale3d(0.92, 0.92, 1); }
 100% { opacity: 1; transform: translate3d(0, 0, 0) scale3d(1, 1, 1); }
 }
 @keyframes splashRingExpand {
-0% { transform: scale3d(0.76, 0.76, 1); opacity: 0.55; }
-100% { transform: scale3d(1.38, 1.38, 1); opacity: 0; }
-}
-@keyframes splashFlareSweep {
-0% { transform: translate3d(-140%, 0, 0) skewX(-22deg); opacity: 0; }
-35% { opacity: 0.65; }
-100% { transform: translate3d(240%, 0, 0) skewX(-22deg); opacity: 0; }
+0% { transform: scale3d(0.78, 0.78, 1); opacity: 0.48; }
+100% { transform: scale3d(1.36, 1.36, 1); opacity: 0; }
 }
 @keyframes splashBarScale {
 0% { transform: scaleX(0.06); }
 45% { transform: scaleX(0.58); }
-82% { transform: scaleX(0.90); }
+84% { transform: scaleX(0.92); }
 100% { transform: scaleX(1); }
 }
 @keyframes splashTitleRise {
-0% { opacity: 0; transform: translate3d(0, 12px, 0); }
+0% { opacity: 0; transform: translate3d(0, 10px, 0); }
 100% { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 @keyframes splashStatusPulse {
@@ -699,32 +732,30 @@ radial-gradient(circle at 85% 88%, rgba(52, 211, 153, 0.16) 0%, transparent 48%)
 50% { opacity: 1; }
 }
 
-/* Minimalist Books & Character Motion (100% GPU Transform + Opacity) */
+/* Pure GPU Compositor Minimalist Books & Character Motion */
 @keyframes minFloat {
 0%, 100% { transform: translate3d(0, 0, 0); }
-50% { transform: translate3d(0, -6px, 0); }
+50% { transform: translate3d(0, -7px, 0); }
 }
 @keyframes minShadowPulse {
-0%, 100% { transform: scale3d(1, 1, 1); opacity: 0.22; }
-50% { transform: scale3d(0.88, 0.88, 1); opacity: 0.13; }
+0%, 100% { transform: scale3d(1, 1, 1); opacity: 0.20; }
+50% { transform: scale3d(0.86, 0.86, 1); opacity: 0.12; }
 }
 @keyframes minBookFloatA {
-0%, 100% { transform: translate3d(0, 0, 0) rotate(-7deg); }
-50% { transform: translate3d(0, -9px, 0) rotate(-2deg); }
+0%, 100% { transform: translate3d(0, 0, 0) rotate(-8deg); }
+50% { transform: translate3d(0, -10px, 0) rotate(-2deg); }
 }
 @keyframes minBookFloatB {
-0%, 100% { transform: translate3d(0, 0, 0) rotate(8deg); }
-50% { transform: translate3d(0, -8px, 0) rotate(3deg); }
+0%, 100% { transform: translate3d(0, 0, 0) rotate(9deg); }
+50% { transform: translate3d(0, -9px, 0) rotate(3deg); }
 }
 @keyframes minBookFloatC {
-0%, 100% { transform: translate3d(0, 0, 0) rotate(-4deg); }
+0%, 100% { transform: translate3d(0, 0, 0) rotate(-5deg); }
 50% { transform: translate3d(0, -7px, 0) rotate(4deg); }
 }
-@keyframes minPageFlip {
-0%, 12% { transform: scaleX(1) skewY(0deg); opacity: 0.96; }
-42% { transform: scaleX(0.06) skewY(-14deg); opacity: 0.72; }
-54% { transform: scaleX(-0.06) skewY(14deg); opacity: 0.72; }
-82%, 100% { transform: scaleX(-1) skewY(0deg); opacity: 0.96; }
+@keyframes splashPageTurn3D {
+0%, 10% { transform: rotateY(0deg); }
+55%, 100% { transform: rotateY(-180deg); }
 }
 @keyframes minWave {
 0%, 100% { transform: rotate(-6deg); }
@@ -733,11 +764,6 @@ radial-gradient(circle at 85% 88%, rgba(52, 211, 153, 0.16) 0%, transparent 48%)
 @keyframes minBlink {
 0%, 45%, 50%, 94%, 100% { transform: scaleY(1); }
 47.5%, 96.5% { transform: scaleY(0.1); }
-}
-@keyframes minSparkRise {
-0% { transform: translate3d(0, 6px, 0) scale3d(0.55, 0.55, 1); opacity: 0; }
-35% { opacity: 0.95; }
-100% { transform: translate3d(0, -22px, 0) scale3d(1.05, 1.05, 1); opacity: 0; }
 }
 
 @keyframes tabFadeIn {
@@ -758,45 +784,221 @@ radial-gradient(circle at 85% 88%, rgba(52, 211, 153, 0.16) 0%, transparent 48%)
 }
 
 .splash-hero-pop {
+position: relative;
+z-index: 10;
+display: flex;
+flex-direction: column;
+align-items: center;
+text-align: center;
+max-width: 300px;
+gap: 16px;
+will-change: transform, opacity;
 backface-visibility: hidden;
-animation: splashHeroPop 0.65s var(--ease-spring) both;
+animation: splashHeroPop 0.52s var(--ease-spring) both;
+}
+.splash-stage {
+position: relative;
+width: 248px;
+height: 212px;
+display: flex;
+align-items: center;
+justify-content: center;
+contain: layout style;
 }
 .splash-shockwave-ring {
 position: absolute;
-width: 184px;
-height: 184px;
+width: 176px;
+height: 176px;
 border-radius: 9999px;
-border: 1.5px solid rgba(79, 70, 229, 0.28);
+border: 1.5px solid rgba(79, 70, 229, 0.24);
+will-change: transform, opacity;
 backface-visibility: hidden;
-animation: splashRingExpand 2.5s var(--ease-smooth) infinite;
+animation: splashRingExpand 2.6s var(--ease-smooth) infinite;
 pointer-events: none;
 }
 html.dark .splash-shockwave-ring {
-border-color: rgba(52, 211, 153, 0.36);
+border-color: rgba(52, 211, 153, 0.32);
 }
+
+/* Floating Minimalist CSS Books (Pure GPU Layers, Zero SVG Repaint) */
+.splash-mini-book {
+position: absolute;
+border-radius: 7px;
+will-change: transform;
+backface-visibility: hidden;
+box-shadow: 0 8px 18px -6px rgba(15, 23, 42, 0.22);
+overflow: hidden;
+}
+.splash-mini-book::before {
+content: "";
+position: absolute;
+top: 0; bottom: 0; left: 5px;
+width: 4px;
+background: rgba(0, 0, 0, 0.18);
+border-radius: 2px;
+}
+.splash-mini-book::after {
+content: "";
+position: absolute;
+top: 11px; left: 13px; right: 7px;
+height: 3px;
+border-radius: 99px;
+background: rgba(255, 255, 255, 0.85);
+box-shadow: 0 7px 0 rgba(255, 255, 255, 0.52);
+}
+.splash-mini-book-left {
+width: 36px; height: 44px;
+left: 14px; top: 68px;
+background: linear-gradient(135deg, #6366F1, #4338CA);
+animation: minBookFloatA 3.2s ease-in-out infinite;
+}
+.splash-mini-book-right {
+width: 34px; height: 42px;
+right: 14px; top: 62px;
+background: linear-gradient(135deg, #34D399, #059669);
+animation: minBookFloatB 3.6s ease-in-out 0.3s infinite;
+}
+.splash-mini-book-top {
+width: 24px; height: 28px;
+left: 44px; top: 18px;
+background: linear-gradient(135deg, #FDE047, #F59E0B);
+animation: minBookFloatC 3.0s ease-in-out 0.55s infinite;
+}
+.splash-mini-book-top::after {
+top: 8px; left: 10px; right: 5px; height: 2.5px;
+box-shadow: 0 5px 0 rgba(255, 255, 255, 0.55);
+}
+
+/* Minimalist Character GPU Layer (Static SVG Rasterized Once) */
+.splash-char-layer {
+position: relative;
+z-index: 4;
+width: 112px;
+height: 118px;
+margin-top: -34px;
+will-change: transform;
+backface-visibility: hidden;
+animation: minFloat 3.0s ease-in-out infinite;
+}
+
+/* Pure CSS 3D Open Book with Hardware-Accelerated Flipping Pages */
+.splash-book-3d {
+position: absolute;
+bottom: 24px;
+left: 50%;
+width: 132px;
+height: 54px;
+margin-left: -66px;
+z-index: 6;
+perspective: 680px;
+will-change: transform;
+animation: minFloat 3.0s ease-in-out infinite;
+}
+.splash-book-cover {
+position: absolute;
+inset: 4px 0 0 0;
+border-radius: 10px;
+background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%);
+box-shadow: 0 12px 22px -8px rgba(79, 70, 229, 0.45);
+}
+.splash-book-cover::after {
+content: "";
+position: absolute;
+left: 50%;
+bottom: -7px;
+width: 6px;
+height: 15px;
+margin-left: -3px;
+background: #10B981;
+border-radius: 0 0 3px 3px;
+}
+.splash-book-page {
+position: absolute;
+top: 0;
+width: 60px;
+height: 46px;
+background: #FFFFFF;
+border: 1px solid #E2E8F0;
+box-sizing: border-box;
+}
+.splash-book-page-left {
+left: 6px;
+border-radius: 7px 2px 2px 7px;
+background: linear-gradient(90deg, #F8FAFC 0%, #FFFFFF 82%, #E2E8F0 100%);
+}
+.splash-book-page-right {
+right: 6px;
+border-radius: 2px 7px 7px 2px;
+background: linear-gradient(270deg, #F8FAFC 0%, #FFFFFF 82%, #E2E8F0 100%);
+}
+.splash-book-page::before {
+content: "";
+position: absolute;
+top: 11px; left: 10px; right: 10px;
+height: 3px;
+border-radius: 99px;
+background: #CBD5E1;
+box-shadow: 0 8px 0 #CBD5E1, 0 16px 0 #E2E8F0;
+}
+.splash-book-flip {
+position: absolute;
+top: 0;
+left: 50%;
+width: 60px;
+height: 46px;
+border-radius: 2px 7px 7px 2px;
+background: linear-gradient(270deg, #FFFFFF 0%, #F8FAFC 86%, #CBD5E1 100%);
+border: 1px solid #CBD5E1;
+transform-origin: left center;
+transform-style: preserve-3d;
+backface-visibility: hidden;
+-webkit-backface-visibility: hidden;
+will-change: transform;
+animation: splashPageTurn3D 2.0s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+.splash-book-flip::before {
+content: "";
+position: absolute;
+top: 11px; left: 10px; right: 10px;
+height: 3px;
+border-radius: 99px;
+background: rgba(99, 102, 241, 0.45);
+box-shadow: 0 8px 0 rgba(16, 185, 129, 0.40), 0 16px 0 rgba(148, 163, 184, 0.45);
+}
+.splash-book-flip-2 {
+background: linear-gradient(270deg, #ECFDF5 0%, #FFFFFF 86%, #A7F3D0 100%);
+border-color: #A7F3D0;
+animation-delay: 1.0s;
+}
+.splash-floor-shadow {
+position: absolute;
+bottom: 6px;
+left: 50%;
+width: 112px;
+height: 12px;
+margin-left: -56px;
+border-radius: 9999px;
+background: rgba(79, 70, 229, 0.22);
+will-change: transform, opacity;
+animation: minShadowPulse 3.0s ease-in-out infinite;
+}
+html.dark .splash-floor-shadow {
+background: rgba(52, 211, 153, 0.24);
+}
+
 .min-float {
+will-change: transform;
 animation: minFloat 3.0s ease-in-out infinite;
 }
 .min-float-alt {
+will-change: transform;
 animation: minFloat 3.3s ease-in-out 0.5s infinite;
 }
 .min-shadow-pulse {
 animation: minShadowPulse 3.0s ease-in-out infinite;
 }
-.min-book-a {
-animation: minBookFloatA 3.4s ease-in-out infinite;
-}
-.min-book-b {
-animation: minBookFloatB 3.8s ease-in-out 0.35s infinite;
-}
 .min-book-c {
 animation: minBookFloatC 3.2s ease-in-out 0.7s infinite;
-}
-.min-page-flip {
-animation: minPageFlip 2.2s ease-in-out infinite;
-}
-.min-page-flip-delay {
-animation: minPageFlip 2.2s ease-in-out 1.1s infinite;
 }
 .min-wave {
 animation: minWave 1.6s ease-in-out infinite;
@@ -807,37 +1009,25 @@ animation: minBlink 3.8s ease-in-out infinite;
 .min-blink-alt {
 animation: minBlink 4.3s ease-in-out 0.9s infinite;
 }
-.min-spark {
-animation: minSparkRise 2.4s ease-out infinite;
-}
-.splash-logo-glint {
-position: relative;
-overflow: hidden;
-}
-.splash-logo-glint::after {
-content: "";
-position: absolute;
-inset: -20% 0;
-width: 42%;
-background: linear-gradient(90deg, transparent, rgba(255,255,255,0.75), rgba(52,211,153,0.38), transparent);
-animation: splashFlareSweep 2.2s ease-in-out infinite;
-animation-delay: 0.3s;
-}
 .splash-progress-fill {
 width: 100%;
+height: 100%;
+border-radius: 9999px;
 transform-origin: left center;
 transform: scaleX(0.06);
+will-change: transform;
 animation: splashBarScale 3.3s var(--ease-smooth) forwards;
 }
 .splash-title-rise {
-animation: splashTitleRise 0.55s var(--ease-smooth) 0.16s both;
+will-change: transform, opacity;
+animation: splashTitleRise 0.5s var(--ease-smooth) 0.12s both;
 }
 .splash-status-pulse {
 animation: splashStatusPulse 1.6s ease-in-out infinite;
 }
 .login-card-anim {
 backface-visibility: hidden;
-animation: loginCardEntrance 0.48s var(--ease-smooth) both;
+animation: loginCardEntrance 0.45s var(--ease-smooth) both;
 }
 .login-badge-float {
 backface-visibility: hidden;
@@ -856,10 +1046,9 @@ transition: opacity 0.24s var(--ease-smooth), transform 0.24s var(--ease-smooth)
 }
 
 @media (prefers-reduced-motion: reduce) {
-.splash-shockwave-ring, .min-float, .min-float-alt, .min-shadow-pulse,
-.min-book-a, .min-book-b, .min-book-c, .min-page-flip, .min-page-flip-delay,
-.min-wave, .min-blink, .min-blink-alt, .min-spark,
-.splash-logo-glint::after, .login-badge-float, .grid-stagger-enter {
+.splash-shockwave-ring, .splash-mini-book, .splash-char-layer, .splash-book-3d, .splash-book-flip, .splash-floor-shadow,
+.min-float, .min-float-alt, .min-shadow-pulse, .min-book-c, .min-wave, .min-blink, .min-blink-alt,
+.login-badge-float, .grid-stagger-enter {
 animation: none !important;
 opacity: 1 !important;
 transform: none !important;
@@ -929,161 +1118,80 @@ body { background: #ffffff !important; color: #000000 !important; }
 <body class="min-h-screen">
 
 
-<!-- SPLASH SCREEN MINIMALIS DENGAN ANIMASI BUKU & KARAKTER MINIMALIS (3.5 DETIK) -->
-<div id="splashScreen" class="fixed inset-0 z-[200] flex flex-col items-center justify-between p-6 select-none overflow-hidden">
-<div class="pointer-events-none absolute inset-0 splash-ambient-layer" aria-hidden="true"></div>
+<!-- SPLASH SCREEN MINIMALIS 100% GPU COMPOSITOR (ANIMASI BUKU 3D + KARAKTER MINIMALIS, 3.5 DETIK, ZERO LAG) -->
+<div id="splashScreen">
+<div class="splash-ambient-layer" aria-hidden="true"></div>
 
 
-<div class="h-4"></div>
+<div style="height: 16px;"></div>
 
 
-<div class="relative z-10 flex flex-col items-center text-center max-w-xs space-y-4 splash-hero-pop">
-<div class="relative w-64 h-56 flex items-center justify-center">
+<div class="splash-hero-pop">
+<div class="splash-stage" role="img" aria-label="Animasi Buku dan Karakter Santri Minimalis">
 <div class="splash-shockwave-ring"></div>
-<div class="splash-shockwave-ring" style="animation-delay: 1.25s; border-color: rgba(16, 185, 129, 0.32);"></div>
+<div class="splash-shockwave-ring" style="animation-delay: 1.3s; border-color: rgba(16, 185, 129, 0.28);"></div>
 
-<!-- Ilustrasi Minimalis: Buku-buku Melayang, Buku Terbuka Berhalaman Membalik & Karakter Santri Minimalis -->
-<svg viewBox="0 0 280 240" class="w-64 h-56 overflow-visible relative z-10" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ilustrasi Buku dan Karakter Santri Minimalis">
-<defs>
-<linearGradient id="minIndigo" x1="0" y1="0" x2="1" y2="1">
-<stop offset="0%" stop-color="#6366F1"/>
-<stop offset="100%" stop-color="#4338CA"/>
-</linearGradient>
-<linearGradient id="minEmerald" x1="0" y1="0" x2="1" y2="1">
-<stop offset="0%" stop-color="#34D399"/>
-<stop offset="100%" stop-color="#059669"/>
-</linearGradient>
-<linearGradient id="minAmber" x1="0" y1="0" x2="1" y2="1">
-<stop offset="0%" stop-color="#FDE047"/>
-<stop offset="100%" stop-color="#F59E0B"/>
-</linearGradient>
-<radialGradient id="minAura" cx="50%" cy="52%" r="50%">
-<stop offset="0%" stop-color="#6366F1" stop-opacity="0.16"/>
-<stop offset="65%" stop-color="#34D399" stop-opacity="0.07"/>
-<stop offset="100%" stop-color="#34D399" stop-opacity="0"/>
-</radialGradient>
-</defs>
+<!-- 3 Buku Minimalis Melayang (Pure GPU CSS Layers) -->
+<div class="splash-mini-book splash-mini-book-left" aria-hidden="true"></div>
+<div class="splash-mini-book splash-mini-book-right" aria-hidden="true"></div>
+<div class="splash-mini-book splash-mini-book-top" aria-hidden="true"></div>
 
-<!-- Lingkaran Latar Lembut Transparan -->
-<circle cx="140" cy="126" r="96" fill="url(#minAura)"/>
-
-<!-- Buku Melayang 1 (Kiri - Buku Indigo Minimalis) -->
-<g class="min-book-a" style="transform-origin: 48px 104px;">
-<rect x="28" y="84" width="38" height="46" rx="6" fill="url(#minIndigo)"/>
-<rect x="33" y="84" width="6" height="46" rx="2" fill="#312E81" opacity="0.45"/>
-<rect x="44" y="96" width="15" height="3.2" rx="1.6" fill="#FFFFFF" opacity="0.9"/>
-<rect x="44" y="103" width="11" height="2.6" rx="1.3" fill="#C7D2FE" opacity="0.85"/>
-<path d="M54 130V138L57.5 135L61 138V130Z" fill="#34D399"/>
-</g>
-
-<!-- Buku Melayang 2 (Kanan - Kitab Emerald Minimalis) -->
-<g class="min-book-b" style="transform-origin: 232px 100px;">
-<rect x="214" y="78" width="36" height="44" rx="6" fill="url(#minEmerald)"/>
-<rect x="219" y="78" width="5.5" height="44" rx="2" fill="#065F46" opacity="0.4"/>
-<rect x="229" y="90" width="14" height="3" rx="1.5" fill="#FFFFFF" opacity="0.92"/>
-<rect x="229" y="97" width="10" height="2.5" rx="1.25" fill="#D1FAE5" opacity="0.85"/>
-<circle cx="236" cy="109" r="3" fill="#FDE047"/>
-</g>
-
-<!-- Buku Catatan Mini Melayang (Atas Kiri) -->
-<g class="min-book-c" style="transform-origin: 76px 52px;">
-<rect x="64" y="40" width="24" height="28" rx="5" fill="url(#minAmber)"/>
-<rect x="68" y="40" width="4" height="28" rx="1.5" fill="#D97706" opacity="0.45"/>
-<rect x="75" y="49" width="9" height="2.4" rx="1.2" fill="#FFFFFF"/>
-<rect x="75" y="54" width="6" height="2.2" rx="1.1" fill="#FEF3C7"/>
-</g>
-
-<!-- Bayangan Lantai Minimalis -->
-<ellipse cx="140" cy="218" rx="62" ry="8" fill="#4F46E5" class="min-shadow-pulse" style="transform-origin: 140px 218px;"/>
-
-<!-- Karakter Santri Minimalis & Buku Terbuka -->
-<g class="min-float">
-<!-- Tangan Kanan Melambai Lembut -->
-<g class="min-wave" style="transform-origin: 108px 136px;">
-<path d="M110 132C98 128 92 119 88 108" stroke="#FFFFFF" stroke-width="11" stroke-linecap="round"/>
-<path d="M110 132C98 128 92 119 88 108" stroke="#E2E8F0" stroke-width="1.5" stroke-linecap="round"/>
-<circle cx="86" cy="104" r="6.5" fill="#FDE2C4"/>
-</g>
-
-<!-- Badan Koko Minimalis -->
-<path d="M104 176C104 146 112 128 140 128C168 128 176 146 176 176Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5"/>
-<rect x="135" y="128" width="10" height="34" rx="5" fill="url(#minIndigo)"/>
-<circle cx="140" cy="138" r="1.5" fill="#A5F3FC"/>
-<circle cx="140" cy="147" r="1.5" fill="#A5F3FC"/>
-
-<!-- Kepala & Peci Minimalis -->
-<rect x="134" y="118" width="12" height="12" rx="5" fill="#F6CCA3"/>
-<circle cx="140" cy="96" r="26" fill="#FDE2C4"/>
-<!-- Pipi Minimalis Lembut -->
-<ellipse cx="123" cy="103" rx="4.2" ry="2.2" fill="#FDA4AF" opacity="0.45"/>
-<ellipse cx="157" cy="103" rx="4.2" ry="2.2" fill="#FDA4AF" opacity="0.45"/>
-<!-- Mata Titik Minimalis Berkedip -->
-<g class="min-blink" style="transform-origin: 140px 96px;">
-<circle cx="130" cy="96" r="2.8" fill="#1E293B"/>
-<circle cx="150" cy="96" r="2.8" fill="#1E293B"/>
-</g>
-<!-- Senyum Minimalis -->
-<path d="M134 106C137 110 143 110 146 106" stroke="#9A5B36" stroke-width="2.2" stroke-linecap="round"/>
-<!-- Peci Hitam Minimalis dengan Garis Mint -->
-<path d="M114 82C114 66 121 60 140 60C159 60 166 66 166 82C166 86 155 88 140 88C125 88 114 86 114 82Z" fill="#1E293B"/>
-<path d="M117 82C127 85 153 85 163 82" stroke="#34D399" stroke-width="2" stroke-linecap="round"/>
-
-<!-- Buku Terbuka Minimalis dengan Animasi Halaman Membalik -->
-<g>
-<!-- Sampul Buku -->
-<path d="M76 162C96 156 122 158 140 168C158 158 184 156 204 162L198 198C178 192 156 194 140 202C124 194 102 192 82 198Z" fill="url(#minIndigo)"/>
-<!-- Halaman Kiri Statis -->
-<path d="M84 158C102 152 124 155 140 166V196C124 188 104 186 88 192Z" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.2"/>
-<!-- Halaman Kanan Statis -->
-<path d="M196 158C178 152 156 155 140 166V196C156 188 176 186 192 192Z" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.2"/>
-<!-- Garis Teks Minimalis -->
-<path d="M97 168C108 166 118 168 128 173M99 176C109 174 119 176 128 180M152 173C162 168 172 166 183 168M152 180C161 176 171 174 181 176" stroke="#94A3B8" stroke-width="1.6" stroke-linecap="round" opacity="0.65"/>
-<!-- Halaman Membalik 1 (GPU ScaleX dari Punggung Buku) -->
-<g class="min-page-flip" style="transform-origin: 140px 180px;">
-<path d="M140 166C156 155 176 152 193 158L189 190C174 185 156 187 140 196Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.2"/>
-<path d="M151 172C160 168 170 167 179 169M151 179C160 175 169 174 178 176" stroke="#6366F1" stroke-width="1.5" stroke-linecap="round" opacity="0.55"/>
-</g>
-<!-- Halaman Membalik 2 (Staggered) -->
-<g class="min-page-flip-delay" style="transform-origin: 140px 180px;">
-<path d="M140 166C156 155 176 152 193 158L189 190C174 185 156 187 140 196Z" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="1.2"/>
-<path d="M151 172C160 168 170 167 179 169" stroke="#10B981" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
-</g>
-<!-- Pembatas Buku Mint -->
-<path d="M137 168H143V206L140 202L137 206Z" fill="#10B981"/>
-</g>
-
-<!-- Partikel Cahaya Ilmu Naik dari Buku -->
-<circle cx="140" cy="148" r="3" fill="#FBBF24" class="min-spark"/>
-<circle cx="122" cy="154" r="2.4" fill="#34D399" class="min-spark" style="animation-delay: 0.75s;"/>
-<circle cx="158" cy="152" r="2.4" fill="#6366F1" class="min-spark" style="animation-delay: 1.4s;"/>
-</g>
+<!-- Karakter Santri Minimalis (Static SVG Rasterized 1x ke GPU Texture) -->
+<div class="splash-char-layer">
+<svg viewBox="0 0 112 118" width="112" height="118" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M22 108C22 80 30 64 56 64C82 64 90 80 90 108Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="51" y="64" width="10" height="30" rx="5" fill="#4F46E5"/>
+<circle cx="56" cy="73" r="1.4" fill="#A5F3FC"/>
+<circle cx="56" cy="82" r="1.4" fill="#A5F3FC"/>
+<rect x="50" y="54" width="12" height="12" rx="5" fill="#F6CCA3"/>
+<circle cx="56" cy="36" r="23" fill="#FDE2C4"/>
+<ellipse cx="41" cy="42" rx="3.8" ry="2" fill="#FDA4AF" opacity="0.45"/>
+<ellipse cx="71" cy="42" rx="3.8" ry="2" fill="#FDA4AF" opacity="0.45"/>
+<circle cx="47.5" cy="36" r="2.6" fill="#1E293B"/>
+<circle cx="64.5" cy="36" r="2.6" fill="#1E293B"/>
+<path d="M50.5 45C53.2 48.5 58.8 48.5 61.5 45" stroke="#9A5B36" stroke-width="2" stroke-linecap="round"/>
+<path d="M33 23C33 9 39 4 56 4C73 4 79 9 79 23C79 26.5 69 28.5 56 28.5C43 28.5 33 26.5 33 23Z" fill="#1E293B"/>
+<path d="M36 23C45 25.8 67 25.8 76 23" stroke="#34D399" stroke-width="2" stroke-linecap="round"/>
 </svg>
 </div>
 
-
-<div class="splash-title-rise flex items-center justify-center gap-2.5">
-<div class="splash-logo-glint rounded-xl bg-white dark:bg-white/15 border border-indigo-200 dark:border-emerald-300/40 p-1.5 shadow-md">
-<img src="https://lh3.googleusercontent.com/d/1cVVxzS5pcO35NXDLh_W2YXUiSYuS3zg5" alt="Logo" class="logo-img w-9 h-9 object-contain">
-</div>
-<div class="text-left">
-<h1 id="splashAppTitle" class="text-lg font-extrabold tracking-tight leading-tight text-slate-900 dark:text-white">Departemen Pendidikan</h1>
-<p class="text-[11px] text-emerald-600 dark:text-emerald-300 font-semibold">YPM Al-Rifa'ie 2 Gondanglegi</p>
-</div>
+<!-- Buku Terbuka Minimalis 3D dengan Halaman Membalik Halus (100% GPU RotateY) -->
+<div class="splash-book-3d" aria-hidden="true">
+<div class="splash-book-cover"></div>
+<div class="splash-book-page splash-book-page-left"></div>
+<div class="splash-book-page splash-book-page-right"></div>
+<div class="splash-book-flip"></div>
+<div class="splash-book-flip splash-book-flip-2"></div>
 </div>
 
-
-<div class="w-52 space-y-1.5">
-<div class="w-full h-2 bg-indigo-100 dark:bg-white/15 rounded-full overflow-hidden border border-indigo-200/80 dark:border-white/15">
-<div class="h-full bg-gradient-to-r from-[#4F46E5] via-[#6366F1] to-[#10B981] dark:from-[#6366F1] dark:via-[#34D399] dark:to-[#FBBF24] rounded-full splash-progress-fill"></div>
-</div>
-<p class="text-[10px] font-semibold text-indigo-600/80 dark:text-emerald-300/85 tracking-wide splash-status-pulse">Memuat ruang pendidikan...</p>
-</div>
+<!-- Bayangan Lantai -->
+<div class="splash-floor-shadow" aria-hidden="true"></div>
 </div>
 
 
-<div class="relative z-10 text-center space-y-0.5 pb-2">
-<p class="text-[10px] uppercase tracking-widest text-indigo-500 dark:text-blue-300/80 font-semibold">Developer Aplikasi</p>
-<p class="text-xs font-bold text-slate-800 dark:text-white tracking-wide">محمد أمير عبدالله</p>
+<div class="splash-title-rise" style="display:flex; align-items:center; justify-content:center; gap:10px;">
+<div class="rounded-xl bg-white dark:bg-white/15 border border-indigo-200 dark:border-emerald-300/40 p-1.5 shadow-md" style="border-radius:12px; padding:6px;">
+<img src="https://lh3.googleusercontent.com/d/1cVVxzS5pcO35NXDLh_W2YXUiSYuS3zg5" alt="Logo" class="logo-img w-9 h-9 object-contain" style="width:36px; height:36px; object-fit:contain;">
+</div>
+<div style="text-align:left;">
+<h1 id="splashAppTitle" class="text-lg font-extrabold tracking-tight leading-tight text-slate-900 dark:text-white" style="font-size:18px; font-weight:800; line-height:1.2; margin:0;">Departemen Pendidikan</h1>
+<p class="text-[11px] text-emerald-600 dark:text-emerald-300 font-semibold" style="font-size:11px; font-weight:600; margin:2px 0 0 0;">YPM Al-Rifa'ie 2 Gondanglegi</p>
+</div>
+</div>
+
+
+<div style="width:208px; display:flex; flex-direction:column; gap:6px;">
+<div class="w-full h-2 bg-indigo-100 dark:bg-white/15 rounded-full overflow-hidden border border-indigo-200/80 dark:border-white/15" style="width:100%; height:8px; border-radius:9999px; overflow:hidden; background:rgba(79,70,229,0.14);">
+<div class="bg-gradient-to-r from-[#4F46E5] via-[#6366F1] to-[#10B981] dark:from-[#6366F1] dark:via-[#34D399] dark:to-[#FBBF24] splash-progress-fill" style="background:linear-gradient(90deg,#4F46E5,#6366F1,#10B981);"></div>
+</div>
+<p class="text-[10px] font-semibold text-indigo-600/80 dark:text-emerald-300/85 tracking-wide splash-status-pulse" style="font-size:10px; font-weight:600; margin:0;">Memuat ruang pendidikan...</p>
+</div>
+</div>
+
+
+<div style="position:relative; z-index:10; text-align:center; padding-bottom:8px;">
+<p class="text-[10px] uppercase tracking-widest text-indigo-500 dark:text-blue-300/80 font-semibold" style="font-size:10px; letter-spacing:0.12em; text-transform:uppercase; margin:0;">Developer Aplikasi</p>
+<p class="text-xs font-bold text-slate-800 dark:text-white tracking-wide" style="font-size:12px; font-weight:700; margin:2px 0 0 0;">محمد أمير عبدالله</p>
 </div>
 </div>
 
@@ -2735,19 +2843,56 @@ renderRoomDetailRows(filtered);
 
 
 let splashDismissed = false;
-function dismissSplashScreen() {
+window.__splashActive = true;
+window.__bufferedBundles = [];
+let postSplashExtrasScheduled = false;
+
+function schedulePostSplashExtras() {
+if (postSplashExtrasScheduled) return;
+postSplashExtrasScheduled = true;
+setTimeout(() => {
+try { if (typeof window.__registerSwAfterSplash === 'function') window.__registerSwAfterSplash(); } catch (e) {}
+try { if (typeof window.ensureChartJs === 'function') window.ensureChartJs().catch(() => {}); } catch (e) {}
+try { if (typeof window.ensureHtml2Pdf === 'function') window.ensureHtml2Pdf().catch(() => {}); } catch (e) {}
+}, 350);
+}
+
+async function prepareAppBeforeSplashFade() {
+window.__splashActive = false;
+try {
+if (typeof window.__hydrateFromCacheAndBuffers === 'function') {
+await window.__hydrateFromCacheAndBuffers();
+}
+} catch (e) {
+console.warn('Hydrate pre-reveal:', e);
+}
+}
+
+async function dismissSplashScreen() {
 if (splashDismissed) return;
 splashDismissed = true;
+
+// Hydrate Beranda / sesi tersimpan SEBELUM splash screen mulai memudar agar laman login tidak pernah berkedip
+await prepareAppBeforeSplashFade();
+
 const splash = document.getElementById('splashScreen');
-if (!splash) return;
+if (!splash) {
+schedulePostSplashExtras();
+return;
+}
+
+// Tunggu 2 frame agar browser selesai menggambar Beranda di belakang splash sebelum animasi fade-out GPU
+requestAnimationFrame(() => {
 requestAnimationFrame(() => {
 splash.classList.add('splash-hide');
-});
 setTimeout(() => {
 if (splash && splash.parentNode) {
 splash.style.display = 'none';
 }
-}, 440);
+schedulePostSplashExtras();
+}, 400);
+});
+});
 }
 
 
@@ -2975,16 +3120,192 @@ loginPopupHideTimer = setTimeout(hideLoginSuccessPopup, 3000);
 }
 
 
-window.addEventListener('DOMContentLoaded', () => {
-try {
-const savedTheme = localStorage.getItem('alrifaie_theme_v2');
-applyThemeUI(savedTheme === 'dark');
-const cLogo = localStorage.getItem('alrifaie_logo');
-if (cLogo) document.querySelectorAll('.logo-img').forEach(el => el.src = cLogo);
-const cBan = localStorage.getItem('alrifaie_banner');
-const mainBanner = document.getElementById('mainBanner');
-if (cBan && mainBanner) mainBanner.style.backgroundImage = `url('${cBan}')`;
+// ==========================================
+// FULL-HD MEDIA VAULT (IndexedDB — Tanpa Batas 5MB localStorage)
+// ==========================================
+const HdMediaVault = (() => {
+const DB_NAME = 'AlRifaieHdMediaDB';
+const STORE = 'media';
+const mem = new Map();
+let dbPromise = null;
 
+function openDb() {
+if (dbPromise) return dbPromise;
+dbPromise = new Promise((resolve) => {
+try {
+if (typeof indexedDB === 'undefined') return resolve(null);
+const req = indexedDB.open(DB_NAME, 1);
+req.onupgradeneeded = (ev) => {
+const db = ev.target.result;
+if (!db.objectStoreNames.contains(STORE)) {
+db.createObjectStore(STORE);
+}
+};
+req.onsuccess = () => resolve(req.result);
+req.onerror = () => resolve(null);
+} catch (e) { resolve(null); }
+});
+return dbPromise;
+}
+
+async function init() {
+const db = await openDb();
+if (!db) return;
+await new Promise((resolve) => {
+try {
+const tx = db.transaction(STORE, 'readonly');
+const store = tx.objectStore(STORE);
+const cur = store.openCursor();
+cur.onsuccess = (ev) => {
+const c = ev.target.result;
+if (c) {
+mem.set(String(c.key), c.value);
+c.continue();
+} else {
+resolve();
+}
+};
+cur.onerror = () => resolve();
+} catch (e) { resolve(); }
+});
+}
+
+async function set(key, value) {
+const k = String(key);
+mem.set(k, value);
+const db = await openDb();
+if (!db) return;
+await new Promise((resolve) => {
+try {
+const tx = db.transaction(STORE, 'readwrite');
+tx.objectStore(STORE).put(value, k);
+tx.oncomplete = () => resolve();
+tx.onerror = () => resolve();
+} catch (e) { resolve(); }
+});
+}
+
+function getSync(key) {
+return mem.get(String(key)) || '';
+}
+
+return { init, set, getSync };
+})();
+
+function makeShortHash(str) {
+const s = String(str || '');
+let h = 2166136261;
+for (let i = 0; i < s.length; i++) {
+h ^= s.charCodeAt(i);
+h = Math.imul(h, 16777619);
+}
+return (h >>> 0).toString(36);
+}
+
+function makeGaleriFingerprint(item) {
+if (!item) return '';
+const penulis = String(item.penulis || '').trim().toLowerCase();
+const tanggal = String(item.tanggal || '').trim().toLowerCase();
+const tag = String(item.tag || '').trim().toLowerCase();
+const cap = String(item.caption || '').trim().toLowerCase();
+return 'galeri_fp_' + makeShortHash(`${penulis}|${tanggal}|${tag}|${cap}`);
+}
+
+function isLowResSheetCellImage(url) {
+return typeof url === 'string' && url.startsWith('data:image/') && url.length <= 62000;
+}
+
+function applyBannerImage(url, forceLocalHd = false) {
+const mainBanner = document.getElementById('mainBanner');
+if (!mainBanner) return;
+const vaultBanner = HdMediaVault.getSync('banner_hd');
+const vaultSig = HdMediaVault.getSync('banner_server_sig');
+let chosen = url || '';
+
+if (forceLocalHd && chosen) {
+mainBanner.style.backgroundImage = `url('${chosen}')`;
+mainBanner.classList.add('has-custom-banner');
+return;
+}
+
+// Lindungi Banner HD lokal agar tidak tertimpa versi kompresi sel Sheet 49KB saat reload
+if (vaultBanner && (!chosen || (isLowResSheetCellImage(chosen) && (!vaultSig || vaultSig === makeShortHash(chosen))))) {
+chosen = vaultBanner;
+}
+
+if (chosen) {
+mainBanner.style.backgroundImage = `url('${chosen}')`;
+mainBanner.classList.add('has-custom-banner');
+} else {
+mainBanner.style.backgroundImage = '';
+mainBanner.classList.remove('has-custom-banner');
+}
+}
+
+function applyLogoImage(url, forceLocalHd = false) {
+const vaultLogo = HdMediaVault.getSync('logo_hd');
+const vaultSig = HdMediaVault.getSync('logo_server_sig');
+let chosen = url || '';
+if (!forceLocalHd && vaultLogo && (!chosen || (isLowResSheetCellImage(chosen) && (!vaultSig || vaultSig === makeShortHash(chosen))))) {
+chosen = vaultLogo;
+}
+if (chosen) {
+document.querySelectorAll('.logo-img').forEach(el => { el.src = chosen; });
+}
+}
+
+function hydrateGaleriWithHd(list) {
+if (!Array.isArray(list)) return [];
+const legacyHdMap = getHdGalleryMap();
+return list.map(post => {
+const idStr = String(post.id || '');
+const fp = makeGaleriFingerprint(post);
+const serverImg = post.imageUrl || '';
+const isDriveOrRemoteHd = typeof serverImg === 'string' && /^https?:\/\//i.test(serverImg);
+if (isDriveOrRemoteHd) {
+return { ...post, id: idStr, imageUrl: serverImg };
+}
+const vaulted = HdMediaVault.getSync('galeri_id_' + idStr) || HdMediaVault.getSync(fp) || legacyHdMap[idStr];
+const bestImg = (vaulted && vaulted.length >= serverImg.length) ? vaulted : serverImg;
+return { ...post, id: idStr, imageUrl: bestImg };
+});
+}
+
+
+let __clockStarted = false;
+function startBannerClock() {
+if (__clockStarted) return;
+__clockStarted = true;
+const runClock = () => {
+const d = new Date();
+const dateEl = document.getElementById('serverDateBanner');
+const timeEl = document.getElementById('serverTimeBanner');
+if (dateEl) dateEl.innerText = d.toLocaleDateString('id-ID', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+if (timeEl) timeEl.innerText = d.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' }) + ' WIB';
+};
+runClock();
+setInterval(runClock, 1000);
+}
+
+window.__hydrateFromCacheAndBuffers = async function() {
+try {
+await Promise.race([
+HdMediaVault.init(),
+new Promise(resolve => setTimeout(resolve, 250))
+]);
+} catch (e) {}
+
+try {
+const savedSession = getSavedDeviceSession();
+if (savedSession && savedSession.role && savedSession.name) {
+const normalizedSaved = { ...savedSession, success: true };
+activateSessionUI(normalizedSaved, true);
+}
+
+const cLogo = HdMediaVault.getSync('logo_hd') || localStorage.getItem('alrifaie_logo');
+if (cLogo) applyLogoImage(cLogo, Boolean(HdMediaVault.getSync('logo_hd')));
+const cBan = HdMediaVault.getSync('banner_hd') || localStorage.getItem('alrifaie_banner');
+if (cBan) applyBannerImage(cBan, Boolean(HdMediaVault.getSync('banner_hd')));
 
 const tStr = getWIBDateString();
 ['wbDate','takhDate','musyrifDate','pengajarDate','fTgl'].forEach(id => {
@@ -2998,53 +3319,92 @@ if (rekMonthEl) rekMonthEl.value = String(now.getMonth()+1).padStart(2,'0');
 if (rekYearEl) rekYearEl.value = String(now.getFullYear());
 populateTunggakanMonthDropdown();
 applySavedSuratImages();
+startBannerClock();
 
+const savedFull = localStorage.getItem('alrifaie_full_bundle');
+if (savedFull) {
+try { applyInitialBundle(JSON.parse(savedFull)); isCoreLoaded = true; } catch (e) {}
+} else {
+const savedFast = localStorage.getItem('alrifaie_fast_login');
+if (savedFast) { try { applyInitialBundle(JSON.parse(savedFast)); } catch (e) {} }
+}
 
-const runClock = () => {
-const d = new Date();
-const dateEl = document.getElementById('serverDateBanner');
-const timeEl = document.getElementById('serverTimeBanner');
-if (dateEl) dateEl.innerText = d.toLocaleDateString('id-ID', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-if (timeEl) timeEl.innerText = d.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' }) + ' WIB';
+if (Array.isArray(window.__bufferedBundles) && window.__bufferedBundles.length > 0) {
+const pending = window.__bufferedBundles.splice(0, window.__bufferedBundles.length);
+pending.forEach(item => {
+if (item.isFull) isCoreLoaded = true;
+applyInitialBundle(item.data);
+});
+}
+} catch (err) {
+console.warn('Error hidrasi pasca-splash:', err);
+}
 };
-runClock(); setInterval(runClock, 1000);
 
+window.addEventListener('DOMContentLoaded', () => {
+try {
+const savedTheme = localStorage.getItem('alrifaie_theme_v2');
+applyThemeUI(savedTheme === 'dark');
 
+// Jika sesi login sudah tersimpan, langsung sembunyikan laman login sejak frame 0 agar tidak pernah berkedip
 const savedSession = getSavedDeviceSession();
 if (savedSession && savedSession.role && savedSession.name) {
-activateSessionUI(savedSession, true);
+const loginSec = document.getElementById('loginSection');
+if (loginSec) {
+loginSec.classList.add('hidden');
+loginSec.style.display = 'none';
+}
+}
+
+const cLogo = localStorage.getItem('alrifaie_logo');
+if (cLogo) {
+const spLogo = document.querySelector('#splashScreen .logo-img');
+if (spLogo) spLogo.src = cLogo;
 }
 } catch (err) {
 console.warn('Error inisialisasi awal:', err);
 }
-// Beri ruang penuh 100% GPU untuk animasi masuk splash screen agar mulus 60-120fps tanpa freeze
+
+// Mulai fetch jaringan secara tenang di background (tanpa manipulasi DOM selama animasi splash berlangsung!)
 setTimeout(() => {
-try { loadInit(); } catch (err) { console.warn('Error loadInit:', err); }
-}, 360);
-setTimeout(dismissSplashScreen, 3500);
+try { loadInit(true); } catch (err) { console.warn('Error loadInit background:', err); }
+}, 450);
+
+// Durasi splash screen ~3,4 detik dengan 100% GPU compositor, lalu langsung buka Beranda jika sesi tersimpan
+setTimeout(dismissSplashScreen, 3350);
 });
 
 
 function loadInit(forceRefresh = false) {
-if (!forceRefresh) {
-const savedFast = localStorage.getItem('alrifaie_fast_login');
-if (savedFast) { try { applyInitialBundle(JSON.parse(savedFast)); } catch (e) {} }
+if (!forceRefresh && !window.__splashActive) {
 const savedFull = localStorage.getItem('alrifaie_full_bundle');
 if (savedFull) { try { applyInitialBundle(JSON.parse(savedFull)); isCoreLoaded = true; } catch (e) {} }
+else {
+const savedFast = localStorage.getItem('alrifaie_fast_login');
+if (savedFast) { try { applyInitialBundle(JSON.parse(savedFast)); } catch (e) {} }
+}
 }
 
 
 google.script.run
 .withSuccessHandler(fastData => {
 try { localStorage.setItem('alrifaie_fast_login', JSON.stringify(fastData)); } catch (e) {}
+if (window.__splashActive) {
+window.__bufferedBundles.push({ data: fastData, isFull: false });
+} else {
 applyInitialBundle(fastData);
+}
 
 
 google.script.run
 .withSuccessHandler(bundle => {
 try { localStorage.setItem('alrifaie_full_bundle', JSON.stringify(bundle)); } catch (e) {}
+if (window.__splashActive) {
+window.__bufferedBundles.push({ data: bundle, isFull: true });
+} else {
 isCoreLoaded = true;
 applyInitialBundle(bundle);
+}
 })
 .withFailureHandler(err => console.warn('Gagal memuat bundle lengkap:', err))
 .getInitialBundle();
@@ -3071,13 +3431,12 @@ if (setAppNameEl) setAppNameEl.value = appSettings.appName;
 const setAdminUserEl = document.getElementById('setAdminUser');
 if (appSettings.adminUsername && setAdminUserEl) setAdminUserEl.value = appSettings.adminUsername;
 if (appSettings.logoUrl) {
-localStorage.setItem('alrifaie_logo', appSettings.logoUrl);
-document.querySelectorAll('.logo-img').forEach(el => el.src = appSettings.logoUrl);
+try { localStorage.setItem('alrifaie_logo', appSettings.logoUrl); } catch (e) {}
+applyLogoImage(appSettings.logoUrl, false);
 }
-const mainBanner = document.getElementById('mainBanner');
-if (appSettings.bannerUrl && mainBanner) {
-localStorage.setItem('alrifaie_banner', appSettings.bannerUrl);
-mainBanner.style.backgroundImage = `url('${appSettings.bannerUrl}')`;
+if (appSettings.bannerUrl) {
+try { localStorage.setItem('alrifaie_banner', appSettings.bannerUrl); } catch (e) {}
+applyBannerImage(appSettings.bannerUrl, false);
 }
 }
 if (b.loginData) masterData = b.loginData;
@@ -3100,7 +3459,7 @@ pengumumanCache = b.pengumuman;
 renderPengumuman(pengumumanCache);
 }
 if (Array.isArray(b.galeri)) {
-galeriCache = b.galeri;
+galeriCache = hydrateGaleriWithHd(b.galeri);
 saveLocalGaleri(galeriCache);
 renderGaleri(galeriCache);
 }
@@ -3186,13 +3545,17 @@ return;
 }
 
 
-Swal.fire({ title: 'Memproses foto HD...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+Swal.fire({ title: 'Memproses & mengunggah foto HD...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 try {
 const sourceFile = fileEl.files[0];
-const hdImage = await compressImageHD(sourceFile, 1440, 0.90, false);
-const serverSharpImage = hdImage.length <= 49000
-? hdImage
-: await compressImageSafe(sourceFile, 1280, 49000, false);
+const hdImage = await prepareOriginalOrHdImage(sourceFile, 1920, 0.95, false);
+const serverUpload = await uploadHdToDriveOrSheetFallback(sourceFile, hdImage, 'galeri', {
+startMaxW: 1120,
+maxChars: 49000,
+preserveAlpha: false,
+bannerCrop: false
+});
+
 const postId = 'g' + Date.now();
 const newItemLocal = {
 id: postId,
@@ -3201,11 +3564,17 @@ jabatan: session ? (session.jabatan || String(session.role || 'PENGURUS').toUppe
 tanggal: getWIBDateString(),
 tag: tagEl ? tagEl.value.trim() : '',
 caption: capEl ? capEl.value.trim() : '',
-imageUrl: hdImage,
+imageUrl: serverUpload.isCloudHd ? serverUpload.serverUrl : hdImage,
 likes: 0,
 likedBy: []
 };
-const newItemServer = { ...newItemLocal, imageUrl: serverSharpImage };
+const newItemServer = { ...newItemLocal, imageUrl: serverUpload.serverUrl };
+const postFp = makeGaleriFingerprint(newItemLocal);
+
+// Simpan salinan HD asli di IndexedDB (by ID + content fingerprint) agar tidak pernah tertimpa thumbnail
+await HdMediaVault.set('galeri_id_' + postId, hdImage);
+await HdMediaVault.set(postFp, hdImage);
+saveHdGalleryImage(postId, hdImage);
 
 
 const finishUploadUI = (serverSaved = true, customMessage = '') => {
@@ -3218,7 +3587,7 @@ if (box) box.classList.add('hidden');
 Swal.fire({
 title: serverSaved ? 'Berhasil' : 'Tersimpan Offline',
 text: customMessage || (serverSaved
-? 'Foto kegiatan HD berhasil dibagikan dan dapat dilihat seluruh pengguna.'
+? 'Foto kegiatan HD berhasil dibagikan tanpa burik.'
 : 'Foto HD tersimpan secara lokal (Offline). Akan disinkronkan otomatis ke Google Sheet saat koneksi stabil.'),
 icon: serverSaved ? 'success' : 'info',
 showConfirmButton: true,
@@ -3229,7 +3598,6 @@ confirmButtonColor: '#4F46E5'
 
 
 galeriActiveIndex = 0;
-saveHdGalleryImage(postId, hdImage);
 galeriCache.unshift(newItemLocal);
 saveLocalGaleri(galeriCache);
 renderGaleri(galeriCache);
@@ -3239,7 +3607,7 @@ if (window.google && google.script && google.script.run && typeof google.script.
 let settled = false;
 const uploadGuard = setTimeout(() => {
 if (!settled) { settled = true; finishUploadUI(false); }
-}, 18000);
+}, 22000);
 
 google.script.run
 .withSuccessHandler(res => {
@@ -3270,13 +3638,9 @@ Swal.fire('Gagal Memproses Foto', err.message || 'File gambar tidak dapat dibaca
 
 
 function loadGaleri() {
-const hdMap = getHdGalleryMap();
 const cached = getLocalGaleri();
 if (cached && Array.isArray(cached)) {
-galeriCache = cached.map(item => {
-const localHd = hdMap[String(item.id)];
-return localHd ? { ...item, imageUrl: localHd } : item;
-});
+galeriCache = hydrateGaleriWithHd(cached);
 renderGaleri(galeriCache);
 }
 google.script.run
@@ -3284,19 +3648,17 @@ google.script.run
 if (Array.isArray(list)) {
 const userName = session ? session.name : 'Guest';
 const localLikedIds = getUserLikedPostIds();
-const freshHdMap = getHdGalleryMap();
-galeriCache = list.map(serverPost => {
+const hydrated = hydrateGaleriWithHd(list);
+galeriCache = hydrated.map(serverPost => {
 const idStr = String(serverPost.id);
 const serverLikedBy = Array.isArray(serverPost.likedBy) ? [...serverPost.likedBy] : [];
 const isLikedLocally = localLikedIds.includes(idStr);
 if (isLikedLocally && !serverLikedBy.includes(userName)) {
 serverLikedBy.push(userName);
 }
-const bestImg = freshHdMap[idStr] || serverPost.imageUrl;
 return {
 ...serverPost,
 id: idStr,
-imageUrl: bestImg,
 likedBy: serverLikedBy,
 likes: Math.max(Number(serverPost.likes) || 0, serverLikedBy.length)
 };
@@ -4001,9 +4363,11 @@ ${dateHeaders}
 }
 
 
-function downloadRoomPdf(roomName) {
+async function downloadRoomPdf(roomName) {
 if (!roomName) return;
 Swal.fire({ title: `Menyiapkan PDF ${roomName}...`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+try {
+await window.ensureHtml2Pdf();
 const htmlStr = buildRoomMatrixHtml(roomName, true);
 html2pdf().set({
 margin: 6,
@@ -4012,13 +4376,18 @@ image: { type: 'jpeg', quality: 0.98 },
 html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true, scrollY: 0 },
 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
 }).from(htmlStr).save().then(() => Swal.close());
+} catch (err) {
+Swal.fire('Gagal', 'Pustaka PDF belum tersedia (perlu koneksi internet saat pertama kali dipakai).', 'error');
+}
 }
 
 
-function downloadAllRoomsPdf() {
+async function downloadAllRoomsPdf() {
 const rooms = Object.keys(window.roomMembersMap || {}).sort();
 if (!rooms.length) return Swal.fire('Kosong', 'Belum ada data kamar untuk diunduh.', 'warning');
 Swal.fire({ title: `Membuat PDF (${rooms.length} Kamar)...`, text: 'Mohon tunggu sebentar...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+try {
+await window.ensureHtml2Pdf();
 const htmlStr = rooms.map((rm, idx) => buildRoomMatrixHtml(rm, idx === rooms.length - 1)).join('');
 html2pdf().set({
 margin: 6,
@@ -4028,13 +4397,18 @@ html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true, scrollY: 0 }
 jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
 pagebreak: { mode: ['css', 'legacy'] }
 }).from(htmlStr).save().then(() => Swal.close());
+} catch (err) {
+Swal.fire('Gagal', 'Pustaka PDF belum tersedia (perlu koneksi internet saat pertama kali dipakai).', 'error');
+}
 }
 
 
-function downloadWaReportPdf() {
+async function downloadWaReportPdf() {
 const txt = document.getElementById('waPreviewText').value;
 if (!txt || txt.includes('Silakan pilih')) return Swal.fire('Peringatan', 'Isi laporan masih kosong.', 'warning');
 Swal.fire({ title: 'Membuat PDF Laporan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+try {
+await window.ensureHtml2Pdf();
 const htmlStr = `<div style="font-family:Arial,sans-serif;color:#000;background:#fff;padding:18px;font-size:11px;line-height:1.5;">
 <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:12px;">
 <div style="font-size:14px;font-weight:bold;">DEPARTEMEN PENDIDIKAN - YPM AL-RIFA'IE 2</div>
@@ -4049,6 +4423,9 @@ image: { type: 'jpeg', quality: 0.98 },
 html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true, scrollY: 0 },
 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
 }).from(htmlStr).save().then(() => Swal.close());
+} catch (err) {
+Swal.fire('Gagal', 'Pustaka PDF belum tersedia (perlu koneksi internet saat pertama kali dipakai).', 'error');
+}
 }
 
 
@@ -4131,7 +4508,14 @@ confirmButtonColor: '#1D4ED8'
 
 
 function drawChart(fData) {
-const ctx = document.getElementById('rekapChart'); if (!ctx || typeof Chart === 'undefined') return;
+const ctx = document.getElementById('rekapChart');
+if (!ctx) return;
+if (typeof Chart === 'undefined') {
+if (typeof window.ensureChartJs === 'function') {
+window.ensureChartJs().then(() => drawChart(fData)).catch(() => {});
+}
+return;
+}
 const g = {};
 for (let i = 0; i < fData.length; i++) {
 const d = fData[i];
@@ -4740,7 +5124,7 @@ if (cont) cont.classList.toggle('hidden', !val);
 }
 
 
-function downloadAndSaveSurat(e) {
+async function downloadAndSaveSurat(e) {
 e.preventDefault();
 const payload = {
 nomor: document.getElementById('sNo').value,
@@ -4750,6 +5134,8 @@ perihal: document.getElementById('sHal').value,
 tujuan: document.getElementById('sPihak').value
 };
 Swal.fire({ title: 'Membuat PDF & Menyimpan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+try {
+await window.ensureHtml2Pdf();
 const area = document.getElementById('printAreaSurat');
 html2pdf().set({
 margin: 0,
@@ -4764,6 +5150,9 @@ loadSurat();
 Swal.fire('Berhasil', 'Surat dicetak dan disimpan ke arsip.', 'success');
 }).saveSuratData(payload);
 });
+} catch (err) {
+Swal.fire('Gagal', 'Pustaka PDF belum tersedia (perlu koneksi internet saat pertama kali dipakai).', 'error');
+}
 }
 
 
@@ -4888,12 +5277,49 @@ return c.toDataURL('image/webp').startsWith('data:image/webp');
 } catch (e) { return false; }
 })();
 
-function renderSteppedCanvas(img, targetW, targetH, preserveAlpha) {
-let curW = img.naturalWidth || img.width;
-let curH = img.naturalHeight || img.height;
+function readFileAsDataUrl(file) {
+return new Promise((res, rej) => {
+const r = new FileReader();
+r.onerror = () => rej(new Error('Gagal membaca file gambar.'));
+r.onload = ev => res(String(ev.target.result || ''));
+r.readAsDataURL(file);
+});
+}
+
+function loadDataUrlToImage(dataUrl) {
+return new Promise((res, rej) => {
+const img = new Image();
+img.onerror = () => rej(new Error('Format gambar tidak didukung.'));
+img.onload = () => res(img);
+img.src = dataUrl;
+});
+}
+
+function loadFileToImage(file) {
+return readFileAsDataUrl(file).then(loadDataUrlToImage);
+}
+
+// Stepped downscaling + optional center-crop (khusus banner agar piksel tajam fokus pada area tampil)
+function renderSteppedCanvas(img, targetW, targetH, preserveAlpha, cropRect = null) {
+const srcX = cropRect ? cropRect.sx : 0;
+const srcY = cropRect ? cropRect.sy : 0;
+let curW = cropRect ? cropRect.sw : (img.naturalWidth || img.width);
+let curH = cropRect ? cropRect.sh : (img.naturalHeight || img.height);
 let src = img;
 
-// Stepped downscaling prevents aliasing & blurriness on high-MP phone photos
+if (cropRect) {
+const cropCanvas = document.createElement('canvas');
+cropCanvas.width = Math.max(1, Math.round(curW));
+cropCanvas.height = Math.max(1, Math.round(curH));
+const cCtx = cropCanvas.getContext('2d');
+cCtx.imageSmoothingEnabled = true;
+cCtx.imageSmoothingQuality = 'high';
+cCtx.drawImage(img, srcX, srcY, curW, curH, 0, 0, cropCanvas.width, cropCanvas.height);
+src = cropCanvas;
+curW = cropCanvas.width;
+curH = cropCanvas.height;
+}
+
 while (curW * 0.5 > targetW && curH * 0.5 > targetH) {
 const stepC = document.createElement('canvas');
 curW = Math.max(targetW, Math.round(curW * 0.5));
@@ -4921,64 +5347,99 @@ ctx.drawImage(src, 0, 0, targetW, targetH);
 return out;
 }
 
-function loadFileToImage(file) {
-return new Promise((res, rej) => {
-const r = new FileReader();
-r.onerror = () => rej(new Error('Gagal membaca file gambar.'));
-r.onload = ev => {
-const img = new Image();
-img.onerror = () => rej(new Error('Format gambar tidak didukung.'));
-img.onload = () => res(img);
-img.src = ev.target.result;
-};
-r.readAsDataURL(file);
-});
+// Subtle 3x3 unsharp mask menjaga ketajaman tepi & tulisan saat fallback kompresi
+function applyCrispSharpen(canvas, amount = 0.24) {
+try {
+const w = canvas.width, h = canvas.height;
+if (w * h > 1600 * 1200) return canvas;
+const ctx = canvas.getContext('2d');
+const imgData = ctx.getImageData(0, 0, w, h);
+const src = imgData.data;
+const out = new Uint8ClampedArray(src.length);
+const a = amount;
+const center = 1 + 4 * a;
+for (let y = 0; y < h; y++) {
+for (let x = 0; x < w; x++) {
+const idx = (y * w + x) * 4;
+if (x === 0 || y === 0 || x === w - 1 || y === h - 1) {
+out[idx] = src[idx]; out[idx+1] = src[idx+1]; out[idx+2] = src[idx+2]; out[idx+3] = src[idx+3];
+continue;
+}
+const up = idx - w * 4;
+const dn = idx + w * 4;
+const lf = idx - 4;
+const rt = idx + 4;
+out[idx]     = Math.min(255, Math.max(0, src[idx] * center - a * (src[up] + src[dn] + src[lf] + src[rt])));
+out[idx + 1] = Math.min(255, Math.max(0, src[idx+1] * center - a * (src[up+1] + src[dn+1] + src[lf+1] + src[rt+1])));
+out[idx + 2] = Math.min(255, Math.max(0, src[idx+2] * center - a * (src[up+2] + src[dn+2] + src[lf+2] + src[rt+2])));
+out[idx + 3] = src[idx + 3];
+}
+}
+imgData.data.set(out);
+ctx.putImageData(imgData, 0, 0);
+} catch (e) {}
+return canvas;
 }
 
-async function compressImage(file, maxW = 1440, quality = 0.90, preserveAlpha = false) {
-const img = await loadFileToImage(file);
+// Pertahankan 100% file HD asli jika sudah <= 1.8 MB & <= 2048px; jika foto kamera besar, skalakan halus ke Full-HD 1920px @ 0.95
+async function prepareOriginalOrHdImage(file, maxW = 1920, quality = 0.95, preserveAlpha = false) {
+const rawDataUrl = await readFileAsDataUrl(file);
+const img = await loadDataUrlToImage(rawDataUrl);
 const origW = img.naturalWidth || img.width;
 const origH = img.naturalHeight || img.height;
+const isStandardWebFormat = file && /^image\/(jpeg|jpg|png|webp)$/i.test(file.type || '');
+if (isStandardWebFormat && file.size <= 1.8 * 1024 * 1024 && origW <= 2048 && origH <= 2048) {
+return rawDataUrl;
+}
 const scale = origW > maxW ? (maxW / origW) : 1;
 const targetW = Math.max(1, Math.round(origW * scale));
 const targetH = Math.max(1, Math.round(origH * scale));
 const canvas = renderSteppedCanvas(img, targetW, targetH, preserveAlpha);
-const isPngLike = preserveAlpha || (file && /image\/(png|webp)/i.test(file.type) && preserveAlpha);
-if (isPngLike) {
-return __webpSupported ? canvas.toDataURL('image/webp', Math.max(0.92, quality)) : canvas.toDataURL('image/png');
+if (preserveAlpha) {
+return __webpSupported ? canvas.toDataURL('image/webp', 0.96) : canvas.toDataURL('image/png');
 }
-return __webpSupported ? canvas.toDataURL('image/webp', quality) : canvas.toDataURL('image/jpeg', quality);
-}
-
-// Mode HD Tajam: menjaga resolusi & ketajaman tinggi agar foto tidak burik
-async function compressImageHD(file, maxW = 1440, quality = 0.90, preserveAlpha = false) {
-return compressImage(file, maxW, quality, preserveAlpha);
+return canvas.toDataURL('image/jpeg', quality);
 }
 
-// Mode Cerdas HD-Fit: menjaga resolusi tetap tinggi dengan WebP + pencarian kualitas presisi di bawah 50.000 karakter sel Google Sheets
-async function compressImageSafe(file, startMaxW = 1280, maxChars = 48500, preserveAlpha = false) {
+async function compressImageHD(file, maxW = 1920, quality = 0.95, preserveAlpha = false) {
+return prepareOriginalOrHdImage(file, maxW, quality, preserveAlpha);
+}
+
+// Fallback cerdas untuk sel Google Sheets (<= 49.000 karakter) jika Google Drive HD backend belum di-deploy
+async function compressImageSafe(file, startMaxW = 1120, maxChars = 49000, preserveAlpha = false, bannerCrop = false) {
 const img = await loadFileToImage(file);
 const origW = img.naturalWidth || img.width;
 const origH = img.naturalHeight || img.height;
+let cropRect = null;
+let effW = origW;
+let effH = origH;
+
+// Untuk banner, fokuskan rasio 16:7 agar 100% kapasitas bait dipakai untuk area foto yang terlihat (2.5x lebih tajam!)
+if (bannerCrop && origW / origH < 1.85) {
+const desiredH = Math.min(origH, Math.round(origW / 2.15));
+cropRect = { sx: 0, sy: Math.max(0, Math.round((origH - desiredH) / 2)), sw: origW, sh: desiredH };
+effW = cropRect.sw;
+effH = cropRect.sh;
+}
+
 const mime = preserveAlpha
 ? (__webpSupported ? 'image/webp' : 'image/png')
 : (__webpSupported ? 'image/webp' : 'image/jpeg');
 
-const candidateWidths = [startMaxW, 1080, 960, 820, 720, 600].filter((w, i, arr) => arr.indexOf(w) === i);
+const candidateWidths = [startMaxW, 980, 860, 740, 640, 540].filter((w, i, arr) => arr.indexOf(w) === i);
 let best = '';
 for (const capW of candidateWidths) {
-const scale = origW > capW ? (capW / origW) : 1;
-const w = Math.max(1, Math.round(origW * scale));
-const h = Math.max(1, Math.round(origH * scale));
-const canvas = renderSteppedCanvas(img, w, h, preserveAlpha);
+const scale = effW > capW ? (capW / effW) : 1;
+const w = Math.max(1, Math.round(effW * scale));
+const h = Math.max(1, Math.round(effH * scale));
+const canvas = applyCrispSharpen(renderSteppedCanvas(img, w, h, preserveAlpha, cropRect), 0.22);
 
-// Uji kualitas tinggi dulu; jika terlalu besar, lakukan pencarian biner kualitas (0.58 - 0.92) agar tetap tajam
-let hi = 0.92, lo = 0.58;
-let highData = canvas.toDataURL(mime, hi);
+let hi = 0.94, lo = 0.68;
+const highData = canvas.toDataURL(mime, hi);
 if (highData.length <= maxChars) return highData;
 best = highData;
 
-let lowData = canvas.toDataURL(mime, lo);
+const lowData = canvas.toDataURL(mime, lo);
 if (lowData.length <= maxChars) {
 let winner = lowData;
 for (let step = 0; step < 5; step++) {
@@ -4995,7 +5456,51 @@ return winner;
 }
 best = lowData;
 }
+// Jaminan keras di bawah 49.000 karakter agar sel Google Sheet tidak menolak / memotong gambar
+if (best.length > maxChars) {
+const scale = effW > 480 ? (480 / effW) : 1;
+const fallbackC = applyCrispSharpen(renderSteppedCanvas(img, Math.max(1, Math.round(effW * scale)), Math.max(1, Math.round(effH * scale)), preserveAlpha, cropRect), 0.20);
+best = fallbackC.toDataURL(mime, 0.62);
+}
 return best;
+}
+
+// Coba unggah Full-HD asli ke Google Drive via Apps Script (uploadHdImage); jika backend lama belum mendukung, fallback tajam + simpan HD asli di IndexedDB
+async function uploadHdToDriveOrSheetFallback(sourceFile, hdDataUrl, prefix, opts = {}) {
+const { startMaxW = 1120, maxChars = 49000, preserveAlpha = false, bannerCrop = false } = opts;
+
+if (navigator.onLine && window.google && google.script && google.script.run && typeof google.script.run.uploadHdImage === 'function') {
+const driveUrl = await new Promise((resolve) => {
+let done = false;
+const t = setTimeout(() => { if (!done) { done = true; resolve(''); } }, 9000);
+try {
+google.script.run
+.withSuccessHandler(res => {
+if (done) return;
+done = true;
+clearTimeout(t);
+resolve(res && res.success && res.url ? String(res.url) : '');
+})
+.withFailureHandler(() => {
+if (done) return;
+done = true;
+clearTimeout(t);
+resolve('');
+})
+.uploadHdImage({ dataUrl: hdDataUrl, prefix: prefix || 'media' });
+} catch (e) {
+if (!done) { done = true; clearTimeout(t); resolve(''); }
+}
+});
+if (driveUrl) {
+return { serverUrl: driveUrl, isCloudHd: true };
+}
+}
+
+const sheetUrl = hdDataUrl.length <= maxChars
+? hdDataUrl
+: await compressImageSafe(sourceFile, startMaxW, maxChars, preserveAlpha, bannerCrop);
+return { serverUrl: sheetUrl, isCloudHd: false };
 }
 
 
@@ -5019,21 +5524,41 @@ Swal.fire({ title: 'Menyimpan setelan HD...', allowOutsideClick: false, didOpen:
 
 
 try {
-let logoLocal = appSettings.logoUrl || '';
-let bannerLocal = appSettings.bannerUrl || '';
-let logoServer = logoLocal;
-let bannerServer = bannerLocal;
+let logoLocal = HdMediaVault.getSync('logo_hd') || appSettings.logoUrl || '';
+let bannerLocal = HdMediaVault.getSync('banner_hd') || appSettings.bannerUrl || '';
+let logoServer = appSettings.logoUrl || logoLocal;
+let bannerServer = appSettings.bannerUrl || bannerLocal;
 const hasLogoFile = Boolean(logoEl && logoEl.files && logoEl.files.length);
 const hasBannerFile = Boolean(bannerEl && bannerEl.files && bannerEl.files.length);
 
 
 if (hasLogoFile) {
-logoLocal = await compressImageHD(logoEl.files[0], 512, 0.92, true);
-logoServer = logoLocal.length <= 48000 ? logoLocal : await compressImageSafe(logoEl.files[0], 512, 48000, true);
+const logoFile = logoEl.files[0];
+logoLocal = await prepareOriginalOrHdImage(logoFile, 1024, 0.96, true);
+const logoUp = await uploadHdToDriveOrSheetFallback(logoFile, logoLocal, 'logo', {
+startMaxW: 512,
+maxChars: 48000,
+preserveAlpha: true,
+bannerCrop: false
+});
+logoServer = logoUp.serverUrl;
+if (logoUp.isCloudHd) logoLocal = logoUp.serverUrl;
+await HdMediaVault.set('logo_hd', logoLocal);
+await HdMediaVault.set('logo_server_sig', makeShortHash(logoServer));
 }
 if (hasBannerFile) {
-bannerLocal = await compressImageHD(bannerEl.files[0], 1440, 0.90, false);
-bannerServer = bannerLocal.length <= 49000 ? bannerLocal : await compressImageSafe(bannerEl.files[0], 1280, 49000, false);
+const bannerFile = bannerEl.files[0];
+bannerLocal = await prepareOriginalOrHdImage(bannerFile, 1920, 0.95, false);
+const bannerUp = await uploadHdToDriveOrSheetFallback(bannerFile, bannerLocal, 'banner', {
+startMaxW: 1200,
+maxChars: 49000,
+preserveAlpha: false,
+bannerCrop: true
+});
+bannerServer = bannerUp.serverUrl;
+if (bannerUp.isCloudHd) bannerLocal = bannerUp.serverUrl;
+await HdMediaVault.set('banner_hd', bannerLocal);
+await HdMediaVault.set('banner_server_sig', makeShortHash(bannerServer));
 }
 
 
@@ -5051,25 +5576,27 @@ const el = document.getElementById(id);
 if (el) el.innerText = newAppName;
 });
 if (logoLocal) {
-try { localStorage.setItem('alrifaie_logo', logoLocal); } catch (err) {}
-document.querySelectorAll('.logo-img').forEach(el => el.src = logoLocal);
+try { localStorage.setItem('alrifaie_logo', logoServer || logoLocal); } catch (err) {}
+applyLogoImage(logoLocal, true);
 }
 if (bannerLocal) {
-try { localStorage.setItem('alrifaie_banner', bannerLocal); } catch (err) {}
-const mb = document.getElementById('mainBanner');
-if (mb) mb.style.backgroundImage = `url('${bannerLocal}')`;
+try { localStorage.setItem('alrifaie_banner', bannerServer || bannerLocal); } catch (err) {}
+applyBannerImage(bannerLocal, true);
 }
 if (logoEl) logoEl.value = '';
 if (bannerEl) bannerEl.value = '';
 
 
-Swal.fire(
-savedToServer ? 'Berhasil' : 'Tersimpan Lokal',
-savedToServer
-? 'Setelan aplikasi berhasil diperbarui dengan gambar HD.'
+Swal.fire({
+title: savedToServer ? 'Berhasil' : 'Tersimpan Lokal',
+text: savedToServer
+? 'Setelan aplikasi berhasil diperbarui dengan kualitas gambar HD.'
 : 'Tampilan HD diperbarui secara lokal, namun server terlalu lama merespons. Coba sinkronkan ulang beberapa saat lagi.',
-savedToServer ? 'success' : 'warning'
-);
+icon: savedToServer ? 'success' : 'warning',
+showConfirmButton: true,
+confirmButtonText: 'OK',
+confirmButtonColor: '#4F46E5'
+});
 if (savedToServer) loadInit(true);
 };
 
@@ -5080,7 +5607,7 @@ if (!isDone) {
 isDone = true;
 applySettingsNow(false);
 }
-}, 18000);
+}, 22000);
 
 google.script.run
 .withSuccessHandler(() => {

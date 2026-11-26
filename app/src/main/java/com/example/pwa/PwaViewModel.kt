@@ -98,9 +98,9 @@ class PwaViewModel(application: Application) : AndroidViewModel(application) {
       // Gracefully ignore on restricted environments
     }
 
-    // Attempt initial sync if online and there are leftover pending items from previous session
+    // Attempt initial sync after splash screen completes so startup animation stays butter-smooth
     if (!_uiState.value.isOffline) {
-      scheduleAutoSync(delayMs = 2000L)
+      scheduleAutoSync(delayMs = 4200L)
     }
   }
 

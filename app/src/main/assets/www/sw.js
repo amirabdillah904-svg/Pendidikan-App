@@ -1,4 +1,4 @@
-const CACHE_NAME = 'alrifaie-pwa-v5';
+const CACHE_NAME = 'alrifaie-pwa-v7';
 const CORE_ASSETS = [
   './',
   './index.html',

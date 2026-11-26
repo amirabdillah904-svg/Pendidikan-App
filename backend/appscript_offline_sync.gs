@@ -207,6 +207,32 @@ function routeOfflineFirstAction_(fnName, args, clientOpId) {
  * Memanggil fungsi-fungsi existing yang sudah ada di proyek Apps Script Anda.
  */
 function dispatchExistingFunction_(fnName, args) {
+  if (fnName === 'uploadHdImage') {
+    return uploadHdImage(args && args[0] ? args[0] : {});
+  }
+
+  // Otomatis simpan gambar HD (data:image/...) ke Google Drive agar Google Sheet hanya menyimpan URL HD tajam
+  const safeArgs = Array.isArray(args) ? args.slice() : [];
+  if (fnName === 'saveGaleriData' && safeArgs[0] && typeof safeArgs[0] === 'object') {
+    const item = Object.assign({}, safeArgs[0]);
+    if (typeof item.imageUrl === 'string' && item.imageUrl.indexOf('data:image/') === 0 && item.imageUrl.length > 48000) {
+      const up = saveHdImageToDrive_(item.imageUrl, 'galeri');
+      if (up && up.url) item.imageUrl = up.url;
+    }
+    safeArgs[0] = item;
+  } else if (fnName === 'updateAppSettings' && safeArgs[0] && typeof safeArgs[0] === 'object') {
+    const cfg = Object.assign({}, safeArgs[0]);
+    if (typeof cfg.bannerUrl === 'string' && cfg.bannerUrl.indexOf('data:image/') === 0 && cfg.bannerUrl.length > 48000) {
+      const upBanner = saveHdImageToDrive_(cfg.bannerUrl, 'banner');
+      if (upBanner && upBanner.url) cfg.bannerUrl = upBanner.url;
+    }
+    if (typeof cfg.logoUrl === 'string' && cfg.logoUrl.indexOf('data:image/') === 0 && cfg.logoUrl.length > 48000) {
+      const upLogo = saveHdImageToDrive_(cfg.logoUrl, 'logo');
+      if (upLogo && upLogo.url) cfg.logoUrl = upLogo.url;
+    }
+    safeArgs[0] = cfg;
+  }
+
   const allowed = {
     getFastLoginData: typeof getFastLoginData === 'function' ? getFastLoginData : null,
     getInitialBundle: typeof getInitialBundle === 'function' ? getInitialBundle : null,
@@ -243,7 +269,45 @@ function dispatchExistingFunction_(fnName, args) {
   if (!targetFn) {
     throw new Error('Fungsi tidak dikenali atau belum tersedia di Apps Script: ' + fnName);
   }
-  return targetFn.apply(null, args || []);
+  return targetFn.apply(null, safeArgs);
+}
+
+/**
+ * Mengunggah gambar Full-HD ke Google Drive ("AlRifaie_HD_Media") dan mengembalikan
+ * URL CDN tajam (lh3.googleusercontent.com/d/<ID>=w1920) tanpa batas 50.000 karakter sel Sheet.
+ */
+function uploadHdImage(payload) {
+  const dataUrl = payload && payload.dataUrl ? String(payload.dataUrl) : '';
+  const prefix = payload && payload.prefix ? String(payload.prefix).replace(/[^a-zA-Z0-9_-]/g, '') : 'media';
+  if (!dataUrl || dataUrl.indexOf('data:image/') !== 0) {
+    return { success: false, error: 'Data gambar tidak valid.' };
+  }
+  const saved = saveHdImageToDrive_(dataUrl, prefix);
+  return { success: true, url: saved.url, fileId: saved.fileId };
+}
+
+function saveHdImageToDrive_(dataUrl, prefix) {
+  const match = String(dataUrl).match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!match) {
+    throw new Error('Format data URL gambar tidak dikenali.');
+  }
+  const mimeType = match[1];
+  const base64Body = match[2];
+  const ext = mimeType.indexOf('png') !== -1 ? 'png' : (mimeType.indexOf('webp') !== -1 ? 'webp' : 'jpg');
+  const bytes = Utilities.base64Decode(base64Body);
+  const fileName = (prefix || 'media') + '_' + Date.now() + '.' + ext;
+  const blob = Utilities.newBlob(bytes, mimeType, fileName);
+
+  const folderName = 'AlRifaie_HD_Media';
+  const folders = DriveApp.getFoldersByName(folderName);
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+  const file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  const fileId = file.getId();
+  return {
+    fileId: fileId,
+    url: 'https://lh3.googleusercontent.com/d/' + fileId + '=w1920'
+  };
 }
 
 /**
