@@ -41,6 +41,8 @@ private val LightColorScheme =
     onPrimaryContainer = ElectricIndigoContainer,
     secondary = EmeraldDeep,
     onSecondary = Color.White,
+    secondaryContainer = Color(0xFFD1FAE5),
+    onSecondaryContainer = Color(0xFF064E3B),
     tertiary = BrandGold,
     onTertiary = ObsidianBg,
     background = LightPageBg,
@@ -50,11 +52,13 @@ private val LightColorScheme =
     onSurfaceVariant = LightTextMuted,
     outline = LightOutline,
     error = Color(0xFFDC2626),
+    errorContainer = Color(0xFFFEE2E2),
+    onErrorContainer = Color(0xFF7F1D1D),
   )
 
 @Composable
 fun DeptPendidikanTheme(
-  darkTheme: Boolean = true,
+  darkTheme: Boolean = false,
   dynamicColor: Boolean = false,
   content: @Composable () -> Unit,
 ) {

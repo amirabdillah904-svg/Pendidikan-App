@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id" class="dark">
+<html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Departemen Pendidikan - YPM Al-Rifa'ie 2</title>
-<meta name="theme-color" content="#0B1120">
+<meta id="metaThemeColor" name="theme-color" content="#F8FAFC">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Dept. Pendidikan">
@@ -167,15 +167,21 @@ html.dark {
 
 body {
 background-color: var(--bg-page);
+background-image:
+radial-gradient(circle at 12% 6%, rgba(79, 70, 229, 0.08) 0%, transparent 42%),
+radial-gradient(circle at 88% 82%, rgba(16, 185, 129, 0.08) 0%, transparent 44%);
+background-repeat: no-repeat;
 color: var(--text-main);
 -webkit-font-smoothing: antialiased;
-transition: background-color 0.35s var(--ease-smooth), color 0.35s var(--ease-smooth);
+text-rendering: optimizeLegibility;
+overflow-x: hidden;
+transition: background-color 0.25s var(--ease-smooth), color 0.25s var(--ease-smooth);
 }
 html.dark body {
 background-image:
-radial-gradient(circle at 14% 8%, rgba(99, 102, 241, 0.24) 0%, transparent 40%),
-radial-gradient(circle at 86% 84%, rgba(52, 211, 153, 0.16) 0%, transparent 44%);
-background-attachment: fixed;
+radial-gradient(circle at 14% 8%, rgba(99, 102, 241, 0.20) 0%, transparent 40%),
+radial-gradient(circle at 86% 84%, rgba(52, 211, 153, 0.14) 0%, transparent 44%);
+background-repeat: no-repeat;
 }
 html.dark .text-slate-400,
 html.dark .text-slate-500 {
@@ -186,44 +192,44 @@ color: #E2E8F0 !important;
 }
 
 
-/* Clean UI Cards & Surfaces (High-Contrast Obsidian + Electric Indigo + Luminous Mint) */
+/* Clean UI Cards & Surfaces (Crisp Light Default + Obsidian Dark, Electric Indigo + Luminous Mint) */
 .clean-card {
 background-color: var(--bg-surface);
-border: 1px solid var(--border-subtle);
+border: 1px solid #E2E8F0;
 border-radius: 18px;
-box-shadow: 0 4px 14px -4px rgba(15, 23, 42, 0.08);
-transition: background-color 0.3s var(--ease-smooth), border-color 0.3s var(--ease-smooth), transform 0.3s var(--ease-spring), box-shadow 0.3s var(--ease-smooth);
+box-shadow: 0 4px 16px -6px rgba(79, 70, 229, 0.10), 0 1px 3px rgba(15, 23, 42, 0.05);
+transition: border-color 0.2s ease, transform 0.24s var(--ease-spring), box-shadow 0.24s ease;
 }
 html.dark .clean-card {
 background: linear-gradient(165deg, #1E293B 0%, #162033 100%);
 border-color: rgba(148, 163, 184, 0.26);
-box-shadow: 0 12px 28px -10px rgba(2, 6, 23, 0.7), 0 1px 0 0 rgba(255, 255, 255, 0.07) inset;
+box-shadow: 0 10px 24px -10px rgba(2, 6, 23, 0.65), 0 1px 0 0 rgba(255, 255, 255, 0.07) inset;
 }
 
 
 .clean-tile {
 background-color: var(--bg-surface);
-border: 1px solid var(--border-subtle);
+border: 1px solid #E2E8F0;
 border-radius: 18px;
-box-shadow: 0 3px 10px -3px rgba(15, 23, 42, 0.08);
-transition: transform 0.28s var(--ease-spring), border-color 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease;
+box-shadow: 0 3px 12px -4px rgba(79, 70, 229, 0.10), 0 1px 2px rgba(15, 23, 42, 0.04);
+transition: transform 0.22s var(--ease-spring), border-color 0.2s ease, box-shadow 0.2s ease;
 }
 html.dark .clean-tile {
 background: linear-gradient(160deg, #1E293B 0%, #172236 100%);
 border-color: rgba(148, 163, 184, 0.28);
-box-shadow: 0 10px 22px -8px rgba(2, 6, 23, 0.62), 0 1px 0 0 rgba(255, 255, 255, 0.08) inset;
+box-shadow: 0 8px 20px -8px rgba(2, 6, 23, 0.58), 0 1px 0 0 rgba(255, 255, 255, 0.08) inset;
 }
 .clean-tile:hover {
 border-color: #4F46E5;
-transform: translateY(-3px);
-box-shadow: 0 12px 24px -8px rgba(79, 70, 229, 0.28);
+transform: translate3d(0, -2px, 0);
+box-shadow: 0 10px 22px -8px rgba(79, 70, 229, 0.24);
 }
 html.dark .clean-tile:hover {
 border-color: #34D399;
-box-shadow: 0 14px 28px -8px rgba(52, 211, 153, 0.28), 0 0 0 1px rgba(99, 102, 241, 0.4);
+box-shadow: 0 12px 24px -8px rgba(52, 211, 153, 0.24), 0 0 0 1px rgba(99, 102, 241, 0.36);
 }
 .clean-tile:active {
-transform: scale(0.96);
+transform: scale3d(0.96, 0.96, 1);
 }
 
 
@@ -232,13 +238,13 @@ background-color: #F8FAFC;
 border: 1.5px solid #CBD5E1;
 border-radius: 12px;
 color: #0F172A;
-transition: border-color 0.25s var(--ease-smooth), background-color 0.25s var(--ease-smooth), box-shadow 0.25s var(--ease-smooth);
+transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 .clean-input:focus {
 outline: none;
 background-color: #FFFFFF;
 border-color: #4F46E5;
-box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
+box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.16);
 }
 html.dark .clean-input {
 background-color: #0F172A;
@@ -251,32 +257,32 @@ color: #94A3B8;
 html.dark .clean-input:focus {
 background-color: #0F172A;
 border-color: #34D399;
-box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.25);
+box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.24);
 }
 
 
-/* Header & Floating Detached Tab Bar */
+/* Header & Floating Detached Tab Bar (Zero-Lag GPU-Friendly Surfaces) */
 .clean-header {
-background-color: rgba(255, 255, 255, 0.94);
-backdrop-filter: blur(14px);
--webkit-backdrop-filter: blur(14px);
-border-bottom: 1px solid var(--border-subtle);
-box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
-transition: background-color 0.3s var(--ease-smooth), border-color 0.3s var(--ease-smooth);
+background-color: rgba(255, 255, 255, 0.97);
+border-bottom: 1px solid #E2E8F0;
+box-shadow: 0 2px 10px -2px rgba(79, 70, 229, 0.08);
+transition: background-color 0.22s ease, border-color 0.22s ease;
 }
 html.dark .clean-header {
-background-color: rgba(15, 23, 42, 0.92);
+background-color: rgba(15, 23, 42, 0.96);
 border-bottom-color: rgba(148, 163, 184, 0.22);
-box-shadow: 0 4px 20px rgba(2, 6, 23, 0.5);
+box-shadow: 0 4px 18px rgba(2, 6, 23, 0.45);
 }
 
 
 .clean-sidebar {
 background-color: var(--bg-surface);
-border-right: 1px solid var(--border-subtle);
-box-shadow: 8px 0 32px rgba(15, 23, 42, 0.28);
+border-right: 1px solid #E2E8F0;
+box-shadow: 8px 0 28px rgba(15, 23, 42, 0.18);
 overscroll-behavior: contain;
-transition: transform 0.38s var(--ease-spring), background-color 0.3s ease;
+backface-visibility: hidden;
+-webkit-backface-visibility: hidden;
+transition: transform 0.3s var(--ease-spring), background-color 0.22s ease;
 }
 html.dark .clean-sidebar {
 background-color: #0F172A;
@@ -305,7 +311,7 @@ position: fixed !important;
 inset: 0 !important;
 touch-action: none;
 opacity: 0;
-transition: opacity 0.3s var(--ease-smooth);
+transition: opacity 0.24s var(--ease-smooth);
 }
 #sidebarBackdrop.backdrop-visible {
 opacity: 1;
@@ -321,18 +327,17 @@ right: 12px !important;
 max-width: 540px !important;
 margin: 0 auto !important;
 z-index: 45 !important;
-background-color: rgba(255, 255, 255, 0.96);
-backdrop-filter: blur(18px);
--webkit-backdrop-filter: blur(18px);
-border: 1px solid #CBD5E1;
+background-color: rgba(255, 255, 255, 0.98);
+border: 1px solid #E2E8F0;
 border-radius: 22px;
-box-shadow: 0 12px 32px -6px rgba(15, 23, 42, 0.2), 0 4px 12px -2px rgba(15, 23, 42, 0.08);
-transition: transform 0.35s var(--ease-spring), opacity 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+box-shadow: 0 12px 28px -8px rgba(79, 70, 229, 0.22), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
+transform: translateZ(0);
+transition: transform 0.28s var(--ease-spring), opacity 0.24s ease, background-color 0.22s ease, border-color 0.22s ease;
 }
 html.dark .clean-bottom-bar {
-background-color: rgba(15, 23, 42, 0.94);
+background-color: rgba(15, 23, 42, 0.96);
 border-color: rgba(99, 102, 241, 0.42);
-box-shadow: 0 16px 38px -6px rgba(2, 6, 23, 0.8), 0 0 24px -10px rgba(52, 211, 153, 0.32), 0 1px 0 0 rgba(255, 255, 255, 0.08) inset;
+box-shadow: 0 14px 32px -6px rgba(2, 6, 23, 0.78), 0 0 20px -10px rgba(52, 211, 153, 0.30);
 }
 
 
@@ -341,40 +346,40 @@ color: #64748B;
 border-radius: 15px;
 margin: 5px 2px;
 padding: 6px 4px;
-transition: color 0.25s var(--ease-smooth), background-color 0.25s var(--ease-smooth), transform 0.22s var(--ease-spring);
+transition: color 0.2s ease, background-color 0.2s ease, transform 0.18s var(--ease-spring);
 }
 html.dark .bottom-nav-item {
 color: #94A3B8;
 }
 .bottom-nav-item:hover {
 color: #0F172A;
-background-color: rgba(241, 245, 249, 0.85);
+background-color: rgba(238, 242, 255, 0.9);
 }
 html.dark .bottom-nav-item:hover {
 color: #FFFFFF;
 background-color: rgba(51, 65, 85, 0.65);
 }
 .bottom-nav-item:active {
-transform: scale(0.92);
+transform: scale3d(0.92, 0.92, 1);
 }
 .bottom-nav-item.is-active {
 color: #FFFFFF;
 background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
 font-weight: 700;
-box-shadow: 0 4px 14px -2px rgba(79, 70, 229, 0.45);
+box-shadow: 0 4px 14px -2px rgba(79, 70, 229, 0.42);
 }
 html.dark .bottom-nav-item.is-active {
 color: #0B1120;
 background: linear-gradient(135deg, #34D399 0%, #6EE7B7 100%);
-box-shadow: 0 4px 16px -2px rgba(52, 211, 153, 0.45);
+box-shadow: 0 4px 16px -2px rgba(52, 211, 153, 0.42);
 }
 
 
 .nav-btn {
-transition: background-color 0.22s var(--ease-smooth), color 0.22s var(--ease-smooth), transform 0.18s var(--ease-spring);
+transition: background-color 0.18s ease, color 0.18s ease, transform 0.16s var(--ease-spring);
 }
 .nav-btn:active {
-transform: scale(0.98);
+transform: scale3d(0.98, 0.98, 1);
 }
 
 
@@ -384,25 +389,33 @@ background-size: cover;
 background-position: center;
 border-radius: 22px;
 border: 1px solid rgba(110, 231, 183, 0.42);
-box-shadow: 0 18px 36px -12px rgba(79, 70, 229, 0.52), 0 0 26px -10px rgba(52, 211, 153, 0.35);
+box-shadow: 0 16px 32px -12px rgba(79, 70, 229, 0.42);
 position: relative;
 overflow: hidden;
-transition: background-image 0.4s ease;
+transition: background-image 0.3s ease;
 }
 .hero-banner::after {
 content: "";
 position: absolute;
 inset: 0;
-background: linear-gradient(135deg, rgba(49, 46, 129, 0.82) 0%, rgba(79, 70, 229, 0.72) 55%, rgba(13, 148, 136, 0.65) 100%);
+background: linear-gradient(135deg, rgba(49, 46, 129, 0.80) 0%, rgba(79, 70, 229, 0.70) 55%, rgba(13, 148, 136, 0.62) 100%);
 pointer-events: none;
 }
 
-/* Dark SweetAlert2 Styling (High-Contrast Obsidian + Electric Indigo + Mint Glow) */
+/* SweetAlert2 Styling (Crisp Light Default + High-Contrast Obsidian Dark) */
+.swal2-popup {
+background: #FFFFFF !important;
+color: #0F172A !important;
+border: 1px solid #E2E8F0 !important;
+box-shadow: 0 22px 48px -12px rgba(79, 70, 229, 0.22), 0 8px 20px -6px rgba(15, 23, 42, 0.12) !important;
+}
+.swal2-title { color: #0F172A !important; }
+.swal2-html-container { color: #475569 !important; }
 html.dark .swal2-popup {
 background: #1E293B !important;
 color: #FFFFFF !important;
 border: 1px solid rgba(52, 211, 153, 0.38) !important;
-box-shadow: 0 24px 54px rgba(2, 6, 23, 0.75), 0 0 28px -8px rgba(99, 102, 241, 0.38) !important;
+box-shadow: 0 24px 54px rgba(2, 6, 23, 0.75), 0 0 24px -8px rgba(99, 102, 241, 0.34) !important;
 }
 html.dark .swal2-title { color: #FFFFFF !important; }
 html.dark .swal2-html-container { color: #E2E8F0 !important; }
@@ -412,22 +425,23 @@ color: #FFFFFF !important;
 border-radius: 12px !important;
 font-weight: 700 !important;
 padding: 10px 28px !important;
-box-shadow: 0 8px 20px -4px rgba(79, 70, 229, 0.55) !important;
+box-shadow: 0 6px 16px -4px rgba(79, 70, 229, 0.48) !important;
 }
 
-/* Smooth Staggered Grid & Card Entrance Animations */
+/* Smooth GPU-Only Staggered Grid & Card Entrance Animations */
 @keyframes gridCardRise {
-0% { opacity: 0; transform: translateY(18px) scale(0.97); }
-100% { opacity: 1; transform: translateY(0) scale(1); }
+0% { opacity: 0; transform: translate3d(0, 14px, 0) scale3d(0.98, 0.98, 1); }
+100% { opacity: 1; transform: translate3d(0, 0, 0) scale3d(1, 1, 1); }
 }
 .grid-stagger-enter {
 opacity: 0;
-will-change: transform, opacity;
-animation: gridCardRise 0.52s var(--ease-spring) forwards;
-animation-delay: calc(var(--stagger-idx, 0) * 52ms);
+backface-visibility: hidden;
+-webkit-backface-visibility: hidden;
+animation: gridCardRise 0.36s var(--ease-spring) both;
+animation-delay: calc(var(--stagger-idx, 0) * 32ms);
 }
 
-/* Galeri Santri — Swipeable Stacked Card Deck */
+/* Galeri Santri — Buttery-Smooth GPU-Composited Swipeable Card Deck */
 .galeri-deck-wrapper {
 position: relative;
 width: 100%;
@@ -439,12 +453,11 @@ user-select: none;
 .galeri-deck-stage {
 position: relative;
 width: 100%;
-height: 410px;
-perspective: 1100px;
+height: 416px;
 touch-action: pan-y;
 }
 @media (min-width: 640px) {
-.galeri-deck-stage { height: 435px; }
+.galeri-deck-stage { height: 440px; }
 }
 .galeri-deck-card {
 position: absolute;
@@ -453,12 +466,19 @@ border-radius: 22px;
 overflow: hidden;
 display: flex;
 flex-direction: column;
-will-change: transform, opacity;
-transition: transform 0.42s var(--ease-spring), opacity 0.35s var(--ease-smooth), box-shadow 0.35s ease;
-box-shadow: 0 20px 40px -14px rgba(2, 6, 23, 0.65);
+contain: layout paint;
+backface-visibility: hidden;
+-webkit-backface-visibility: hidden;
+transform-origin: center bottom;
+transition: transform 0.34s var(--ease-spring), opacity 0.28s var(--ease-smooth);
+box-shadow: 0 14px 32px -12px rgba(79, 70, 229, 0.20), 0 4px 12px -4px rgba(15, 23, 42, 0.08);
+}
+html.dark .galeri-deck-card {
+box-shadow: 0 18px 36px -14px rgba(2, 6, 23, 0.65);
 }
 .galeri-deck-card.is-dragging {
 transition: none !important;
+will-change: transform;
 cursor: grabbing;
 }
 .galeri-deck-card[data-depth="0"] {
@@ -466,31 +486,34 @@ z-index: 30;
 transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
 opacity: 1;
 cursor: grab;
+border-color: rgba(79, 70, 229, 0.28) !important;
+}
+html.dark .galeri-deck-card[data-depth="0"] {
 border-color: rgba(52, 211, 153, 0.38) !important;
 }
 .galeri-deck-card[data-depth="1"] {
 z-index: 20;
-transform: translate3d(0, 14px, -30px) scale(0.95) rotate(1.4deg);
-opacity: 0.88;
+transform: translate3d(0, 14px, 0) scale(0.95) rotate(1.2deg);
+opacity: 0.90;
 pointer-events: none;
-filter: brightness(0.92);
 }
 .galeri-deck-card[data-depth="2"] {
 z-index: 10;
-transform: translate3d(0, 27px, -60px) scale(0.90) rotate(-1.6deg);
-opacity: 0.68;
+transform: translate3d(0, 26px, 0) scale(0.90) rotate(-1.3deg);
+opacity: 0.72;
 pointer-events: none;
-filter: brightness(0.84);
 }
 .galeri-deck-card.swipe-out-left {
-transition: transform 0.32s cubic-bezier(0.32, 0, 0.67, 0), opacity 0.28s ease !important;
-transform: translate3d(-125%, 18px, 0) rotate(-14deg) !important;
+transition: transform 0.26s cubic-bezier(0.32, 0, 0.67, 0), opacity 0.22s ease !important;
+transform: translate3d(-120%, 16px, 0) rotate(-12deg) !important;
 opacity: 0 !important;
+pointer-events: none !important;
 }
 .galeri-deck-card.swipe-out-right {
-transition: transform 0.32s cubic-bezier(0.32, 0, 0.67, 0), opacity 0.28s ease !important;
-transform: translate3d(125%, 18px, 0) rotate(14deg) !important;
+transition: transform 0.26s cubic-bezier(0.32, 0, 0.67, 0), opacity 0.22s ease !important;
+transform: translate3d(120%, 16px, 0) rotate(12deg) !important;
 opacity: 0 !important;
+pointer-events: none !important;
 }
 .galeri-swipe-hint {
 display: inline-flex;
@@ -500,14 +523,14 @@ padding: 6px 14px;
 border-radius: 999px;
 font-size: 11px;
 font-weight: 700;
-background: rgba(79, 70, 229, 0.26);
-border: 1px solid rgba(52, 211, 153, 0.45);
-color: #6EE7B7;
-}
-html:not(.dark) .galeri-swipe-hint {
 background: #EEF2FF;
 color: #4F46E5;
-border-color: #C7D2FE;
+border: 1px solid #C7D2FE;
+}
+html.dark .galeri-swipe-hint {
+background: rgba(79, 70, 229, 0.26);
+border-color: rgba(52, 211, 153, 0.45);
+color: #6EE7B7;
 }
 .galeri-nav-btn {
 width: 44px;
@@ -516,37 +539,38 @@ border-radius: 14px;
 display: inline-flex;
 align-items: center;
 justify-content: center;
-background: linear-gradient(135deg, rgba(79, 70, 229, 0.35) 0%, rgba(16, 185, 129, 0.22) 100%);
-border: 1px solid rgba(52, 211, 153, 0.48);
-color: #6EE7B7;
-transition: transform 0.2s var(--ease-spring), background-color 0.2s ease;
-}
-.galeri-nav-btn:active { transform: scale(0.92); }
-html:not(.dark) .galeri-nav-btn {
 background: #EEF2FF;
-border-color: #C7D2FE;
+border: 1px solid #C7D2FE;
 color: #4F46E5;
+transition: transform 0.18s var(--ease-spring), background-color 0.18s ease;
+}
+.galeri-nav-btn:active { transform: scale3d(0.92, 0.92, 1); }
+html.dark .galeri-nav-btn {
+background: linear-gradient(135deg, rgba(79, 70, 229, 0.35) 0%, rgba(16, 185, 129, 0.22) 100%);
+border-color: rgba(52, 211, 153, 0.48);
+color: #6EE7B7;
 }
 .galeri-dot {
 height: 6px;
 width: 6px;
 border-radius: 999px;
 background: rgba(148, 163, 184, 0.5);
-transition: width 0.28s var(--ease-spring), background-color 0.25s ease;
+transition: width 0.24s var(--ease-spring), background-color 0.2s ease;
 }
 .galeri-dot.is-active {
 width: 24px;
+background: linear-gradient(90deg, #4F46E5 0%, #10B981 100%);
+}
+html.dark .galeri-dot.is-active {
 background: linear-gradient(90deg, #6366F1 0%, #34D399 100%);
 }
 
 
-/* Smooth Modal Backdrop & Sheet Transitions */
+/* Smooth Modal Backdrop & Sheet Transitions (Zero-Lag, No Heavy Backdrop Blur) */
 .modal-backdrop-clean {
-background-color: rgba(15, 23, 42, 0.5);
-backdrop-filter: blur(4px);
--webkit-backdrop-filter: blur(4px);
+background-color: rgba(15, 23, 42, 0.56);
 opacity: 0;
-transition: opacity 0.28s var(--ease-smooth);
+transition: opacity 0.22s var(--ease-smooth);
 }
 .modal-backdrop-clean.modal-is-open {
 opacity: 1;
@@ -556,47 +580,41 @@ opacity: 0;
 }
 .modal-backdrop-clean .modal-sheet-enter {
 opacity: 0;
-transform: translateY(18px) scale(0.96);
-transition: opacity 0.32s var(--ease-spring), transform 0.36s var(--ease-spring);
+transform: translate3d(0, 14px, 0) scale3d(0.97, 0.97, 1);
+backface-visibility: hidden;
+transition: opacity 0.24s var(--ease-spring), transform 0.28s var(--ease-spring);
 }
 .modal-backdrop-clean.modal-is-open .modal-sheet-enter {
 opacity: 1;
-transform: translateY(0) scale(1);
+transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
 }
 .modal-backdrop-clean.modal-is-closing .modal-sheet-enter {
 opacity: 0;
-transform: translateY(12px) scale(0.97);
-transition: opacity 0.2s ease, transform 0.2s ease;
+transform: translate3d(0, 10px, 0) scale3d(0.98, 0.98, 1);
+transition: opacity 0.16s ease, transform 0.16s ease;
 }
 
 
-/* Smooth SweetAlert2 Pop-up & Loading Transitions */
+/* Smooth SweetAlert2 Pop-up Transitions */
 .swal2-container.swal2-backdrop-show {
-backdrop-filter: blur(3px);
--webkit-backdrop-filter: blur(3px);
-transition: background-color 0.25s var(--ease-smooth) !important;
-}
-.swal2-container:not(.swal2-backdrop-show) {
-backdrop-filter: none !important;
--webkit-backdrop-filter: none !important;
+transition: background-color 0.2s var(--ease-smooth) !important;
 }
 .swal2-popup {
 border-radius: 20px !important;
-transition: transform 0.32s var(--ease-spring), opacity 0.28s var(--ease-smooth) !important;
 }
 .swal2-show {
-animation: swalSmoothIn 0.32s var(--ease-spring) forwards !important;
+animation: swalSmoothIn 0.26s var(--ease-spring) forwards !important;
 }
 .swal2-hide {
-animation: swalSmoothOut 0.2s var(--ease-smooth) forwards !important;
+animation: swalSmoothOut 0.16s var(--ease-smooth) forwards !important;
 }
 @keyframes swalSmoothIn {
-0% { opacity: 0; transform: translateY(14px) scale(0.95); }
-100% { opacity: 1; transform: translateY(0) scale(1); }
+0% { opacity: 0; transform: translate3d(0, 12px, 0) scale3d(0.95, 0.95, 1); }
+100% { opacity: 1; transform: translate3d(0, 0, 0) scale3d(1, 1, 1); }
 }
 @keyframes swalSmoothOut {
-0% { opacity: 1; transform: translateY(0) scale(1); }
-100% { opacity: 0; transform: translateY(8px) scale(0.97); }
+0% { opacity: 1; transform: translate3d(0, 0, 0) scale3d(1, 1, 1); }
+100% { opacity: 0; transform: translate3d(0, 6px, 0) scale3d(0.97, 0.97, 1); }
 }
 
 
@@ -606,64 +624,191 @@ animation: swalSmoothOut 0.2s var(--ease-smooth) forwards !important;
 100% { background-position: 200% 0; }
 }
 .loading-pill-smooth {
-background: linear-gradient(90deg, rgba(239,246,255,0.8) 25%, rgba(219,234,254,1) 50%, rgba(239,246,255,0.8) 75%);
+background: linear-gradient(90deg, rgba(238,242,255,0.85) 25%, rgba(224,231,255,1) 50%, rgba(238,242,255,0.85) 75%);
 background-size: 200% 100%;
-animation: shimmerSlide 1.6s ease-in-out infinite;
+animation: shimmerSlide 1.5s ease-in-out infinite;
 }
 
 
-/* Splash Screen Obsidian + Electric Indigo + Luminous Mint dengan Animasi Sinematik */
+/* Splash Screen & Minimalist Books/Character — Clean GPU-Only 60-120fps (Light Default + Obsidian Dark) */
 #splashScreen {
+background: radial-gradient(circle at 50% 30%, #EEF2FF 0%, #F8FAFC 58%, #ECFDF5 100%);
+color: #0F172A;
+contain: strict;
+backface-visibility: hidden;
+-webkit-backface-visibility: hidden;
+transition: opacity 0.42s var(--ease-smooth), transform 0.42s var(--ease-smooth), visibility 0.42s;
+}
+html.dark #splashScreen {
 background: radial-gradient(circle at 50% 34%, #312E81 0%, #151F3A 46%, #0B1120 100%);
-transition: opacity 0.55s var(--ease-smooth), transform 0.55s var(--ease-smooth), visibility 0.55s;
+color: #FFFFFF;
 }
 #splashScreen.splash-hide {
 opacity: 0;
-transform: scale(1.04);
+transform: scale3d(1.03, 1.03, 1);
 visibility: hidden;
 pointer-events: none;
 }
-@keyframes splashHeroPop {
-0% { opacity: 0; transform: scale(0.68) translateY(24px); }
-65% { opacity: 1; transform: scale(1.05) translateY(-4px); }
-100% { opacity: 1; transform: scale(1) translateY(0); }
+.splash-ambient-layer {
+background:
+radial-gradient(circle at 18% 18%, rgba(99, 102, 241, 0.16) 0%, transparent 45%),
+radial-gradient(circle at 82% 82%, rgba(52, 211, 153, 0.16) 0%, transparent 46%);
 }
-@keyframes splashShockwave {
-0% { transform: scale(0.55); opacity: 0.85; }
-100% { transform: scale(1.65); opacity: 0; }
+html.dark .splash-ambient-layer {
+background:
+radial-gradient(circle at 18% 18%, rgba(99, 102, 241, 0.30) 0%, transparent 46%),
+radial-gradient(circle at 82% 82%, rgba(52, 211, 153, 0.22) 0%, transparent 48%);
+}
+.login-ambient-layer {
+background:
+radial-gradient(circle at 15% 12%, rgba(99, 102, 241, 0.13) 0%, transparent 44%),
+radial-gradient(circle at 85% 88%, rgba(52, 211, 153, 0.13) 0%, transparent 46%);
+}
+html.dark .login-ambient-layer {
+background:
+radial-gradient(circle at 15% 12%, rgba(99, 102, 241, 0.22) 0%, transparent 46%),
+radial-gradient(circle at 85% 88%, rgba(52, 211, 153, 0.16) 0%, transparent 48%);
+}
+
+@keyframes splashHeroPop {
+0% { opacity: 0; transform: translate3d(0, 20px, 0) scale3d(0.88, 0.88, 1); }
+70% { opacity: 1; transform: translate3d(0, -3px, 0) scale3d(1.02, 1.02, 1); }
+100% { opacity: 1; transform: translate3d(0, 0, 0) scale3d(1, 1, 1); }
+}
+@keyframes splashRingExpand {
+0% { transform: scale3d(0.76, 0.76, 1); opacity: 0.55; }
+100% { transform: scale3d(1.38, 1.38, 1); opacity: 0; }
 }
 @keyframes splashFlareSweep {
-0% { transform: translateX(-140%) skewX(-24deg); opacity: 0; }
-30% { opacity: 0.75; }
-100% { transform: translateX(220%) skewX(-24deg); opacity: 0; }
+0% { transform: translate3d(-140%, 0, 0) skewX(-22deg); opacity: 0; }
+35% { opacity: 0.65; }
+100% { transform: translate3d(240%, 0, 0) skewX(-22deg); opacity: 0; }
 }
-@keyframes splashCounterSpin {
-0% { transform: rotate(360deg); }
-100% { transform: rotate(0deg); }
+@keyframes splashBarScale {
+0% { transform: scaleX(0.06); }
+45% { transform: scaleX(0.58); }
+82% { transform: scaleX(0.90); }
+100% { transform: scaleX(1); }
 }
-@keyframes splashAuroraBreath {
-0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.42; }
-50% { transform: translate(16px, -18px) scale(1.16); opacity: 0.72; }
+@keyframes splashTitleRise {
+0% { opacity: 0; transform: translate3d(0, 12px, 0); }
+100% { opacity: 1; transform: translate3d(0, 0, 0); }
 }
+@keyframes splashStatusPulse {
+0%, 100% { opacity: 0.66; }
+50% { opacity: 1; }
+}
+
+/* Minimalist Books & Character Motion (100% GPU Transform + Opacity) */
+@keyframes minFloat {
+0%, 100% { transform: translate3d(0, 0, 0); }
+50% { transform: translate3d(0, -6px, 0); }
+}
+@keyframes minShadowPulse {
+0%, 100% { transform: scale3d(1, 1, 1); opacity: 0.22; }
+50% { transform: scale3d(0.88, 0.88, 1); opacity: 0.13; }
+}
+@keyframes minBookFloatA {
+0%, 100% { transform: translate3d(0, 0, 0) rotate(-7deg); }
+50% { transform: translate3d(0, -9px, 0) rotate(-2deg); }
+}
+@keyframes minBookFloatB {
+0%, 100% { transform: translate3d(0, 0, 0) rotate(8deg); }
+50% { transform: translate3d(0, -8px, 0) rotate(3deg); }
+}
+@keyframes minBookFloatC {
+0%, 100% { transform: translate3d(0, 0, 0) rotate(-4deg); }
+50% { transform: translate3d(0, -7px, 0) rotate(4deg); }
+}
+@keyframes minPageFlip {
+0%, 12% { transform: scaleX(1) skewY(0deg); opacity: 0.96; }
+42% { transform: scaleX(0.06) skewY(-14deg); opacity: 0.72; }
+54% { transform: scaleX(-0.06) skewY(14deg); opacity: 0.72; }
+82%, 100% { transform: scaleX(-1) skewY(0deg); opacity: 0.96; }
+}
+@keyframes minWave {
+0%, 100% { transform: rotate(-6deg); }
+50% { transform: rotate(12deg); }
+}
+@keyframes minBlink {
+0%, 45%, 50%, 94%, 100% { transform: scaleY(1); }
+47.5%, 96.5% { transform: scaleY(0.1); }
+}
+@keyframes minSparkRise {
+0% { transform: translate3d(0, 6px, 0) scale3d(0.55, 0.55, 1); opacity: 0; }
+35% { opacity: 0.95; }
+100% { transform: translate3d(0, -22px, 0) scale3d(1.05, 1.05, 1); opacity: 0; }
+}
+
+@keyframes tabFadeIn {
+0% { opacity: 0; transform: translate3d(0, 8px, 0); }
+100% { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes appFadeIn {
+0% { opacity: 0; }
+100% { opacity: 1; }
+}
+@keyframes loginCardEntrance {
+0% { opacity: 0; transform: translate3d(0, 16px, 0) scale3d(0.98, 0.98, 1); }
+100% { opacity: 1; transform: translate3d(0, 0, 0) scale3d(1, 1, 1); }
+}
+@keyframes badgeBounce {
+0%, 100% { transform: translate3d(0, 0, 0); }
+50% { transform: translate3d(0, -5px, 0); }
+}
+
 .splash-hero-pop {
-animation: splashHeroPop 0.85s var(--ease-spring) forwards;
+backface-visibility: hidden;
+animation: splashHeroPop 0.65s var(--ease-spring) both;
 }
 .splash-shockwave-ring {
 position: absolute;
-width: 170px;
-height: 170px;
+width: 184px;
+height: 184px;
 border-radius: 9999px;
-border: 2px solid rgba(52, 211, 153, 0.75);
-box-shadow: 0 0 28px rgba(99, 102, 241, 0.55);
-animation: splashShockwave 1.9s var(--ease-smooth) infinite;
+border: 1.5px solid rgba(79, 70, 229, 0.28);
+backface-visibility: hidden;
+animation: splashRingExpand 2.5s var(--ease-smooth) infinite;
 pointer-events: none;
 }
-.splash-orbit-inner {
-transform-origin: 120px 100px;
-animation: splashCounterSpin 10s linear infinite;
+html.dark .splash-shockwave-ring {
+border-color: rgba(52, 211, 153, 0.36);
 }
-.splash-aurora-orb {
-animation: splashAuroraBreath 4.5s ease-in-out infinite;
+.min-float {
+animation: minFloat 3.0s ease-in-out infinite;
+}
+.min-float-alt {
+animation: minFloat 3.3s ease-in-out 0.5s infinite;
+}
+.min-shadow-pulse {
+animation: minShadowPulse 3.0s ease-in-out infinite;
+}
+.min-book-a {
+animation: minBookFloatA 3.4s ease-in-out infinite;
+}
+.min-book-b {
+animation: minBookFloatB 3.8s ease-in-out 0.35s infinite;
+}
+.min-book-c {
+animation: minBookFloatC 3.2s ease-in-out 0.7s infinite;
+}
+.min-page-flip {
+animation: minPageFlip 2.2s ease-in-out infinite;
+}
+.min-page-flip-delay {
+animation: minPageFlip 2.2s ease-in-out 1.1s infinite;
+}
+.min-wave {
+animation: minWave 1.6s ease-in-out infinite;
+}
+.min-blink {
+animation: minBlink 3.8s ease-in-out infinite;
+}
+.min-blink-alt {
+animation: minBlink 4.3s ease-in-out 0.9s infinite;
+}
+.min-spark {
+animation: minSparkRise 2.4s ease-out infinite;
 }
 .splash-logo-glint {
 position: relative;
@@ -673,188 +818,71 @@ overflow: hidden;
 content: "";
 position: absolute;
 inset: -20% 0;
-width: 45%;
-background: linear-gradient(90deg, transparent, rgba(255,255,255,0.75), rgba(52,211,153,0.45), transparent);
+width: 42%;
+background: linear-gradient(90deg, transparent, rgba(255,255,255,0.75), rgba(52,211,153,0.38), transparent);
 animation: splashFlareSweep 2.2s ease-in-out infinite;
-animation-delay: 0.4s;
-}
-
-
-@keyframes floatSlow {
-0%, 100% { transform: translateY(0px); }
-50% { transform: translateY(-8px); }
-}
-@keyframes pageSway {
-0%, 100% { transform: rotate(0deg); }
-50% { transform: rotate(-2deg); }
-}
-@keyframes softPulse {
-0%, 100% { opacity: 0.45; transform: scale(0.9); }
-50% { opacity: 1; transform: scale(1.25); }
-}
-@keyframes starFlyUp {
-0% {
-transform: translateY(110vh) translateX(0px) rotate(0deg) scale(0.65);
-opacity: 0;
-}
-15% {
-opacity: 0.95;
-}
-50% {
-transform: translateY(50vh) translateX(18px) rotate(180deg) scale(1);
-opacity: 1;
-}
-85% {
-opacity: 0.85;
-}
-100% {
-transform: translateY(-15vh) translateX(-14px) rotate(360deg) scale(0.75);
-opacity: 0;
-}
-}
-@keyframes shootingStar {
-0% {
-transform: translate(0, 0) rotate(-32deg) scale(0.5);
-opacity: 0;
-}
-12% {
-opacity: 1;
-}
-45% {
-transform: translate(-280px, 175px) rotate(-32deg) scale(1);
-opacity: 0;
-}
-100% {
-transform: translate(-280px, 175px) rotate(-32deg) scale(1);
-opacity: 0;
-}
-}
-@keyframes starOrbitSpin {
-0% { transform: rotate(0deg); }
-100% { transform: rotate(360deg); }
-}
-@keyframes splashBarLoad {
-0% { width: 12%; }
-55% { width: 78%; }
-100% { width: 100%; }
-}
-@keyframes splashTitleRise {
-0% { opacity: 0; transform: translateY(14px); }
-100% { opacity: 1; transform: translateY(0); }
-}
-@keyframes charGreetLeft {
-0%, 100% { transform: rotate(0deg); }
-50% { transform: rotate(-3deg); }
-}
-@keyframes charGreetRight {
-0%, 100% { transform: rotate(0deg); }
-50% { transform: rotate(3deg); }
-}
-@keyframes tabFadeIn {
-0% { opacity: 0; transform: translateY(10px) scale(0.992); }
-100% { opacity: 1; transform: none; }
-}
-@keyframes appFadeIn {
-0% { opacity: 0; }
-100% { opacity: 1; }
-}
-@keyframes loginCardEntrance {
-0% { opacity: 0; transform: translateY(22px) scale(0.96); }
-100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes orbitGlow {
-0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.35; }
-50% { transform: translate(12px, -14px) scale(1.12); opacity: 0.55; }
-}
-@keyframes badgeBounce {
-0%, 100% { transform: translateY(0px) rotate(-3deg); }
-50% { transform: translateY(-6px) rotate(3deg); }
-}
-
-
-.splash-float {
-animation: floatSlow 3.2s ease-in-out infinite;
-}
-.splash-book-sway {
-transform-origin: center;
-animation: pageSway 3s ease-in-out infinite;
-}
-.splash-sparkle {
-transform-origin: center;
-animation: softPulse 2.2s ease-in-out infinite;
-}
-.flying-star {
-position: absolute;
-bottom: -24px;
-pointer-events: none;
-animation: starFlyUp var(--dur, 6s) linear infinite;
-animation-delay: var(--delay, 0s);
-}
-.shooting-star-streak {
-position: absolute;
-width: 90px;
-height: 2px;
-background: linear-gradient(90deg, #FDE047, rgba(255, 255, 255, 0));
-border-radius: 999px;
-filter: drop-shadow(0 0 6px #FDE047);
-animation: shootingStar 4.2s ease-out infinite;
-}
-.splash-orbit-ring {
-transform-origin: 120px 100px;
-animation: starOrbitSpin 16s linear infinite;
+animation-delay: 0.3s;
 }
 .splash-progress-fill {
-animation: splashBarLoad 3.4s var(--ease-smooth) forwards;
+width: 100%;
+transform-origin: left center;
+transform: scaleX(0.06);
+animation: splashBarScale 3.3s var(--ease-smooth) forwards;
 }
 .splash-title-rise {
-animation: splashTitleRise 0.75s var(--ease-smooth) forwards;
+animation: splashTitleRise 0.55s var(--ease-smooth) 0.16s both;
 }
-.char-greet-left {
-transform-origin: bottom center;
-animation: charGreetLeft 2.5s ease-in-out infinite;
-}
-.char-greet-right {
-transform-origin: bottom center;
-animation: charGreetRight 2.5s ease-in-out infinite;
+.splash-status-pulse {
+animation: splashStatusPulse 1.6s ease-in-out infinite;
 }
 .login-card-anim {
-animation: loginCardEntrance 0.65s var(--ease-smooth) forwards;
-}
-.login-bg-orb {
-animation: orbitGlow 6s ease-in-out infinite;
+backface-visibility: hidden;
+animation: loginCardEntrance 0.48s var(--ease-smooth) both;
 }
 .login-badge-float {
-animation: badgeBounce 3s ease-in-out infinite;
+backface-visibility: hidden;
+animation: badgeBounce 3.1s ease-in-out infinite;
 }
 .tab-enter {
-animation: tabFadeIn 0.38s var(--ease-spring) forwards;
+animation: tabFadeIn 0.26s var(--ease-spring) both;
 }
 .home-enter-smooth {
-animation: appFadeIn 0.35s var(--ease-smooth) forwards;
+animation: appFadeIn 0.28s var(--ease-smooth) both;
 }
 .login-leaving {
 opacity: 0;
-transform: scale(0.98);
-transition: opacity 0.32s var(--ease-smooth), transform 0.32s var(--ease-smooth);
+transform: scale3d(0.98, 0.98, 1);
+transition: opacity 0.24s var(--ease-smooth), transform 0.24s var(--ease-smooth);
+}
+
+@media (prefers-reduced-motion: reduce) {
+.splash-shockwave-ring, .min-float, .min-float-alt, .min-shadow-pulse,
+.min-book-a, .min-book-b, .min-book-c, .min-page-flip, .min-page-flip-delay,
+.min-wave, .min-blink, .min-blink-alt, .min-spark,
+.splash-logo-glint::after, .login-badge-float, .grid-stagger-enter {
+animation: none !important;
+opacity: 1 !important;
+transform: none !important;
+}
 }
 
 
 /* Pop-up Berhasil Login Tunggal (Tengah Layar, Halus & Tanpa Blur) */
 #loginSuccessPopup {
 opacity: 0;
-transition: opacity 0.25s var(--ease-smooth);
+transition: opacity 0.22s var(--ease-smooth);
 }
 #loginSuccessPopup .login-popup-card {
 opacity: 0;
-transform: scale(0.92) translateY(10px);
-transition: opacity 0.28s var(--ease-smooth), transform 0.34s var(--ease-spring);
+transform: scale3d(0.94, 0.94, 1) translate3d(0, 8px, 0);
+transition: opacity 0.24s var(--ease-smooth), transform 0.28s var(--ease-spring);
 }
 #loginSuccessPopup.popup-show {
 opacity: 1;
 }
 #loginSuccessPopup.popup-show .login-popup-card {
 opacity: 1;
-transform: scale(1) translateY(0);
+transform: scale3d(1, 1, 1) translate3d(0, 0, 0);
 }
 @keyframes loginTimerDrain {
 0% { transform: scaleX(1); }
@@ -901,252 +929,244 @@ body { background: #ffffff !important; color: #000000 !important; }
 <body class="min-h-screen">
 
 
-<!-- SPLASH SCREEN DENGAN ILUSTRASI BINTANG BERTERBANGAN & ANIMASI AURORA -->
-<div id="splashScreen" class="fixed inset-0 z-[200] flex flex-col items-center justify-between p-6 text-white select-none overflow-hidden">
-<!-- Lapisan Aurora, Bintang Berterbangan & Bintang Jatuh -->
-<div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-<div class="splash-aurora-orb absolute -top-24 -left-20 w-80 h-80 rounded-full bg-indigo-500/35 blur-3xl"></div>
-<div class="splash-aurora-orb absolute -bottom-24 -right-20 w-80 h-80 rounded-full bg-emerald-400/25 blur-3xl" style="animation-delay: 1.8s;"></div>
-<div class="shooting-star-streak" style="top: 14%; right: -20px; animation-delay: 0.3s;"></div>
-<div class="shooting-star-streak" style="top: 32%; right: 6%; animation-delay: 1.6s;"></div>
-<div class="shooting-star-streak" style="top: 52%; right: -10px; animation-delay: 2.7s;"></div>
+<!-- SPLASH SCREEN MINIMALIS DENGAN ANIMASI BUKU & KARAKTER MINIMALIS (3.5 DETIK) -->
+<div id="splashScreen" class="fixed inset-0 z-[200] flex flex-col items-center justify-between p-6 select-none overflow-hidden">
+<div class="pointer-events-none absolute inset-0 splash-ambient-layer" aria-hidden="true"></div>
 
 
-<!-- Kumpulan Bintang SVG Berterbangan dari Bawah ke Atas -->
-<svg class="flying-star" style="left: 8%; --dur: 5.2s; --delay: 0s;" width="18" height="18" viewBox="0 0 24 24" fill="#FDE047">
-<path d="M12 2L14.9 8.6L22 9.3L16.6 14L18.2 21L12 17.3L5.8 21L7.4 14L2 9.3L9.1 8.6L12 2Z"/>
-</svg>
-<svg class="flying-star" style="left: 22%; --dur: 6.4s; --delay: 1.1s;" width="13" height="13" viewBox="0 0 24 24" fill="#34D399">
-<path d="M12 1L14.5 9.5L23 12L14.5 14.5L12 23L9.5 14.5L1 12L9.5 9.5L12 1Z"/>
-</svg>
-<svg class="flying-star" style="left: 38%; --dur: 4.8s; --delay: 0.5s;" width="16" height="16" viewBox="0 0 24 24" fill="#FBBF24">
-<path d="M12 2L14.9 8.6L22 9.3L16.6 14L18.2 21L12 17.3L5.8 21L7.4 14L2 9.3L9.1 8.6L12 2Z"/>
-</svg>
-<svg class="flying-star" style="left: 54%; --dur: 5.8s; --delay: 1.7s;" width="12" height="12" viewBox="0 0 24 24" fill="#FFFFFF">
-<path d="M12 1L14.5 9.5L23 12L14.5 14.5L12 23L9.5 14.5L1 12L9.5 9.5L12 1Z"/>
-</svg>
-<svg class="flying-star" style="left: 71%; --dur: 5.0s; --delay: 0.3s;" width="20" height="20" viewBox="0 0 24 24" fill="#FDE047">
-<path d="M12 2L14.9 8.6L22 9.3L16.6 14L18.2 21L12 17.3L5.8 21L7.4 14L2 9.3L9.1 8.6L12 2Z"/>
-</svg>
-<svg class="flying-star" style="left: 86%; --dur: 6.1s; --delay: 1.4s;" width="14" height="14" viewBox="0 0 24 24" fill="#A5B4FC">
-<path d="M12 1L14.5 9.5L23 12L14.5 14.5L12 23L9.5 14.5L1 12L9.5 9.5L12 1Z"/>
-</svg>
-<svg class="flying-star" style="left: 15%; --dur: 4.5s; --delay: 2.2s;" width="11" height="11" viewBox="0 0 24 24" fill="#6EE7B7">
-<path d="M12 1L14.5 9.5L23 12L14.5 14.5L12 23L9.5 14.5L1 12L9.5 9.5L12 1Z"/>
-</svg>
-<svg class="flying-star" style="left: 79%; --dur: 4.9s; --delay: 2.5s;" width="15" height="15" viewBox="0 0 24 24" fill="#FDE047">
-<path d="M12 2L14.9 8.6L22 9.3L16.6 14L18.2 21L12 17.3L5.8 21L7.4 14L2 9.3L9.1 8.6L12 2Z"/>
-</svg>
-</div>
-
-
-<div class="h-6"></div>
+<div class="h-4"></div>
 
 
 <div class="relative z-10 flex flex-col items-center text-center max-w-xs space-y-4 splash-hero-pop">
-<div class="relative w-56 h-48 flex items-center justify-center">
+<div class="relative w-64 h-56 flex items-center justify-center">
 <div class="splash-shockwave-ring"></div>
-<div class="splash-shockwave-ring" style="animation-delay: 0.95s; border-color: rgba(129, 140, 248, 0.7);"></div>
-<svg viewBox="0 0 240 200" class="w-56 h-48 splash-float overflow-visible" fill="none" xmlns="http://www.w3.org/2000/svg">
+<div class="splash-shockwave-ring" style="animation-delay: 1.25s; border-color: rgba(16, 185, 129, 0.32);"></div>
+
+<!-- Ilustrasi Minimalis: Buku-buku Melayang, Buku Terbuka Berhalaman Membalik & Karakter Santri Minimalis -->
+<svg viewBox="0 0 280 240" class="w-64 h-56 overflow-visible relative z-10" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ilustrasi Buku dan Karakter Santri Minimalis">
 <defs>
-<radialGradient id="spOrb3d" cx="38%" cy="32%" r="68%">
-<stop offset="0%" stop-color="#93C5FD" stop-opacity="0.52"/>
-<stop offset="70%" stop-color="#3B82F6" stop-opacity="0.22"/>
-<stop offset="100%" stop-color="#1E3A8A" stop-opacity="0"/>
-</radialGradient>
-<radialGradient id="spSkin3d" cx="40%" cy="35%" r="65%">
-<stop offset="0%" stop-color="#FFE6C7"/>
-<stop offset="65%" stop-color="#F6BC84"/>
-<stop offset="100%" stop-color="#D98E54"/>
-</radialGradient>
-<linearGradient id="spPeci3d" x1="88" y1="30" x2="152" y2="62" gradientUnits="userSpaceOnUse">
-<stop offset="0%" stop-color="#334155"/>
-<stop offset="55%" stop-color="#0F172A"/>
-<stop offset="100%" stop-color="#020617"/>
+<linearGradient id="minIndigo" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0%" stop-color="#6366F1"/>
+<stop offset="100%" stop-color="#4338CA"/>
 </linearGradient>
-<radialGradient id="spRobe3d" cx="35%" cy="25%" r="75%">
-<stop offset="0%" stop-color="#FFFFFF"/>
-<stop offset="65%" stop-color="#DBEAFE"/>
-<stop offset="100%" stop-color="#93C5FD"/>
-</radialGradient>
-<linearGradient id="spBookCover3d" x1="65" y1="118" x2="175" y2="156" gradientUnits="userSpaceOnUse">
+<linearGradient id="minEmerald" x1="0" y1="0" x2="1" y2="1">
 <stop offset="0%" stop-color="#34D399"/>
-<stop offset="55%" stop-color="#059669"/>
-<stop offset="100%" stop-color="#064E3B"/>
+<stop offset="100%" stop-color="#059669"/>
 </linearGradient>
-<linearGradient id="spDesk3d" x1="45" y1="145" x2="195" y2="175" gradientUnits="userSpaceOnUse">
-<stop offset="0%" stop-color="#FBBF24"/>
-<stop offset="55%" stop-color="#D97706"/>
-<stop offset="100%" stop-color="#78350F"/>
+<linearGradient id="minAmber" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0%" stop-color="#FDE047"/>
+<stop offset="100%" stop-color="#F59E0B"/>
 </linearGradient>
+<radialGradient id="minAura" cx="50%" cy="52%" r="50%">
+<stop offset="0%" stop-color="#6366F1" stop-opacity="0.16"/>
+<stop offset="65%" stop-color="#34D399" stop-opacity="0.07"/>
+<stop offset="100%" stop-color="#34D399" stop-opacity="0"/>
+</radialGradient>
 </defs>
 
+<!-- Lingkaran Latar Lembut Transparan -->
+<circle cx="140" cy="126" r="96" fill="url(#minAura)"/>
 
-<circle cx="120" cy="100" r="85" fill="url(#spOrb3d)"/>
-
-
-<!-- Cincin Orbit Bintang Berputar -->
-<g class="splash-orbit-ring">
-<circle cx="120" cy="100" r="86" stroke="#93C5FD" stroke-opacity="0.28" stroke-width="1.2" stroke-dasharray="4 6"/>
-<path d="M120 8L122.2 13.5L128 14L123.6 17.8L125 23.5L120 20.4L115 23.5L116.4 17.8L112 14L117.8 13.5L120 8Z" fill="#FDE047"/>
-<path d="M204 100L205.8 104.2L210.5 104.6L207 107.6L208 112L204 109.6L200 112L201 107.6L197.5 104.6L202.2 104.2L204 100Z" fill="#60A5FA"/>
-<path d="M36 100L37.8 104.2L42.5 104.6L39 107.6L40 112L36 109.6L32 112L33 107.6L29.5 104.6L34.2 104.2L36 100Z" fill="#34D399"/>
+<!-- Buku Melayang 1 (Kiri - Buku Indigo Minimalis) -->
+<g class="min-book-a" style="transform-origin: 48px 104px;">
+<rect x="28" y="84" width="38" height="46" rx="6" fill="url(#minIndigo)"/>
+<rect x="33" y="84" width="6" height="46" rx="2" fill="#312E81" opacity="0.45"/>
+<rect x="44" y="96" width="15" height="3.2" rx="1.6" fill="#FFFFFF" opacity="0.9"/>
+<rect x="44" y="103" width="11" height="2.6" rx="1.3" fill="#C7D2FE" opacity="0.85"/>
+<path d="M54 130V138L57.5 135L61 138V130Z" fill="#34D399"/>
 </g>
 
-
-<!-- Bintang Kilau di Sekitar Ilustrasi -->
-<path d="M48 44L50.8 50.8L58 51.5L52.5 56.2L54.2 63.2L48 59.5L41.8 63.2L43.5 56.2L38 51.5L45.2 50.8L48 44Z" fill="#FDE047" class="splash-sparkle"/>
-<path d="M192 50L194.2 55.5L200 56L195.6 59.8L197 65.5L192 62.5L187 65.5L188.4 59.8L184 56L189.8 55.5L192 50Z" fill="#93C5FD" class="splash-sparkle" style="animation-delay:0.8s"/>
-<path d="M185 122L187 126.5L192 127L188.2 130.2L189.4 135L185 132.4L180.6 135L181.8 130.2L178 127L183 126.5L185 122Z" fill="#FBBF24" class="splash-sparkle" style="animation-delay:1.4s"/>
-
-
-<!-- Karakter Santri 3D -->
-<path d="M74 146C74 114 92 98 120 98C148 98 166 114 166 146H74Z" fill="url(#spRobe3d)"/>
-<circle cx="120" cy="72" r="24" fill="url(#spSkin3d)"/>
-<circle cx="112" cy="71" r="2.6" fill="#0F172A"/>
-<circle cx="128" cy="71" r="2.6" fill="#0F172A"/>
-<path d="M114 80C117 83.5 123 83.5 126 80" stroke="#9A3412" stroke-width="2.2" stroke-linecap="round"/>
-<path d="M97 58C97 43 107 37 120 37C133 37 143 43 143 58C143 62 133 63 120 63C107 63 97 62 97 58Z" fill="url(#spPeci3d)"/>
-<path d="M99 57C110 60 130 60 141 57" stroke="#60A5FA" stroke-width="1.6" stroke-linecap="round"/>
-
-
-<g class="splash-book-sway">
-<path d="M68 126L120 136L172 126L164 148L120 156L76 148L68 126Z" fill="url(#spBookCover3d)"/>
-<path d="M74 122L120 132L120 148L76 140L74 122Z" fill="#F8FAFC"/>
-<path d="M166 122L120 132L120 148L164 140L166 122Z" fill="#E2E8F0"/>
+<!-- Buku Melayang 2 (Kanan - Kitab Emerald Minimalis) -->
+<g class="min-book-b" style="transform-origin: 232px 100px;">
+<rect x="214" y="78" width="36" height="44" rx="6" fill="url(#minEmerald)"/>
+<rect x="219" y="78" width="5.5" height="44" rx="2" fill="#065F46" opacity="0.4"/>
+<rect x="229" y="90" width="14" height="3" rx="1.5" fill="#FFFFFF" opacity="0.92"/>
+<rect x="229" y="97" width="10" height="2.5" rx="1.25" fill="#D1FAE5" opacity="0.85"/>
+<circle cx="236" cy="109" r="3" fill="#FDE047"/>
 </g>
 
+<!-- Buku Catatan Mini Melayang (Atas Kiri) -->
+<g class="min-book-c" style="transform-origin: 76px 52px;">
+<rect x="64" y="40" width="24" height="28" rx="5" fill="url(#minAmber)"/>
+<rect x="68" y="40" width="4" height="28" rx="1.5" fill="#D97706" opacity="0.45"/>
+<rect x="75" y="49" width="9" height="2.4" rx="1.2" fill="#FFFFFF"/>
+<rect x="75" y="54" width="6" height="2.2" rx="1.1" fill="#FEF3C7"/>
+</g>
 
-<path d="M54 150L120 142L186 150L174 166H66L54 150Z" fill="url(#spDesk3d)"/>
+<!-- Bayangan Lantai Minimalis -->
+<ellipse cx="140" cy="218" rx="62" ry="8" fill="#4F46E5" class="min-shadow-pulse" style="transform-origin: 140px 218px;"/>
+
+<!-- Karakter Santri Minimalis & Buku Terbuka -->
+<g class="min-float">
+<!-- Tangan Kanan Melambai Lembut -->
+<g class="min-wave" style="transform-origin: 108px 136px;">
+<path d="M110 132C98 128 92 119 88 108" stroke="#FFFFFF" stroke-width="11" stroke-linecap="round"/>
+<path d="M110 132C98 128 92 119 88 108" stroke="#E2E8F0" stroke-width="1.5" stroke-linecap="round"/>
+<circle cx="86" cy="104" r="6.5" fill="#FDE2C4"/>
+</g>
+
+<!-- Badan Koko Minimalis -->
+<path d="M104 176C104 146 112 128 140 128C168 128 176 146 176 176Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="135" y="128" width="10" height="34" rx="5" fill="url(#minIndigo)"/>
+<circle cx="140" cy="138" r="1.5" fill="#A5F3FC"/>
+<circle cx="140" cy="147" r="1.5" fill="#A5F3FC"/>
+
+<!-- Kepala & Peci Minimalis -->
+<rect x="134" y="118" width="12" height="12" rx="5" fill="#F6CCA3"/>
+<circle cx="140" cy="96" r="26" fill="#FDE2C4"/>
+<!-- Pipi Minimalis Lembut -->
+<ellipse cx="123" cy="103" rx="4.2" ry="2.2" fill="#FDA4AF" opacity="0.45"/>
+<ellipse cx="157" cy="103" rx="4.2" ry="2.2" fill="#FDA4AF" opacity="0.45"/>
+<!-- Mata Titik Minimalis Berkedip -->
+<g class="min-blink" style="transform-origin: 140px 96px;">
+<circle cx="130" cy="96" r="2.8" fill="#1E293B"/>
+<circle cx="150" cy="96" r="2.8" fill="#1E293B"/>
+</g>
+<!-- Senyum Minimalis -->
+<path d="M134 106C137 110 143 110 146 106" stroke="#9A5B36" stroke-width="2.2" stroke-linecap="round"/>
+<!-- Peci Hitam Minimalis dengan Garis Mint -->
+<path d="M114 82C114 66 121 60 140 60C159 60 166 66 166 82C166 86 155 88 140 88C125 88 114 86 114 82Z" fill="#1E293B"/>
+<path d="M117 82C127 85 153 85 163 82" stroke="#34D399" stroke-width="2" stroke-linecap="round"/>
+
+<!-- Buku Terbuka Minimalis dengan Animasi Halaman Membalik -->
+<g>
+<!-- Sampul Buku -->
+<path d="M76 162C96 156 122 158 140 168C158 158 184 156 204 162L198 198C178 192 156 194 140 202C124 194 102 192 82 198Z" fill="url(#minIndigo)"/>
+<!-- Halaman Kiri Statis -->
+<path d="M84 158C102 152 124 155 140 166V196C124 188 104 186 88 192Z" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.2"/>
+<!-- Halaman Kanan Statis -->
+<path d="M196 158C178 152 156 155 140 166V196C156 188 176 186 192 192Z" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1.2"/>
+<!-- Garis Teks Minimalis -->
+<path d="M97 168C108 166 118 168 128 173M99 176C109 174 119 176 128 180M152 173C162 168 172 166 183 168M152 180C161 176 171 174 181 176" stroke="#94A3B8" stroke-width="1.6" stroke-linecap="round" opacity="0.65"/>
+<!-- Halaman Membalik 1 (GPU ScaleX dari Punggung Buku) -->
+<g class="min-page-flip" style="transform-origin: 140px 180px;">
+<path d="M140 166C156 155 176 152 193 158L189 190C174 185 156 187 140 196Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.2"/>
+<path d="M151 172C160 168 170 167 179 169M151 179C160 175 169 174 178 176" stroke="#6366F1" stroke-width="1.5" stroke-linecap="round" opacity="0.55"/>
+</g>
+<!-- Halaman Membalik 2 (Staggered) -->
+<g class="min-page-flip-delay" style="transform-origin: 140px 180px;">
+<path d="M140 166C156 155 176 152 193 158L189 190C174 185 156 187 140 196Z" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="1.2"/>
+<path d="M151 172C160 168 170 167 179 169" stroke="#10B981" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+</g>
+<!-- Pembatas Buku Mint -->
+<path d="M137 168H143V206L140 202L137 206Z" fill="#10B981"/>
+</g>
+
+<!-- Partikel Cahaya Ilmu Naik dari Buku -->
+<circle cx="140" cy="148" r="3" fill="#FBBF24" class="min-spark"/>
+<circle cx="122" cy="154" r="2.4" fill="#34D399" class="min-spark" style="animation-delay: 0.75s;"/>
+<circle cx="158" cy="152" r="2.4" fill="#6366F1" class="min-spark" style="animation-delay: 1.4s;"/>
+</g>
 </svg>
 </div>
 
 
 <div class="splash-title-rise flex items-center justify-center gap-2.5">
-<div class="splash-logo-glint rounded-xl bg-white/15 border border-emerald-300/40 p-1 shadow-lg">
-<img src="https://lh3.googleusercontent.com/d/1cVVxzS5pcO35NXDLh_W2YXUiSYuS3zg5" alt="Logo" class="logo-img w-10 h-10 object-contain">
+<div class="splash-logo-glint rounded-xl bg-white dark:bg-white/15 border border-indigo-200 dark:border-emerald-300/40 p-1.5 shadow-md">
+<img src="https://lh3.googleusercontent.com/d/1cVVxzS5pcO35NXDLh_W2YXUiSYuS3zg5" alt="Logo" class="logo-img w-9 h-9 object-contain">
 </div>
 <div class="text-left">
-<h1 id="splashAppTitle" class="text-lg font-extrabold tracking-tight leading-tight text-white">Departemen Pendidikan</h1>
-<p class="text-[11px] text-emerald-300 font-semibold">YPM Al-Rifa'ie 2 Gondanglegi</p>
+<h1 id="splashAppTitle" class="text-lg font-extrabold tracking-tight leading-tight text-slate-900 dark:text-white">Departemen Pendidikan</h1>
+<p class="text-[11px] text-emerald-600 dark:text-emerald-300 font-semibold">YPM Al-Rifa'ie 2 Gondanglegi</p>
 </div>
 </div>
 
 
-<div class="w-48 h-2 bg-white/15 rounded-full overflow-hidden border border-white/15">
-<div class="h-full bg-gradient-to-r from-[#6366F1] via-[#34D399] to-[#FBBF24] rounded-full splash-progress-fill shadow-[0_0_12px_rgba(52,211,153,0.8)]"></div>
+<div class="w-52 space-y-1.5">
+<div class="w-full h-2 bg-indigo-100 dark:bg-white/15 rounded-full overflow-hidden border border-indigo-200/80 dark:border-white/15">
+<div class="h-full bg-gradient-to-r from-[#4F46E5] via-[#6366F1] to-[#10B981] dark:from-[#6366F1] dark:via-[#34D399] dark:to-[#FBBF24] rounded-full splash-progress-fill"></div>
+</div>
+<p class="text-[10px] font-semibold text-indigo-600/80 dark:text-emerald-300/85 tracking-wide splash-status-pulse">Memuat ruang pendidikan...</p>
 </div>
 </div>
 
 
 <div class="relative z-10 text-center space-y-0.5 pb-2">
-<p class="text-[10px] uppercase tracking-widest text-blue-300/80 font-semibold">Developer Aplikasi</p>
-<p class="text-xs font-bold text-white tracking-wide">محمد أمير عبدالله</p>
+<p class="text-[10px] uppercase tracking-widest text-indigo-500 dark:text-blue-300/80 font-semibold">Developer Aplikasi</p>
+<p class="text-xs font-bold text-slate-800 dark:text-white tracking-wide">محمد أمير عبدالله</p>
 </div>
 </div>
 
 
 <!-- HALAMAN LOGIN -->
 <section id="loginSection" class="min-h-screen flex items-center justify-center p-5 overflow-hidden relative">
-<div class="pointer-events-none absolute inset-0 overflow-hidden">
-<div class="login-bg-orb absolute -top-24 -left-24 w-72 h-72 rounded-full bg-blue-400/20 dark:bg-blue-600/15 blur-3xl"></div>
-<div class="login-bg-orb absolute -bottom-28 -right-20 w-80 h-80 rounded-full bg-emerald-400/20 dark:bg-emerald-500/10 blur-3xl" style="animation-delay: 2.5s;"></div>
-</div>
+<div class="pointer-events-none absolute inset-0 login-ambient-layer" aria-hidden="true"></div>
 
 
-<div class="login-card-anim w-full max-w-sm space-y-5 relative z-10">
+<div class="login-card-anim w-full max-w-sm space-y-4 relative z-10">
 <div class="text-center space-y-2">
-<div class="relative w-56 h-40 mx-auto flex items-center justify-center">
-<div class="login-badge-float absolute left-1 top-4 w-9 h-9 rounded-2xl bg-white dark:bg-slate-800 shadow-md border border-slate-100 dark:border-slate-700 flex items-center justify-center text-amber-500 text-sm">
-<i class="fa-solid fa-star"></i>
+<div class="relative w-64 h-36 mx-auto flex items-center justify-center">
+<div class="login-badge-float absolute left-1 top-2 z-20 w-8 h-8 rounded-2xl bg-white dark:bg-slate-800 shadow-md border border-indigo-100 dark:border-slate-700 flex items-center justify-center text-indigo-500 dark:text-indigo-300 text-xs">
+<i class="fa-solid fa-book-open"></i>
 </div>
-<div class="login-badge-float absolute right-1 top-6 w-9 h-9 rounded-2xl bg-white dark:bg-slate-800 shadow-md border border-slate-100 dark:border-slate-700 flex items-center justify-center text-emerald-600 text-sm" style="animation-delay: 1.2s;">
-<i class="fa-solid fa-book-quran"></i>
+<div class="login-badge-float absolute right-1 top-3 z-20 w-8 h-8 rounded-2xl bg-white dark:bg-slate-800 shadow-md border border-emerald-100 dark:border-slate-700 flex items-center justify-center text-emerald-600 dark:text-[#34D399] text-xs" style="animation-delay: 1.1s;">
+<i class="fa-solid fa-graduation-cap"></i>
 </div>
 
-
-<svg viewBox="0 0 260 190" class="w-56 h-40 splash-float overflow-visible" fill="none" xmlns="http://www.w3.org/2000/svg">
+<!-- Ilustrasi Karakter & Buku Minimalis Berlatar Transparan -->
+<svg viewBox="0 0 280 156" class="w-64 h-36 overflow-visible" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Karakter Santri Minimalis dan Buku">
 <defs>
-<radialGradient id="loginOrb3d" cx="35%" cy="30%" r="70%">
-<stop offset="0%" stop-color="#DBEAFE"/>
-<stop offset="65%" stop-color="#93C5FD"/>
-<stop offset="100%" stop-color="#3B82F6"/>
-</radialGradient>
-<radialGradient id="loginSkin3d" cx="40%" cy="35%" r="65%">
-<stop offset="0%" stop-color="#FFE6C7"/>
-<stop offset="65%" stop-color="#F6BC84"/>
-<stop offset="100%" stop-color="#D98E54"/>
-</radialGradient>
-<linearGradient id="loginBookTop3d" x1="75" y1="105" x2="185" y2="155" gradientUnits="userSpaceOnUse">
-<stop offset="0%" stop-color="#3B82F6"/>
-<stop offset="55%" stop-color="#1D4ED8"/>
-<stop offset="100%" stop-color="#1E3A8A"/>
+<linearGradient id="lgMinIndigo" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0%" stop-color="#6366F1"/>
+<stop offset="100%" stop-color="#4338CA"/>
 </linearGradient>
-<linearGradient id="loginBookSide3d" x1="75" y1="130" x2="185" y2="165" gradientUnits="userSpaceOnUse">
-<stop offset="0%" stop-color="#F8FAFC"/>
-<stop offset="100%" stop-color="#CBD5E1"/>
+<linearGradient id="lgMinEmerald" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0%" stop-color="#34D399"/>
+<stop offset="100%" stop-color="#059669"/>
 </linearGradient>
-<linearGradient id="loginCap3d" x1="90" y1="35" x2="175" y2="85" gradientUnits="userSpaceOnUse">
-<stop offset="0%" stop-color="#1E293B"/>
-<stop offset="60%" stop-color="#0F172A"/>
-<stop offset="100%" stop-color="#020617"/>
-</linearGradient>
-<linearGradient id="loginGold3d" x1="130" y1="50" x2="185" y2="105" gradientUnits="userSpaceOnUse">
-<stop offset="0%" stop-color="#FDE047"/>
-<stop offset="60%" stop-color="#F59E0B"/>
-<stop offset="100%" stop-color="#B45309"/>
-</linearGradient>
-<radialGradient id="loginShadow3d" cx="50%" cy="50%" r="50%">
-<stop offset="0%" stop-color="#1E3A8A" stop-opacity="0.22"/>
-<stop offset="100%" stop-color="#1E3A8A" stop-opacity="0"/>
-</radialGradient>
 </defs>
 
+<!-- Bayangan Lantai Minimalis -->
+<ellipse cx="94" cy="146" rx="34" ry="5.5" fill="#4F46E5" class="min-shadow-pulse" style="transform-origin: 94px 146px;"/>
+<ellipse cx="186" cy="146" rx="34" ry="5.5" fill="#10B981" class="min-shadow-pulse" style="transform-origin: 186px 146px; animation-delay: 0.5s;"/>
 
-<ellipse cx="130" cy="172" rx="82" ry="12" fill="url(#loginShadow3d)"/>
-<circle cx="130" cy="92" r="64" fill="url(#loginOrb3d)" opacity="0.28"/>
-<circle cx="62" cy="48" r="5" fill="url(#loginGold3d)" class="splash-sparkle"/>
-<circle cx="198" cy="45" r="4.5" fill="url(#loginBookTop3d)" class="splash-sparkle" style="animation-delay:0.7s"/>
-
-
-<g class="char-greet-left">
-<path d="M36 144C36 122 48 112 64 112C80 112 90 122 90 144H36Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5"/>
-<path d="M40 118L24 98" stroke="#F6BC84" stroke-width="6" stroke-linecap="round"/>
-<circle cx="63" cy="94" r="15" fill="url(#loginSkin3d)"/>
-<circle cx="58" cy="93" r="1.8" fill="#0F172A"/>
-<circle cx="68" cy="93" r="1.8" fill="#0F172A"/>
-<path d="M59 99C61 101.5 65 101.5 67 99" stroke="#9A3412" stroke-width="1.6" stroke-linecap="round"/>
-<path d="M49 85C49 76 55 72 63 72C71 72 77 76 77 85C77 88 71 88.5 63 88.5C55 88.5 49 88 49 85Z" fill="#0F172A"/>
+<!-- Buku Mini Melayang di Tengah Atas -->
+<g class="min-book-c" style="transform-origin: 140px 30px;">
+<path d="M122 28C128 24 135 25 140 29C145 25 152 24 158 28L156 41C150 38 144 39 140 42C136 39 130 38 124 41Z" fill="url(#lgMinIndigo)"/>
+<path d="M125 26C130 23 136 24 140 28V39C135 36 130 36 126 38Z" fill="#FFFFFF"/>
+<path d="M155 26C150 23 144 24 140 28V39C145 36 150 36 154 38Z" fill="#ECFDF5"/>
 </g>
 
-
-<g class="char-greet-right">
-<path d="M170 144C170 122 180 112 196 112C212 112 224 122 224 144H170Z" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1.5"/>
-<path d="M220 118L236 98" stroke="#F6BC84" stroke-width="6" stroke-linecap="round"/>
-<circle cx="197" cy="94" r="15" fill="url(#loginSkin3d)"/>
-<circle cx="192" cy="93" r="1.8" fill="#0F172A"/>
-<circle cx="202" cy="93" r="1.8" fill="#0F172A"/>
-<path d="M193 99C195 101.5 199 101.5 201 99" stroke="#9A3412" stroke-width="1.6" stroke-linecap="round"/>
-<path d="M183 85C183 76 189 72 197 72C205 72 211 76 211 85C211 88 205 88.5 197 88.5C189 88.5 183 88 183 85Z" fill="#0F172A"/>
+<!-- Karakter Minimalis 1: Santri (Kiri) -->
+<g class="min-float">
+<g class="min-wave" style="transform-origin: 70px 104px;">
+<path d="M72 102C62 98 57 90 54 81" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round"/>
+<circle cx="53" cy="78" r="5" fill="#FDE2C4"/>
+</g>
+<path d="M68 142C68 115 74 100 94 100C114 100 120 115 120 142Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.4"/>
+<rect x="90" y="100" width="8" height="26" rx="4" fill="url(#lgMinIndigo)"/>
+<rect x="70" y="133" width="48" height="9" rx="4" fill="url(#lgMinEmerald)"/>
+<circle cx="94" cy="76" r="20" fill="#FDE2C4"/>
+<ellipse cx="81" cy="81" rx="3.4" ry="1.8" fill="#FDA4AF" opacity="0.45"/>
+<ellipse cx="107" cy="81" rx="3.4" ry="1.8" fill="#FDA4AF" opacity="0.45"/>
+<g class="min-blink" style="transform-origin: 94px 76px;">
+<circle cx="86.5" cy="76" r="2.2" fill="#1E293B"/>
+<circle cx="101.5" cy="76" r="2.2" fill="#1E293B"/>
+</g>
+<path d="M89.5 84C92 87 96 87 98.5 84" stroke="#9A5B36" stroke-width="1.8" stroke-linecap="round"/>
+<path d="M74 65C74 52 80 48 94 48C108 48 114 52 114 65C114 68 105 70 94 70C83 70 74 68 74 65Z" fill="#1E293B"/>
+<path d="M77 65C85 67.5 103 67.5 111 65" stroke="#34D399" stroke-width="1.7" stroke-linecap="round"/>
 </g>
 
-
-<path d="M76 136L130 114L184 136L130 158L76 136Z" fill="url(#loginBookTop3d)"/>
-<path d="M76 136L130 158V168L76 146V136Z" fill="#1E40AF"/>
-<path d="M130 158L184 136V146L130 168V158Z" fill="url(#loginBookSide3d)"/>
-
-
-<path d="M84 121L130 102L176 121L130 140L84 121Z" fill="#10B981"/>
-<path d="M84 121L130 140V149L84 130V121Z" fill="#047857"/>
-<path d="M130 140L176 121V130L130 149V140Z" fill="#F1F5F9"/>
-
-
-<g class="splash-book-sway">
-<path d="M104 68C104 60 156 60 156 68V82C156 89 104 89 104 82V68Z" fill="#1E293B"/>
-<path d="M80 60L130 40L180 60L130 80L80 60Z" fill="url(#loginCap3d)"/>
-<circle cx="130" cy="60" r="4" fill="url(#loginGold3d)"/>
-<path d="M130 60L166 73V92" stroke="url(#loginGold3d)" stroke-width="3" stroke-linecap="round"/>
-<circle cx="166" cy="95" r="4.5" fill="url(#loginGold3d)"/>
+<!-- Karakter Minimalis 2: Santriwati dengan Buku (Kanan) -->
+<g class="min-float-alt">
+<path d="M160 142C160 114 166 100 186 100C206 100 212 114 212 142Z" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.4"/>
+<!-- Hijab Minimalis Electric Indigo -->
+<path d="M161 98C161 70 168 48 186 48C204 48 211 70 211 98C205 108 196 112 186 112C176 112 167 108 161 98Z" fill="url(#lgMinIndigo)"/>
+<circle cx="186" cy="77" r="17.5" fill="#FDE2C4"/>
+<path d="M170 67C174 59 198 59 202 67C196 63 176 63 170 67Z" fill="#FFFFFF"/>
+<ellipse cx="175" cy="82" rx="3.2" ry="1.7" fill="#FDA4AF" opacity="0.45"/>
+<ellipse cx="197" cy="82" rx="3.2" ry="1.7" fill="#FDA4AF" opacity="0.45"/>
+<g class="min-blink-alt" style="transform-origin: 186px 77px;">
+<circle cx="179.5" cy="77" r="2.2" fill="#1E293B"/>
+<circle cx="192.5" cy="77" r="2.2" fill="#1E293B"/>
+</g>
+<path d="M182 84.5C184.5 87.2 187.5 87.2 190 84.5" stroke="#9A5B36" stroke-width="1.8" stroke-linecap="round"/>
+<!-- Buku Emerald Minimalis Dipeluk -->
+<rect x="171" y="110" width="28" height="24" rx="4" transform="rotate(-5 185 122)" fill="url(#lgMinEmerald)"/>
+<rect x="176" y="115" width="14" height="2.4" rx="1.2" transform="rotate(-5 185 122)" fill="#FFFFFF" opacity="0.9"/>
+<rect x="176" y="120" width="10" height="2.2" rx="1.1" transform="rotate(-5 185 122)" fill="#D1FAE5" opacity="0.85"/>
+<circle cx="186" cy="100" r="2.6" fill="#FDE047"/>
 </g>
 </svg>
 </div>
@@ -2302,21 +2322,36 @@ const targets = Array.from(root.querySelectorAll(selector)).filter(el => {
 if (!el || el.classList.contains('hidden')) return false;
 if (el.closest('.galeri-deck-wrapper')) return false;
 return true;
-});
+}).slice(0, 12);
+if (!targets.length) return;
 targets.forEach((el, idx) => {
-el.style.setProperty('--stagger-idx', String(Math.min(idx, 10)));
+el.style.setProperty('--stagger-idx', String(idx));
 el.classList.remove('grid-stagger-enter');
-void el.offsetWidth;
+});
+requestAnimationFrame(() => {
+targets.forEach(el => {
 el.classList.add('grid-stagger-enter');
+el.addEventListener('animationend', () => {
+el.classList.remove('grid-stagger-enter');
+}, { once: true });
+});
 });
 }
 
 
-function toggleDarkMode() {
-const isDark = document.documentElement.classList.toggle('dark');
-localStorage.setItem('alrifaie_theme', isDark ? 'dark' : 'light');
+function applyThemeUI(isDark) {
+document.documentElement.classList.toggle('dark', isDark);
 const icon = document.getElementById('themeIcon');
-if (icon) icon.className = isDark ? 'fa-solid fa-sun text-xs text-[#34D399]' : 'fa-solid fa-moon text-xs';
+if (icon) icon.className = isDark ? 'fa-solid fa-sun text-xs text-[#34D399]' : 'fa-solid fa-moon text-xs text-[#4F46E5]';
+const metaTheme = document.getElementById('metaThemeColor') || document.querySelector('meta[name="theme-color"]');
+if (metaTheme) metaTheme.setAttribute('content', isDark ? '#0B1120' : '#F8FAFC');
+}
+
+function toggleDarkMode() {
+const isDark = !document.documentElement.classList.contains('dark');
+applyThemeUI(isDark);
+localStorage.setItem('alrifaie_theme_v2', isDark ? 'dark' : 'light');
+localStorage.setItem('alrifaie_theme', isDark ? 'dark' : 'light');
 }
 
 
@@ -2699,18 +2734,20 @@ renderRoomDetailRows(filtered);
 }
 
 
+let splashDismissed = false;
 function dismissSplashScreen() {
+if (splashDismissed) return;
+splashDismissed = true;
 const splash = document.getElementById('splashScreen');
 if (!splash) return;
+requestAnimationFrame(() => {
 splash.classList.add('splash-hide');
-splash.style.opacity = '0';
-splash.style.visibility = 'hidden';
-splash.style.pointerEvents = 'none';
+});
 setTimeout(() => {
 if (splash && splash.parentNode) {
 splash.style.display = 'none';
 }
-}, 550);
+}, 440);
 }
 
 
@@ -2940,15 +2977,8 @@ loginPopupHideTimer = setTimeout(hideLoginSuccessPopup, 3000);
 
 window.addEventListener('DOMContentLoaded', () => {
 try {
-const themeIcon = document.getElementById('themeIcon');
-const savedTheme = localStorage.getItem('alrifaie_theme');
-if (savedTheme === 'light') {
-document.documentElement.classList.remove('dark');
-if (themeIcon) themeIcon.className = 'fa-solid fa-moon text-xs';
-} else {
-document.documentElement.classList.add('dark');
-if (themeIcon) themeIcon.className = 'fa-solid fa-sun text-xs text-[#34D399]';
-}
+const savedTheme = localStorage.getItem('alrifaie_theme_v2');
+applyThemeUI(savedTheme === 'dark');
 const cLogo = localStorage.getItem('alrifaie_logo');
 if (cLogo) document.querySelectorAll('.logo-img').forEach(el => el.src = cLogo);
 const cBan = localStorage.getItem('alrifaie_banner');
@@ -2987,13 +3017,11 @@ activateSessionUI(savedSession, true);
 } catch (err) {
 console.warn('Error inisialisasi awal:', err);
 }
-setTimeout(dismissSplashScreen, 3400);
+// Beri ruang penuh 100% GPU untuk animasi masuk splash screen agar mulus 60-120fps tanpa freeze
+setTimeout(() => {
 try { loadInit(); } catch (err) { console.warn('Error loadInit:', err); }
-});
-
-
-window.addEventListener('load', () => {
-setTimeout(dismissSplashScreen, 3400);
+}, 360);
+setTimeout(dismissSplashScreen, 3500);
 });
 
 
@@ -3133,6 +3161,20 @@ reader.readAsDataURL(file);
 }
 
 
+const GALERI_HD_MAP_KEY = 'alrifaie_galeri_hd_map';
+function getHdGalleryMap() {
+try { return JSON.parse(localStorage.getItem(GALERI_HD_MAP_KEY) || '{}') || {}; } catch (e) { return {}; }
+}
+function saveHdGalleryImage(id, hdUrl) {
+try {
+const map = getHdGalleryMap();
+const keys = Object.keys(map);
+if (keys.length >= 12) delete map[keys[0]];
+map[String(id)] = hdUrl;
+localStorage.setItem(GALERI_HD_MAP_KEY, JSON.stringify(map));
+} catch (e) {}
+}
+
 async function postGaleriFoto(e) {
 e.preventDefault();
 const fileEl = document.getElementById('galeriFile');
@@ -3144,20 +3186,26 @@ return;
 }
 
 
-Swal.fire({ title: 'Mengunggah foto...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+Swal.fire({ title: 'Memproses foto HD...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 try {
-const compressed = await compressImageSafe(fileEl.files[0], 680, 42000);
-const newItem = {
-id: 'g' + Date.now(),
+const sourceFile = fileEl.files[0];
+const hdImage = await compressImageHD(sourceFile, 1440, 0.90, false);
+const serverSharpImage = hdImage.length <= 49000
+? hdImage
+: await compressImageSafe(sourceFile, 1280, 49000, false);
+const postId = 'g' + Date.now();
+const newItemLocal = {
+id: postId,
 penulis: session ? session.name : 'Petugas',
 jabatan: session ? (session.jabatan || String(session.role || 'PENGURUS').toUpperCase()) : 'Pengurus',
 tanggal: getWIBDateString(),
 tag: tagEl ? tagEl.value.trim() : '',
 caption: capEl ? capEl.value.trim() : '',
-imageUrl: compressed,
+imageUrl: hdImage,
 likes: 0,
 likedBy: []
 };
+const newItemServer = { ...newItemLocal, imageUrl: serverSharpImage };
 
 
 const finishUploadUI = (serverSaved = true, customMessage = '') => {
@@ -3170,8 +3218,8 @@ if (box) box.classList.add('hidden');
 Swal.fire({
 title: serverSaved ? 'Berhasil' : 'Tersimpan Offline',
 text: customMessage || (serverSaved
-? 'Foto kegiatan berhasil dibagikan dan dapat dilihat seluruh pengguna.'
-: 'Foto tersimpan secara lokal (Offline). Akan disinkronkan otomatis ke Google Sheet saat koneksi stabil.'),
+? 'Foto kegiatan HD berhasil dibagikan dan dapat dilihat seluruh pengguna.'
+: 'Foto HD tersimpan secara lokal (Offline). Akan disinkronkan otomatis ke Google Sheet saat koneksi stabil.'),
 icon: serverSaved ? 'success' : 'info',
 showConfirmButton: true,
 confirmButtonText: 'OK',
@@ -3181,7 +3229,8 @@ confirmButtonColor: '#4F46E5'
 
 
 galeriActiveIndex = 0;
-galeriCache.unshift(newItem);
+saveHdGalleryImage(postId, hdImage);
+galeriCache.unshift(newItemLocal);
 saveLocalGaleri(galeriCache);
 renderGaleri(galeriCache);
 
@@ -3190,8 +3239,7 @@ if (window.google && google.script && google.script.run && typeof google.script.
 let settled = false;
 const uploadGuard = setTimeout(() => {
 if (!settled) { settled = true; finishUploadUI(false); }
-}, 15000);
-
+}, 18000);
 
 google.script.run
 .withSuccessHandler(res => {
@@ -3211,7 +3259,7 @@ settled = true;
 clearTimeout(uploadGuard);
 finishUploadUI(false);
 })
-.saveGaleriData(newItem);
+.saveGaleriData(newItemServer);
 } else {
 finishUploadUI(false);
 }
@@ -3222,9 +3270,13 @@ Swal.fire('Gagal Memproses Foto', err.message || 'File gambar tidak dapat dibaca
 
 
 function loadGaleri() {
+const hdMap = getHdGalleryMap();
 const cached = getLocalGaleri();
 if (cached && Array.isArray(cached)) {
-galeriCache = cached;
+galeriCache = cached.map(item => {
+const localHd = hdMap[String(item.id)];
+return localHd ? { ...item, imageUrl: localHd } : item;
+});
 renderGaleri(galeriCache);
 }
 google.script.run
@@ -3232,6 +3284,7 @@ google.script.run
 if (Array.isArray(list)) {
 const userName = session ? session.name : 'Guest';
 const localLikedIds = getUserLikedPostIds();
+const freshHdMap = getHdGalleryMap();
 galeriCache = list.map(serverPost => {
 const idStr = String(serverPost.id);
 const serverLikedBy = Array.isArray(serverPost.likedBy) ? [...serverPost.likedBy] : [];
@@ -3239,9 +3292,11 @@ const isLikedLocally = localLikedIds.includes(idStr);
 if (isLikedLocally && !serverLikedBy.includes(userName)) {
 serverLikedBy.push(userName);
 }
+const bestImg = freshHdMap[idStr] || serverPost.imageUrl;
 return {
 ...serverPost,
 id: idStr,
+imageUrl: bestImg,
 likedBy: serverLikedBy,
 likes: Math.max(Number(serverPost.likes) || 0, serverLikedBy.length)
 };
@@ -3313,13 +3368,13 @@ if (!post) return;
 Swal.fire({
 title: post.tag || 'Dokumentasi Kegiatan',
 html: `<div class="text-left space-y-2.5">
-<img src="${post.imageUrl}" alt="Foto Kegiatan" class="w-full max-h-[60vh] object-contain rounded-xl bg-slate-100">
-<p class="text-xs text-slate-700 leading-relaxed">${post.caption}</p>
-<p class="text-[11px] text-slate-400">Diunggah oleh <b>${post.penulis}</b> (${post.jabatan}) &bull; ${post.tanggal}</p>
+<img src="${post.imageUrl}" alt="Foto Kegiatan" decoding="async" class="w-full max-h-[65vh] object-contain rounded-xl bg-slate-100 dark:bg-slate-900">
+<p class="text-xs text-slate-700 dark:text-slate-200 leading-relaxed">${post.caption}</p>
+<p class="text-[11px] text-slate-500 dark:text-slate-400">Diunggah oleh <b>${post.penulis}</b> (${post.jabatan}) &bull; ${post.tanggal}</p>
 </div>`,
-width: 600,
+width: 640,
 confirmButtonText: 'Tutup',
-confirmButtonColor: '#1D4ED8'
+confirmButtonColor: '#4F46E5'
 });
 }
 
@@ -3327,43 +3382,157 @@ confirmButtonColor: '#1D4ED8'
 let galeriActiveIndex = 0;
 let galeriSwipeBusy = false;
 
+function buildGaleriCardHtml(list, idx, depth) {
+const item = list[idx];
+const currentUser = session ? session.name : '';
+const isAdmin = Boolean(session && session.role === 'admin');
+const likedIds = getUserLikedPostIds();
+const idStr = String(item.id);
+const liked = likedIds.includes(idStr) || (Array.isArray(item.likedBy) && item.likedBy.includes(currentUser));
+const canDelete = isAdmin || (currentUser && item.penulis === currentUser);
+const initial = (item.penulis || 'P').charAt(0).toUpperCase();
+
+return `<article class="clean-card galeri-deck-card" data-depth="${depth}" data-post-id="${idStr}" data-idx="${idx}">
+<div class="p-3.5 flex items-center justify-between gap-2 shrink-0">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-9 h-9 rounded-full bg-gradient-to-br from-[#4F46E5] to-[#10B981] text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">${initial}</div>
+<div class="min-w-0">
+<p class="text-xs font-bold text-slate-900 dark:text-white truncate">${item.penulis}</p>
+<p class="text-[10px] text-slate-500 dark:text-slate-400 truncate">${item.jabatan || 'Petugas'} &bull; ${item.tanggal}</p>
+</div>
+</div>
+<div class="flex items-center gap-1 shrink-0">
+<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#4F46E5]/15 dark:bg-[#4F46E5]/45 text-[#4F46E5] dark:text-[#34D399]">${idx + 1}/${list.length}</span>
+${canDelete ? `<button type="button" onclick="delGaleriPost('${idStr}')" title="Hapus Foto" class="text-slate-400 hover:text-red-500 p-1.5 rounded-lg transition-colors"><i class="fa-solid fa-trash text-xs"></i></button>` : ''}
+</div>
+</div>
+
+<div onclick="viewGaleriFull('${idStr}')" class="relative h-52 sm:h-56 bg-slate-100 dark:bg-slate-900 overflow-hidden cursor-pointer shrink-0">
+<img src="${item.imageUrl}" alt="${item.tag || 'Kegiatan Santri'}" decoding="async" draggable="false" class="w-full h-full object-cover pointer-events-none select-none">
+${item.tag ? `<span class="absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-slate-900/85 border border-emerald-400/40 text-white text-[10px] font-semibold"><i class="fa-solid fa-location-dot mr-1 text-[#34D399]"></i>${item.tag}</span>` : ''}
+</div>
+
+<div class="p-3.5 flex-1 flex flex-col justify-between gap-2">
+<p class="text-xs text-slate-700 dark:text-slate-200 leading-relaxed line-clamp-3">${item.caption || 'Dokumentasi kegiatan santri.'}</p>
+<div class="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs">
+<button type="button" onclick="toggleLikeGaleri('${idStr}')" class="flex items-center gap-1.5 font-semibold px-2.5 py-1.5 rounded-xl ${liked ? 'text-rose-500 bg-rose-500/10' : 'text-slate-500 dark:text-slate-400 hover:text-rose-500 hover:bg-rose-500/10'} transition-colors">
+<i class="${liked ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+<span>${item.likes || 0} Suka</span>
+</button>
+<button type="button" onclick="viewGaleriFull('${idStr}')" class="text-[11px] font-semibold text-[#4F46E5] dark:text-[#34D399] hover:underline px-2 py-1">Lihat Penuh</button>
+</div>
+</div>
+</article>`;
+}
+
+function updateGaleriDeckControls(list) {
+const counter = document.getElementById('galeriDeckCounter');
+if (counter) counter.textContent = `Geser Kartu (${galeriActiveIndex + 1} / ${list.length})`;
+const dots = document.querySelectorAll('#galeriFeedList .galeri-dot');
+const maxDots = dots.length || 1;
+dots.forEach((dot, idx) => {
+dot.classList.toggle('is-active', (galeriActiveIndex % maxDots) === idx);
+});
+}
+
 function navigateGaleriDeck(step, directionClass) {
 if (!Array.isArray(galeriCache) || galeriCache.length <= 1 || galeriSwipeBusy) return;
-const topCard = document.querySelector('#galeriFeedList .galeri-deck-card[data-depth="0"]');
-if (!topCard) {
+const stage = document.querySelector('#galeriFeedList .galeri-deck-stage');
+const topCard = stage ? stage.querySelector('.galeri-deck-card[data-depth="0"]') : null;
+if (!stage || !topCard) {
 galeriActiveIndex = (galeriActiveIndex + step + galeriCache.length) % galeriCache.length;
 renderGaleri(galeriCache);
 return;
 }
 galeriSwipeBusy = true;
 const outCls = directionClass || (step > 0 ? 'swipe-out-left' : 'swipe-out-right');
+const len = galeriCache.length;
+const nextActive = (galeriActiveIndex + step + len) % len;
+
 topCard.classList.remove('is-dragging');
 topCard.style.transform = '';
 topCard.classList.add(outCls);
+
+// In-place smooth promotion without rebuilding innerHTML (zero flicker / zero image re-decode)
+if (step > 0 && len >= 2) {
+const depth1 = stage.querySelector('.galeri-deck-card[data-depth="1"]');
+const depth2 = stage.querySelector('.galeri-deck-card[data-depth="2"]');
+if (depth1) {
+depth1.style.transform = '';
+depth1.style.opacity = '';
+depth1.setAttribute('data-depth', '0');
+}
+if (depth2) {
+depth2.style.transform = '';
+depth2.style.opacity = '';
+depth2.setAttribute('data-depth', '1');
+}
+galeriActiveIndex = nextActive;
+updateGaleriDeckControls(galeriCache);
 setTimeout(() => {
-galeriActiveIndex = (galeriActiveIndex + step + galeriCache.length) % galeriCache.length;
+if (topCard.parentNode) topCard.parentNode.removeChild(topCard);
+const visibleCount = Math.min(3, len);
+if (visibleCount === 3) {
+const backIdx = (galeriActiveIndex + 2) % len;
+const tpl = document.createElement('template');
+tpl.innerHTML = buildGaleriCardHtml(galeriCache, backIdx, 2).trim();
+const backNode = tpl.content.firstElementChild;
+if (backNode) stage.insertBefore(backNode, stage.firstChild);
+} else if (visibleCount === 2) {
+const backIdx = (galeriActiveIndex + 1) % len;
+const tpl = document.createElement('template');
+tpl.innerHTML = buildGaleriCardHtml(galeriCache, backIdx, 1).trim();
+const backNode = tpl.content.firstElementChild;
+if (backNode) stage.insertBefore(backNode, stage.firstChild);
+}
+galeriSwipeBusy = false;
+bindGaleriDeckGestures();
+}, 250);
+} else {
+setTimeout(() => {
+galeriActiveIndex = nextActive;
 galeriSwipeBusy = false;
 renderGaleri(galeriCache);
-}, 280);
+}, 240);
+}
 }
 
 function jumpGaleriDeck(targetIndex) {
-if (!Array.isArray(galeriCache) || !galeriCache.length) return;
+if (!Array.isArray(galeriCache) || !galeriCache.length || galeriSwipeBusy) return;
 galeriActiveIndex = ((targetIndex % galeriCache.length) + galeriCache.length) % galeriCache.length;
 renderGaleri(galeriCache);
 }
 
 function bindGaleriDeckGestures() {
 const topCard = document.querySelector('#galeriFeedList .galeri-deck-card[data-depth="0"]');
-const nextCard = document.querySelector('#galeriFeedList .galeri-deck-card[data-depth="1"]');
-if (!topCard || galeriCache.length <= 1) return;
+if (!topCard || galeriCache.length <= 1 || topCard.dataset.gesturesBound === '1') return;
+topCard.dataset.gesturesBound = '1';
 
-let startX = 0, startY = 0, dx = 0, dy = 0, dragging = false, decided = false, horizontal = false;
+let startX = 0, startY = 0, dx = 0, dy = 0, startTime = 0;
+let dragging = false, decided = false, horizontal = false, rafId = 0;
+let nextCard = null;
+
+const applyFrame = () => {
+rafId = 0;
+if (!dragging || !horizontal) return;
+const rot = Math.max(-13, Math.min(13, dx * 0.048));
+const progress = Math.min(1, Math.abs(dx) / 145);
+topCard.style.transform = `translate3d(${dx}px, ${Math.abs(dx) * 0.04}px, 0) rotate(${rot}deg)`;
+if (nextCard) {
+const sc = 0.95 + (0.05 * progress);
+const ty = 14 - (14 * progress);
+const rotNext = 1.2 * (1 - progress);
+nextCard.style.transform = `translate3d(0, ${ty.toFixed(1)}px, 0) scale(${sc.toFixed(4)}) rotate(${rotNext.toFixed(2)}deg)`;
+nextCard.style.opacity = String((0.90 + (0.10 * progress)).toFixed(3));
+}
+};
 
 const onStart = (x, y, target) => {
 if (galeriSwipeBusy) return;
 if (target && target.closest('button')) return;
-startX = x; startY = y; dx = 0; dy = 0; dragging = true; decided = false; horizontal = false;
+startX = x; startY = y; dx = 0; dy = 0; startTime = performance.now();
+dragging = true; decided = false; horizontal = false;
+nextCard = document.querySelector('#galeriFeedList .galeri-deck-card[data-depth="1"]');
 };
 
 const onMove = (x, y, ev) => {
@@ -3371,30 +3540,29 @@ if (!dragging) return;
 dx = x - startX;
 dy = y - startY;
 if (!decided) {
-if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
 decided = true;
 horizontal = Math.abs(dx) > Math.abs(dy);
-if (horizontal) topCard.classList.add('is-dragging');
+if (horizontal) {
+topCard.classList.add('is-dragging');
+if (nextCard) nextCard.classList.add('is-dragging');
+}
 }
 }
 if (!horizontal) return;
 if (ev && ev.cancelable) ev.preventDefault();
-const rot = Math.max(-14, Math.min(14, dx * 0.055));
-const progress = Math.min(1, Math.abs(dx) / 140);
-topCard.style.transform = `translate3d(${dx}px, ${Math.abs(dx) * 0.06}px, 0) rotate(${rot}deg)`;
-if (nextCard) {
-const sc = 0.95 + (0.05 * progress);
-const ty = 14 - (14 * progress);
-nextCard.style.transform = `translate3d(0, ${ty}px, 0) scale(${sc})`;
-nextCard.style.opacity = String(0.86 + (0.14 * progress));
-}
+if (!rafId) rafId = requestAnimationFrame(applyFrame);
 };
 
 const onEnd = () => {
 if (!dragging) return;
 dragging = false;
+if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
 topCard.classList.remove('is-dragging');
-if (horizontal && Math.abs(dx) > 68) {
+if (nextCard) nextCard.classList.remove('is-dragging');
+const dt = Math.max(16, performance.now() - startTime);
+const velocity = Math.abs(dx) / dt;
+if (horizontal && (Math.abs(dx) > 58 || (velocity > 0.38 && Math.abs(dx) > 24))) {
 const isLeft = dx < 0;
 navigateGaleriDeck(isLeft ? 1 : -1, isLeft ? 'swipe-out-left' : 'swipe-out-right');
 } else {
@@ -3435,51 +3603,11 @@ return;
 if (galeriActiveIndex >= list.length) galeriActiveIndex = 0;
 if (galeriActiveIndex < 0) galeriActiveIndex = list.length - 1;
 
-const currentUser = session ? session.name : '';
-const isAdmin = Boolean(session && session.role === 'admin');
-const likedIds = getUserLikedPostIds();
-
 const visibleCount = Math.min(3, list.length);
 let stackHtml = '';
 for (let depth = visibleCount - 1; depth >= 0; depth--) {
 const idx = (galeriActiveIndex + depth) % list.length;
-const item = list[idx];
-const idStr = String(item.id);
-const liked = likedIds.includes(idStr) || (Array.isArray(item.likedBy) && item.likedBy.includes(currentUser));
-const canDelete = isAdmin || (currentUser && item.penulis === currentUser);
-const initial = (item.penulis || 'P').charAt(0).toUpperCase();
-
-stackHtml += `<article class="clean-card galeri-deck-card" data-depth="${depth}" data-post-id="${idStr}">
-<div class="p-3.5 flex items-center justify-between gap-2 shrink-0">
-<div class="flex items-center gap-2.5 min-w-0">
-<div class="w-9 h-9 rounded-full bg-gradient-to-br from-[#4F46E5] to-[#34D399] text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">${initial}</div>
-<div class="min-w-0">
-<p class="text-xs font-bold text-slate-900 dark:text-white truncate">${item.penulis}</p>
-<p class="text-[10px] text-slate-400 truncate">${item.jabatan || 'Petugas'} &bull; ${item.tanggal}</p>
-</div>
-</div>
-<div class="flex items-center gap-1 shrink-0">
-<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#4F46E5]/15 dark:bg-[#4F46E5]/45 text-[#4F46E5] dark:text-[#34D399]">${idx + 1}/${list.length}</span>
-${canDelete ? `<button type="button" onclick="delGaleriPost('${idStr}')" title="Hapus Foto" class="text-slate-400 hover:text-red-500 p-1.5 rounded-lg transition-colors"><i class="fa-solid fa-trash text-xs"></i></button>` : ''}
-</div>
-</div>
-
-<div onclick="viewGaleriFull('${idStr}')" class="relative h-52 sm:h-56 bg-slate-900 overflow-hidden cursor-pointer group shrink-0">
-<img src="${item.imageUrl}" alt="${item.tag || 'Kegiatan Santri'}" draggable="false" class="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300 pointer-events-none">
-${item.tag ? `<span class="absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-[#111827]/85 border border-[#34D399]/35 text-white text-[10px] font-semibold backdrop-blur-sm"><i class="fa-solid fa-location-dot mr-1 text-[#34D399]"></i>${item.tag}</span>` : ''}
-</div>
-
-<div class="p-3.5 flex-1 flex flex-col justify-between gap-2">
-<p class="text-xs text-slate-700 dark:text-slate-200 leading-relaxed line-clamp-3">${item.caption || 'Dokumentasi kegiatan santri.'}</p>
-<div class="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs">
-<button type="button" onclick="toggleLikeGaleri('${idStr}')" class="flex items-center gap-1.5 font-semibold px-2.5 py-1.5 rounded-xl ${liked ? 'text-rose-500 bg-rose-500/10' : 'text-slate-400 hover:text-rose-500 hover:bg-rose-500/10'} transition-colors">
-<i class="${liked ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
-<span>${item.likes || 0} Suka</span>
-</button>
-<button type="button" onclick="viewGaleriFull('${idStr}')" class="text-[11px] font-semibold text-[#4F46E5] dark:text-[#34D399] hover:underline px-2 py-1">Lihat Penuh</button>
-</div>
-</div>
-</article>`;
+stackHtml += buildGaleriCardHtml(list, idx, depth);
 }
 
 const maxDots = Math.min(list.length, 7);
@@ -3496,7 +3624,7 @@ container.innerHTML = `<div class="galeri-deck-wrapper">
 <i class="fa-solid fa-chevron-left text-xs"></i>
 </button>
 <div class="flex flex-col items-center gap-1.5">
-<div class="galeri-swipe-hint"><i class="fa-solid fa-hand-pointer text-[10px]"></i><span>Geser Kartu (${galeriActiveIndex + 1} / ${list.length})</span></div>
+<div class="galeri-swipe-hint"><i class="fa-solid fa-hand-pointer text-[10px]"></i><span id="galeriDeckCounter">Geser Kartu (${galeriActiveIndex + 1} / ${list.length})</span></div>
 <div class="flex items-center gap-1.5">${dotsHtml}</div>
 </div>
 <button type="button" onclick="navigateGaleriDeck(1, 'swipe-out-left')" aria-label="Postingan Berikutnya" class="galeri-nav-btn ${list.length <= 1 ? 'opacity-40 pointer-events-none' : ''}">
@@ -4752,44 +4880,122 @@ f4: document.getElementById('dbF4').value
 }
 
 
-async function compressImage(file, maxW, quality = 0.72) {
+const __webpSupported = (() => {
+try {
+const c = document.createElement('canvas');
+c.width = 2; c.height = 2;
+return c.toDataURL('image/webp').startsWith('data:image/webp');
+} catch (e) { return false; }
+})();
+
+function renderSteppedCanvas(img, targetW, targetH, preserveAlpha) {
+let curW = img.naturalWidth || img.width;
+let curH = img.naturalHeight || img.height;
+let src = img;
+
+// Stepped downscaling prevents aliasing & blurriness on high-MP phone photos
+while (curW * 0.5 > targetW && curH * 0.5 > targetH) {
+const stepC = document.createElement('canvas');
+curW = Math.max(targetW, Math.round(curW * 0.5));
+curH = Math.max(targetH, Math.round(curH * 0.5));
+stepC.width = curW;
+stepC.height = curH;
+const sCtx = stepC.getContext('2d');
+sCtx.imageSmoothingEnabled = true;
+sCtx.imageSmoothingQuality = 'high';
+sCtx.drawImage(src, 0, 0, curW, curH);
+src = stepC;
+}
+
+const out = document.createElement('canvas');
+out.width = targetW;
+out.height = targetH;
+const ctx = out.getContext('2d');
+ctx.imageSmoothingEnabled = true;
+ctx.imageSmoothingQuality = 'high';
+if (!preserveAlpha) {
+ctx.fillStyle = '#ffffff';
+ctx.fillRect(0, 0, targetW, targetH);
+}
+ctx.drawImage(src, 0, 0, targetW, targetH);
+return out;
+}
+
+function loadFileToImage(file) {
 return new Promise((res, rej) => {
 const r = new FileReader();
 r.onerror = () => rej(new Error('Gagal membaca file gambar.'));
 r.onload = ev => {
 const img = new Image();
 img.onerror = () => rej(new Error('Format gambar tidak didukung.'));
-img.onload = () => {
-const scale = img.width > maxW ? (maxW / img.width) : 1;
-const c = document.createElement('canvas');
-c.width = Math.max(1, Math.round(img.width * scale));
-c.height = Math.max(1, Math.round(img.height * scale));
-const ctx = c.getContext('2d');
-ctx.fillStyle = '#ffffff';
-ctx.fillRect(0, 0, c.width, c.height);
-ctx.drawImage(img, 0, 0, c.width, c.height);
-res(c.toDataURL('image/jpeg', quality));
-};
+img.onload = () => res(img);
 img.src = ev.target.result;
 };
 r.readAsDataURL(file);
 });
 }
 
-
-// Kompresi otomatis di bawah batas 50.000 karakter sel Google Sheets agar tidak macet saat disimpan
-async function compressImageSafe(file, startMaxW = 640, maxChars = 42000) {
-let width = startMaxW;
-let quality = 0.72;
-let dataUrl = await compressImage(file, width, quality);
-let tries = 0;
-while (dataUrl.length > maxChars && tries < 6) {
-tries++;
-width = Math.max(120, Math.round(width * 0.75));
-quality = Math.max(0.35, Number((quality - 0.1).toFixed(2)));
-dataUrl = await compressImage(file, width, quality);
+async function compressImage(file, maxW = 1440, quality = 0.90, preserveAlpha = false) {
+const img = await loadFileToImage(file);
+const origW = img.naturalWidth || img.width;
+const origH = img.naturalHeight || img.height;
+const scale = origW > maxW ? (maxW / origW) : 1;
+const targetW = Math.max(1, Math.round(origW * scale));
+const targetH = Math.max(1, Math.round(origH * scale));
+const canvas = renderSteppedCanvas(img, targetW, targetH, preserveAlpha);
+const isPngLike = preserveAlpha || (file && /image\/(png|webp)/i.test(file.type) && preserveAlpha);
+if (isPngLike) {
+return __webpSupported ? canvas.toDataURL('image/webp', Math.max(0.92, quality)) : canvas.toDataURL('image/png');
 }
-return dataUrl;
+return __webpSupported ? canvas.toDataURL('image/webp', quality) : canvas.toDataURL('image/jpeg', quality);
+}
+
+// Mode HD Tajam: menjaga resolusi & ketajaman tinggi agar foto tidak burik
+async function compressImageHD(file, maxW = 1440, quality = 0.90, preserveAlpha = false) {
+return compressImage(file, maxW, quality, preserveAlpha);
+}
+
+// Mode Cerdas HD-Fit: menjaga resolusi tetap tinggi dengan WebP + pencarian kualitas presisi di bawah 50.000 karakter sel Google Sheets
+async function compressImageSafe(file, startMaxW = 1280, maxChars = 48500, preserveAlpha = false) {
+const img = await loadFileToImage(file);
+const origW = img.naturalWidth || img.width;
+const origH = img.naturalHeight || img.height;
+const mime = preserveAlpha
+? (__webpSupported ? 'image/webp' : 'image/png')
+: (__webpSupported ? 'image/webp' : 'image/jpeg');
+
+const candidateWidths = [startMaxW, 1080, 960, 820, 720, 600].filter((w, i, arr) => arr.indexOf(w) === i);
+let best = '';
+for (const capW of candidateWidths) {
+const scale = origW > capW ? (capW / origW) : 1;
+const w = Math.max(1, Math.round(origW * scale));
+const h = Math.max(1, Math.round(origH * scale));
+const canvas = renderSteppedCanvas(img, w, h, preserveAlpha);
+
+// Uji kualitas tinggi dulu; jika terlalu besar, lakukan pencarian biner kualitas (0.58 - 0.92) agar tetap tajam
+let hi = 0.92, lo = 0.58;
+let highData = canvas.toDataURL(mime, hi);
+if (highData.length <= maxChars) return highData;
+best = highData;
+
+let lowData = canvas.toDataURL(mime, lo);
+if (lowData.length <= maxChars) {
+let winner = lowData;
+for (let step = 0; step < 5; step++) {
+const mid = Number(((lo + hi) / 2).toFixed(3));
+const probe = canvas.toDataURL(mime, mid);
+if (probe.length <= maxChars) {
+winner = probe;
+lo = mid;
+} else {
+hi = mid;
+}
+}
+return winner;
+}
+best = lowData;
+}
+return best;
 }
 
 
@@ -4809,42 +5015,49 @@ return;
 
 
 if (saveBtn) saveBtn.disabled = true;
-Swal.fire({ title: 'Menyimpan setelan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+Swal.fire({ title: 'Menyimpan setelan HD...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
 
 try {
-let logo = appSettings.logoUrl || '';
-let banner = appSettings.bannerUrl || '';
+let logoLocal = appSettings.logoUrl || '';
+let bannerLocal = appSettings.bannerUrl || '';
+let logoServer = logoLocal;
+let bannerServer = bannerLocal;
+const hasLogoFile = Boolean(logoEl && logoEl.files && logoEl.files.length);
+const hasBannerFile = Boolean(bannerEl && bannerEl.files && bannerEl.files.length);
 
 
-if (logoEl && logoEl.files && logoEl.files.length) {
-logo = await compressImageSafe(logoEl.files[0], 180, 35000);
+if (hasLogoFile) {
+logoLocal = await compressImageHD(logoEl.files[0], 512, 0.92, true);
+logoServer = logoLocal.length <= 48000 ? logoLocal : await compressImageSafe(logoEl.files[0], 512, 48000, true);
 }
-if (bannerEl && bannerEl.files && bannerEl.files.length) {
-banner = await compressImageSafe(bannerEl.files[0], 720, 42000);
+if (hasBannerFile) {
+bannerLocal = await compressImageHD(bannerEl.files[0], 1440, 0.90, false);
+bannerServer = bannerLocal.length <= 49000 ? bannerLocal : await compressImageSafe(bannerEl.files[0], 1280, 49000, false);
 }
 
 
-const updatedPayload = { appName: newAppName, logoUrl: logo, bannerUrl: banner };
+const updatedPayloadLocal = { appName: newAppName, logoUrl: logoLocal, bannerUrl: bannerLocal };
+const updatedPayloadServer = { appName: newAppName, logoUrl: logoServer, bannerUrl: bannerServer };
 
 
 const applySettingsNow = (savedToServer = true) => {
 if (saveBtn) saveBtn.disabled = false;
-appSettings = { ...appSettings, ...updatedPayload };
+appSettings = { ...appSettings, ...updatedPayloadLocal };
 
 
 ['splashAppTitle', 'loginAppTitle', 'headerAppTitle'].forEach(id => {
 const el = document.getElementById(id);
 if (el) el.innerText = newAppName;
 });
-if (logo) {
-try { localStorage.setItem('alrifaie_logo', logo); } catch (err) {}
-document.querySelectorAll('.logo-img').forEach(el => el.src = logo);
+if (logoLocal) {
+try { localStorage.setItem('alrifaie_logo', logoLocal); } catch (err) {}
+document.querySelectorAll('.logo-img').forEach(el => el.src = logoLocal);
 }
-if (banner) {
-try { localStorage.setItem('alrifaie_banner', banner); } catch (err) {}
+if (bannerLocal) {
+try { localStorage.setItem('alrifaie_banner', bannerLocal); } catch (err) {}
 const mb = document.getElementById('mainBanner');
-if (mb) mb.style.backgroundImage = `url('${banner}')`;
+if (mb) mb.style.backgroundImage = `url('${bannerLocal}')`;
 }
 if (logoEl) logoEl.value = '';
 if (bannerEl) bannerEl.value = '';
@@ -4853,8 +5066,8 @@ if (bannerEl) bannerEl.value = '';
 Swal.fire(
 savedToServer ? 'Berhasil' : 'Tersimpan Lokal',
 savedToServer
-? 'Setelan aplikasi berhasil diperbarui dan disimpan.'
-: 'Tampilan diperbarui secara lokal, namun server terlalu lama merespons. Coba sinkronkan ulang beberapa saat lagi.',
+? 'Setelan aplikasi berhasil diperbarui dengan gambar HD.'
+: 'Tampilan HD diperbarui secara lokal, namun server terlalu lama merespons. Coba sinkronkan ulang beberapa saat lagi.',
 savedToServer ? 'success' : 'warning'
 );
 if (savedToServer) loadInit(true);
@@ -4867,8 +5080,7 @@ if (!isDone) {
 isDone = true;
 applySettingsNow(false);
 }
-}, 15000);
-
+}, 18000);
 
 google.script.run
 .withSuccessHandler(() => {
@@ -4884,7 +5096,7 @@ clearTimeout(timeoutGuard);
 if (saveBtn) saveBtn.disabled = false;
 Swal.fire('Gagal Menyimpan', (err && err.message) || 'Terjadi kesalahan pada server saat menyimpan setelan.', 'error');
 })
-.updateAppSettings(updatedPayload);
+.updateAppSettings(updatedPayloadServer);
 } catch (err) {
 if (saveBtn) saveBtn.disabled = false;
 Swal.fire('Gagal Memproses Gambar', err.message || 'File gambar gagal diproses.', 'error');
@@ -4894,7 +5106,8 @@ Swal.fire('Gagal Memproses Gambar', err.message || 'File gambar gagal diproses.'
 
 async function handleSuratImgUpload(ev, key) {
 if (ev.target.files[0]) {
-localStorage.setItem(key, await compressImageSafe(ev.target.files[0], 360, 35000));
+const hdSuratImg = await compressImageHD(ev.target.files[0], 1200, 0.94, true);
+localStorage.setItem(key, hdSuratImg);
 applySavedSuratImages();
 }
 }

@@ -38,7 +38,7 @@ data class PwaUiState(
   val isLoading: Boolean = true,
   val loadProgress: Int = 0,
   val isOffline: Boolean = false,
-  val isDarkTheme: Boolean = true,
+  val isDarkTheme: Boolean = false,
   val hasLoadError: Boolean = false,
   val loadErrorMessage: String? = null,
   val isSyncing: Boolean = false,

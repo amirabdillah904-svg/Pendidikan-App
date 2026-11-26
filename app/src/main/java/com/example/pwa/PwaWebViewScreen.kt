@@ -285,6 +285,9 @@ fun PwaWebViewScreen(
                   ViewGroup.LayoutParams.MATCH_PARENT,
                 )
               setBackgroundColor(android.graphics.Color.TRANSPARENT)
+              overScrollMode = android.view.View.OVER_SCROLL_NEVER
+              isVerticalScrollBarEnabled = false
+              isHorizontalScrollBarEnabled = false
 
               settings.apply {
                 javaScriptEnabled = true
