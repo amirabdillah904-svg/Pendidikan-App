@@ -1,0 +1,6 @@
+{
+  "name": "Dept. Pendidikan",
+  "description": "Aplikasi Android & PWA Sistem Informasi dan Absensi Departemen Pendidikan YPM Al-Rifa'ie 2 dengan GitHub Actions CI/CD",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

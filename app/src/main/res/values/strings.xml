@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Dept. Pendidikan</string>
+    <string name="offline_banner_message">Tidak ada koneksi internet. Beberapa data server mungkin tidak termuat.</string>
+    <string name="retry_action">Muat Ulang</string>
+    <string name="error_load_title">Gagal Memuat Halaman</string>
+    <string name="error_load_subtitle">Periksa koneksi internet Anda lalu coba muat ulang aplikasi.</string>
+    <string name="download_saved_message">Berkas disimpan: %1$s</string>
+    <string name="download_failed_message">Gagal menyimpan berkas: %1$s</string>
+    <string name="action_open_file">Buka</string>
+    <string name="press_back_again_to_exit">Tekan sekali lagi untuk keluar</string>
+    <string name="copied_to_clipboard">Teks disalin ke papan klip</string>
+    <string name="open_external_error">Tidak ada aplikasi yang dapat membuka tautan ini</string>
+    <string name="print_job_name">Departemen Pendidikan - Dokumen</string>
+    <string name="content_desc_offline_icon">Ikon tanpa koneksi</string>
+    <string name="content_desc_error_icon">Ikon kesalahan pemuatan</string>
+</resources>
