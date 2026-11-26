@@ -16,7 +16,7 @@ on:
       build_release:
         description: 'Build signed Release APK & AAB (membutuhkan Secrets keystore)'
         required: false
-        default: false
+        default: true
         type: boolean
 
 permissions:
@@ -130,39 +130,47 @@ jobs:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$STORE_PASSWORD" ] && [ -n "$KEY_PASSWORD" ]; then
+          SHOULD_BUILD="false"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            SHOULD_BUILD="true"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.build_release }}" != "false" ]; then
+            SHOULD_BUILD="true"
+          fi
+
+          if [ "$SHOULD_BUILD" = "true" ] && [ -n "$KEYSTORE_BASE64" ] && [ -n "$STORE_PASSWORD" ] && [ -n "$KEY_PASSWORD" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "Release signing secrets belum diatur; melewati build release bertanda tangan."
+            echo "Release signing tidak dijalankan (pastikan Secrets KEYSTORE_BASE64, STORE_PASSWORD, dan KEY_PASSWORD sudah diatur di GitHub Repository Secrets)."
           fi
 
-      - name: Decode Release Keystore
-        if: |
-          steps.check_signing.outputs.ready == 'true' &&
-          (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_release == 'true')
+      - name: Decode & Validate Release Keystore
+        if: steps.check_signing.outputs.ready == 'true'
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > my-upload-key.jks
+          keytool -list -keystore my-upload-key.jks -storepass "$STORE_PASSWORD" -alias upload > /dev/null
 
       - name: Build Signed Release APK & AAB
-        if: |
-          steps.check_signing.outputs.ready == 'true' &&
-          (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_release == 'true')
+        if: steps.check_signing.outputs.ready == 'true'
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           gradle :app:assembleRelease :app:bundleRelease --stacktrace
+          mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk dist/DeptPendidikan-release.apk
           cp app/build/outputs/bundle/release/app-release.aab dist/DeptPendidikan-release.aab
 
+      - name: Clean up Release Keystore
+        if: always()
+        run: rm -f my-upload-key.jks
+
       - name: Upload Release Artifacts
-        if: |
-          steps.check_signing.outputs.ready == 'true' &&
-          (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_release == 'true')
+        if: steps.check_signing.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: DeptPendidikan-release-artifacts
@@ -179,3 +187,14 @@ jobs:
           files: |
             dist/DeptPendidikan-*.apk
             dist/DeptPendidikan-*.aab
+
+      - name: Write Build Summary
+        if: always()
+        run: |
+          echo "### Hasil Build Dept. Pendidikan" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Debug APK**: \`DeptPendidikan-debug.apk\`" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.check_signing.outputs.ready }}" = "true" ]; then
+            echo "- **Signed Release APK & AAB**: Aktif (menggunakan \`KEYSTORE_BASE64\`, \`STORE_PASSWORD\`, \`KEY_PASSWORD\`)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- **Signed Release APK & AAB**: Dilewati — tambahkan Repository Secrets \`KEYSTORE_BASE64\`, \`STORE_PASSWORD\`, dan \`KEY_PASSWORD\` di **Settings → Secrets and variables → Actions**." >> "$GITHUB_STEP_SUMMARY"
+          fi

@@ -1,6 +1,6 @@
 # Dept. Pendidikan — YPM Al-Rifa'ie 2 (Android App)
 
-Aplikasi Android untuk PWA **Departemen Pendidikan - YPM Al-Rifa'ie 2** yang sudah dibundel secara lokal (`app/src/main/assets/www/`) lengkap dengan integrasi native Android (Photo Picker, ekspor PDF/CSV, cetak dokumen, WhatsApp, tema terang/gelap, dan navigasi tombol kembali) serta workflow **GitHub Actions** untuk build APK/AAB otomatis.
+Aplikasi Android untuk PWA **Departemen Pendidikan - YPM Al-Rifa'ie 2** yang dibundel lokal (`app/src/main/assets/www/`) dengan dukungan Photo Picker, ekspor PDF/CSV, cetak dokumen, WhatsApp, sinkronisasi mode gelap, navigasi tombol kembali, serta workflow **GitHub Actions** untuk build APK/AAB otomatis.
 
 ## GitHub Actions Workflow
 
@@ -10,14 +10,21 @@ File workflow berada di `.github/workflows/android-build.yml` dan otomatis berja
 - Push tag versi (`v*`, misalnya `v1.0.0`) untuk membuat **GitHub Release** otomatis
 - Pemicu manual melalui tab **Actions → Build Android APK & Release → Run workflow**
 
-### Mengunduh APK dari GitHub Actions
-1. Push proyek ini ke repositori GitHub Anda.
-2. Buka tab **Actions** di repositori GitHub.
-3. Pilih run terbaru dari **Build Android APK & Release**.
-4. Unduh file **`DeptPendidikan-debug-apk`** pada bagian **Artifacts**.
+## Menambahkan Secrets Signing Release di GitHub
 
-### Opsional: Build Signed Release APK & AAB
-Untuk mengaktifkan build rilis bertanda tangan (`.apk` dan `.aab`), tambahkan 3 **Repository Secrets** di GitHub (*Settings → Secrets and variables → Actions*):
-- `KEYSTORE_BASE64`: isi file keystore `.jks` (alias `upload`) dalam format base64
-- `STORE_PASSWORD`: kata sandi keystore
-- `KEY_PASSWORD`: kata sandi key alias `upload`
+> **Penting:** Demi keamanan, jangan pernah menuliskan password atau isi file `.jks` langsung ke dalam kode atau file workflow. Simpan hanya di **GitHub Repository Secrets**.
+
+1. **Buat keystore lokal** (jika belum punya) dengan menjalankan:
+   ```bash
+   bash scripts/generate-release-keystore.sh
+   ```
+   Script ini menghasilkan file `my-upload-key.jks` (alias `upload`) dan `keystore.base64.txt` (keduanya otomatis diabaikan oleh `.gitignore`).
+2. Jika Anda sudah memiliki file `.jks` dengan alias `upload`, ubah ke Base64 satu baris:
+   ```bash
+   base64 -w 0 my-upload-key.jks > keystore.base64.txt
+   ```
+3. Buka repositori GitHub Anda → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**, lalu tambahkan 3 secret berikut:
+   - `KEYSTORE_BASE64` → tempel seluruh isi `keystore.base64.txt`
+   - `STORE_PASSWORD` → kata sandi keystore `.jks` Anda
+   - `KEY_PASSWORD` → kata sandi key untuk alias `upload`
+4. Setelah ke-3 secret ditambahkan, setiap `push` ke `main`/`master` atau `Run workflow` akan otomatis memvalidasi keystore dan menghasilkan artefak **`DeptPendidikan-release-artifacts`** (`DeptPendidikan-release.apk` dan `DeptPendidikan-release.aab`).
