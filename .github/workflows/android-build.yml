@@ -13,6 +13,11 @@ on:
       - master
   workflow_dispatch:
     inputs:
+      release_tag:
+        description: 'Nama tag release opsional (kosongkan untuk otomatis, mis. v1.0.1)'
+        required: false
+        default: ''
+        type: string
       build_release:
         description: 'Build signed Release APK & AAB (membutuhkan Secrets keystore)'
         required: false
@@ -24,7 +29,7 @@ permissions:
 
 jobs:
   build-android:
-    name: Test & Build Dept. Pendidikan Android App
+    name: Test, Build & Release Dept. Pendidikan APK
     runs-on: ubuntu-latest
 
     steps:
@@ -109,10 +114,8 @@ jobs:
           retention-days: 7
 
       - name: Build Debug APK
-        run: gradle :app:assembleDebug --stacktrace
-
-      - name: Rename Debug APK artifact
         run: |
+          gradle :app:assembleDebug --stacktrace
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk dist/DeptPendidikan-debug.apk
 
@@ -125,11 +128,21 @@ jobs:
 
       - name: Check Release Signing Secrets
         id: check_signing
+        shell: bash
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
+          HAS_KS=$([ -n "${KEYSTORE_BASE64//[[:space:]]/}" ] && echo "SET" || echo "MISSING")
+          HAS_SP=$([ -n "${STORE_PASSWORD//[[:space:]]/}" ] && echo "SET" || echo "MISSING")
+          HAS_KP=$([ -n "${KEY_PASSWORD//[[:space:]]/}" ] && echo "SET" || echo "MISSING")
+
+          echo "Status Secrets -> KEYSTORE_BASE64: $HAS_KS | STORE_PASSWORD: $HAS_SP | KEY_PASSWORD: $HAS_KP"
+          echo "has_ks=$HAS_KS" >> "$GITHUB_OUTPUT"
+          echo "has_sp=$HAS_SP" >> "$GITHUB_OUTPUT"
+          echo "has_kp=$HAS_KP" >> "$GITHUB_OUTPUT"
+
           SHOULD_BUILD="false"
           if [ "${{ github.event_name }}" = "push" ]; then
             SHOULD_BUILD="true"
@@ -137,33 +150,39 @@ jobs:
             SHOULD_BUILD="true"
           fi
 
-          if [ "$SHOULD_BUILD" = "true" ] && [ -n "$KEYSTORE_BASE64" ] && [ -n "$STORE_PASSWORD" ] && [ -n "$KEY_PASSWORD" ]; then
+          if [ "$SHOULD_BUILD" = "true" ] && [ "$HAS_KS" = "SET" ] && [ "$HAS_SP" = "SET" ] && [ "$HAS_KP" = "SET" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "Release signing tidak dijalankan (pastikan Secrets KEYSTORE_BASE64, STORE_PASSWORD, dan KEY_PASSWORD sudah diatur di GitHub Repository Secrets)."
           fi
 
       - name: Decode & Validate Release Keystore
         if: steps.check_signing.outputs.ready == 'true'
+        shell: bash
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
         run: |
+          CLEAN_SP="$(printf '%s' "$STORE_PASSWORD" | tr -d '\r\n')"
           printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > my-upload-key.jks
-          keytool -list -keystore my-upload-key.jks -storepass "$STORE_PASSWORD" -alias upload > /dev/null
+          keytool -list -keystore my-upload-key.jks -storepass "$CLEAN_SP" -alias upload > /dev/null
+          echo "Keystore alias 'upload' berhasil divalidasi."
 
       - name: Build Signed Release APK & AAB
         if: steps.check_signing.outputs.ready == 'true'
+        shell: bash
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          RAW_STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          RAW_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          gradle :app:assembleRelease :app:bundleRelease --stacktrace
+          export STORE_PASSWORD="$(printf '%s' "$RAW_STORE_PASSWORD" | tr -d '\r\n')"
+          export KEY_PASSWORD="$(printf '%s' "$RAW_KEY_PASSWORD" | tr -d '\r\n')"
+          gradle :app:assembleRelease :app:bundleRelease --no-configuration-cache --stacktrace
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk dist/DeptPendidikan-release.apk
           cp app/build/outputs/bundle/release/app-release.aab dist/DeptPendidikan-release.aab
+          ls -lh dist/
 
       - name: Clean up Release Keystore
         if: always()
@@ -179,22 +198,48 @@ jobs:
             dist/DeptPendidikan-release.aab
           retention-days: 90
 
-      - name: Publish GitHub Release on Tag
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Prepare GitHub Release Metadata
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        id: release_meta
+        shell: bash
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG="${{ github.ref_name }}"
+          elif [ -n "${{ github.event.inputs.release_tag }}" ]; then
+            TAG="${{ github.event.inputs.release_tag }}"
+          else
+            TAG="v1.0.${{ github.run_number }}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=Dept. Pendidikan $TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ steps.release_meta.outputs.tag }}
+          name: ${{ steps.release_meta.outputs.name }}
+          make_latest: true
           generate_release_notes: true
+          fail_on_unmatched_files: false
           files: |
-            dist/DeptPendidikan-*.apk
-            dist/DeptPendidikan-*.aab
+            dist/DeptPendidikan-release.apk
+            dist/DeptPendidikan-release.aab
+            dist/DeptPendidikan-debug.apk
 
       - name: Write Build Summary
         if: always()
+        shell: bash
         run: |
           echo "### Hasil Build Dept. Pendidikan" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Secrets**: \`KEYSTORE_BASE64=${{ steps.check_signing.outputs.has_ks }}\`, \`STORE_PASSWORD=${{ steps.check_signing.outputs.has_sp }}\`, \`KEY_PASSWORD=${{ steps.check_signing.outputs.has_kp }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Debug APK**: \`DeptPendidikan-debug.apk\`" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ steps.check_signing.outputs.ready }}" = "true" ]; then
-            echo "- **Signed Release APK & AAB**: Aktif (menggunakan \`KEYSTORE_BASE64\`, \`STORE_PASSWORD\`, \`KEY_PASSWORD\`)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Signed Release APK & AAB**: Berhasil dibuat (\`DeptPendidikan-release.apk\` & \`DeptPendidikan-release.aab\`)" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "- **Signed Release APK & AAB**: Dilewati — tambahkan Repository Secrets \`KEYSTORE_BASE64\`, \`STORE_PASSWORD\`, dan \`KEY_PASSWORD\` di **Settings → Secrets and variables → Actions**." >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Signed Release APK & AAB**: Dilewati — pastikan ketiga **Repository Secrets** (\`KEYSTORE_BASE64\`, \`STORE_PASSWORD\`, \`KEY_PASSWORD\`) sudah terisi di **Settings → Secrets and variables → Actions**." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -n "${{ steps.release_meta.outputs.tag }}" ]; then
+            echo "- **GitHub Release**: \`${{ steps.release_meta.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
           fi
