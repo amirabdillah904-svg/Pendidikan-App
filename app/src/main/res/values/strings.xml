@@ -39,4 +39,11 @@
     <string name="snackbar_offline_saved">Tersimpan lokal (Offline). Akan disinkronkan otomatis saat online.</string>
     <string name="snackbar_sync_done">%1$d data berhasil disinkronkan ke Google Sheet.</string>
     <string name="snackbar_sync_failed">Sinkronisasi tertunda. Akan dicoba otomatis saat koneksi stabil.</string>
+    <string name="info_channel_name">Informasi &amp; Konten Baru</string>
+    <string name="info_channel_desc">Notifikasi real-time saat ada pengumuman, galeri kegiatan, atau informasi baru diunggah.</string>
+    <string name="splash_title">Departemen Pendidikan</string>
+    <string name="splash_subtitle">YPM Al-Rifa\'ie 2 Gondanglegi</string>
+    <string name="splash_presents">YPM AL-RIFA\'IE 2 PRESENTS</string>
+    <string name="splash_tagline">Sistem Informasi Pendidikan</string>
+    <string name="content_desc_splash_logo">Logo Departemen Pendidikan YPM Al-Rifa\'ie 2</string>
 </resources>

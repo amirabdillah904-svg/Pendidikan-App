@@ -194,7 +194,57 @@ class PwaJsBridge(
           };
         }
 
-        // === OFFLINE-FIRST & REAL-TIME SYNC INTERCEPTOR ===
+        // === SWEETALERT2 SAFEGUARD: PASTIKAN POPUP HASIL SELALU TAMPIL TOMBOL OK (BUKAN LOADING BERPUTAR) ===
+        function installSwalSafeguard() {
+          if (typeof window.Swal === 'undefined' || window.Swal.__androidPatched) return;
+          var origFire = window.Swal.fire.bind(window.Swal);
+          window.Swal.fire = function() {
+            var args = Array.prototype.slice.call(arguments);
+            if (args.length >= 2 && typeof args[0] === 'string') {
+              try { if (typeof window.Swal.hideLoading === 'function') window.Swal.hideLoading(); } catch (e) {}
+              return origFire({
+                title: args[0],
+                text: args[1] || '',
+                icon: args[2] || undefined,
+                showConfirmButton: true,
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#4F46E5',
+                allowOutsideClick: true,
+                didOpen: function() {
+                  try { if (typeof window.Swal.hideLoading === 'function') window.Swal.hideLoading(); } catch (e) {}
+                }
+              });
+            }
+            if (args.length === 1 && args[0] && typeof args[0] === 'object') {
+              var opts = Object.assign({}, args[0]);
+              var isLoadingModal = typeof opts.didOpen === 'function' && String(opts.didOpen).indexOf('showLoading') !== -1;
+              if (!isLoadingModal) {
+                if (typeof opts.showConfirmButton === 'undefined' && !opts.timer) {
+                  opts.showConfirmButton = true;
+                }
+                if (opts.showConfirmButton !== false && !opts.confirmButtonText) {
+                  opts.confirmButtonText = 'OK';
+                }
+                if (!opts.confirmButtonColor) {
+                  opts.confirmButtonColor = '#4F46E5';
+                }
+                var origDidOpen = opts.didOpen;
+                opts.didOpen = function(el) {
+                  try { if (typeof window.Swal.hideLoading === 'function') window.Swal.hideLoading(); } catch (e) {}
+                  if (typeof origDidOpen === 'function') origDidOpen(el);
+                };
+              }
+              return origFire(opts);
+            }
+            return origFire.apply(window.Swal, args);
+          };
+          window.Swal.__androidPatched = true;
+        }
+        installSwalSafeguard();
+        setTimeout(installSwalSafeguard, 800);
+        setTimeout(installSwalSafeguard, 2200);
+
+        // === OFFLINE-FIRST & REAL-TIME INFORMATION NOTIFICATION INTERCEPTOR ===
         var READ_FNS = [
           'getFastLoginData', 'getInitialBundle', 'getRekapData', 'getMissingAttendance',
           'getFinancialData', 'getUsersData', 'getPengumuman', 'getGaleriData',
@@ -219,8 +269,8 @@ class PwaJsBridge(
           if (fnName === 'saveFinancialData' && first) {
             return 'Dana ' + String((args && args[1]) || 'Keuangan') + ' • ' + String(first.keterangan || '');
           }
-          if (fnName === 'savePengumuman') return 'Pengumuman Baru';
-          if (fnName === 'saveGaleriData') return 'Foto Galeri Kegiatan';
+          if (fnName === 'savePengumuman') return 'Informasi Baru';
+          if (fnName === 'saveGaleriData') return 'Foto Galeri Santri';
           if (fnName === 'saveSaran') return 'Kotak Saran';
           if (fnName === 'saveSuratData' && first) return 'Arsip Surat • ' + String(first.perihal || '');
           if (fnName === 'saveDbData') return 'Database (' + String((args && args[0]) || '') + ')';
@@ -229,20 +279,42 @@ class PwaJsBridge(
           return 'Data ' + fnName;
         }
 
-        function checkRealtimeAnnouncement(data) {
+        function checkRealtimeAnnouncement(listOrObj) {
           try {
-            var list = data && Array.isArray(data.pengumuman) ? data.pengumuman : null;
+            var list = Array.isArray(listOrObj)
+              ? listOrObj
+              : (listOrObj && Array.isArray(listOrObj.pengumuman) ? listOrObj.pengumuman : null);
             if (!list || !list.length) return;
             var latest = list[0];
-            var latestId = String(latest.id || latest.tanggal + '_' + latest.isi);
+            var latestId = String(latest.id || (String(latest.tanggal || '') + '_' + String(latest.isi || '').slice(0, 40)));
             var prevId = localStorage.getItem('alrifaie_last_seen_pengumuman_id');
-            if (prevId && prevId !== latestId && window.AndroidBridge) {
+            if (prevId && prevId !== latestId && window.AndroidBridge && typeof window.AndroidBridge.notifyRealtimeEvent === 'function') {
+              var author = latest.penulis ? (' (' + latest.penulis + ')') : '';
               window.AndroidBridge.notifyRealtimeEvent(
-                'Informasi Terbaru • Dept. Pendidikan',
-                String(latest.isi || 'Ada pengumuman baru.')
+                'Informasi Baru • Dept. Pendidikan',
+                String(latest.isi || 'Ada pengumuman baru.') + author
               );
             }
             localStorage.setItem('alrifaie_last_seen_pengumuman_id', latestId);
+          } catch (e) {}
+        }
+
+        function checkRealtimeGallery(listOrObj) {
+          try {
+            var list = Array.isArray(listOrObj)
+              ? listOrObj
+              : (listOrObj && Array.isArray(listOrObj.galeri) ? listOrObj.galeri : null);
+            if (!list || !list.length) return;
+            var latest = list[0];
+            var latestId = String(latest.id || (String(latest.tanggal || '') + '_' + String(latest.caption || '').slice(0, 30)));
+            var prevId = localStorage.getItem('alrifaie_last_seen_galeri_id');
+            if (prevId && prevId !== latestId && window.AndroidBridge && typeof window.AndroidBridge.notifyRealtimeEvent === 'function') {
+              var body = (latest.tag ? '[' + latest.tag + '] ' : '') +
+                (latest.caption || 'Foto dokumentasi kegiatan santri terbaru telah diunggah.') +
+                (latest.penulis ? ' — ' + latest.penulis : '');
+              window.AndroidBridge.notifyRealtimeEvent('Galeri Santri Baru • Dept. Pendidikan', body);
+            }
+            localStorage.setItem('alrifaie_last_seen_galeri_id', latestId);
           } catch (e) {}
         }
 
@@ -270,7 +342,9 @@ class PwaJsBridge(
                           var cachedStr = window.AndroidBridge.getCachedGasRead(cacheKey);
                           if (cachedStr) {
                             var parsed = JSON.parse(cachedStr);
-                            if (typeof onSuccess === 'function') onSuccess(parsed);
+                            if (typeof onSuccess === 'function') {
+                              setTimeout(function() { onSuccess(parsed); }, 10);
+                            }
                             return true;
                           }
                         }
@@ -290,6 +364,11 @@ class PwaJsBridge(
                           }
                           if (fnName === 'getFastLoginData' || fnName === 'getInitialBundle') {
                             checkRealtimeAnnouncement(res);
+                            checkRealtimeGallery(res);
+                          } else if (fnName === 'getPengumuman') {
+                            checkRealtimeAnnouncement(res);
+                          } else if (fnName === 'getGaleriData') {
+                            checkRealtimeGallery(res);
                           }
                         } catch (e) {}
                         if (typeof onSuccess === 'function') onSuccess(res);
@@ -311,14 +390,23 @@ class PwaJsBridge(
                           window.AndroidBridge.enqueueOfflineWrite(opId, fnName, JSON.stringify(args), label);
                         }
                       } catch (e) {}
-                      if (typeof onSuccess === 'function') {
-                        onSuccess({
-                          success: true,
-                          offlineQueued: true,
-                          clientOpId: opId,
-                          message: 'Disimpan secara lokal (Offline). Akan disinkronkan otomatis ke Google Sheet saat koneksi stabil.'
-                        });
-                      }
+                      // Jalankan asinkron agar Swal.showLoading() dari dialog sebelumnya tidak menimpa tombol OK!
+                      setTimeout(function() {
+                        try {
+                          if (typeof window.Swal !== 'undefined') {
+                            if (typeof window.Swal.hideLoading === 'function') window.Swal.hideLoading();
+                            if (typeof window.Swal.close === 'function') window.Swal.close();
+                          }
+                        } catch (e) {}
+                        if (typeof onSuccess === 'function') {
+                          onSuccess({
+                            success: true,
+                            offlineQueued: true,
+                            clientOpId: opId,
+                            message: 'Data tersimpan secara lokal (Offline). Akan disinkronkan otomatis ke Google Sheet saat koneksi kembali stabil.'
+                          });
+                        }
+                      }, 130);
                     };
 
                     if (!navigator.onLine) {
@@ -329,9 +417,19 @@ class PwaJsBridge(
                     rawGasRun
                       .withSuccessHandler(function(res) {
                         try {
-                          if (window.AndroidBridge && typeof window.AndroidBridge.notifyOnlineWriteSuccess === 'function') {
-                            if (fnName === 'submitAbsensi' || fnName === 'saveFinancialData' || fnName === 'savePengumuman' || fnName === 'saveSuratData') {
-                              window.AndroidBridge.notifyOnlineWriteSuccess(label);
+                          if (window.AndroidBridge) {
+                            if (fnName === 'savePengumuman' && typeof window.AndroidBridge.notifyRealtimeEvent === 'function') {
+                              var infoBody = String((args && args[0]) || 'Informasi baru berhasil dipublikasikan.');
+                              var infoAuthor = (args && args[1]) ? (' — ' + String(args[1])) : '';
+                              window.AndroidBridge.notifyRealtimeEvent('Informasi Baru Dipublikasikan', infoBody + infoAuthor);
+                            } else if (fnName === 'saveGaleriData' && typeof window.AndroidBridge.notifyRealtimeEvent === 'function') {
+                              var galObj = (args && args[0] && typeof args[0] === 'object') ? args[0] : {};
+                              var galBody = (galObj.tag ? '[' + galObj.tag + '] ' : '') + (galObj.caption || 'Foto kegiatan santri baru telah diunggah.');
+                              window.AndroidBridge.notifyRealtimeEvent('Galeri Santri Baru Diunggah', galBody);
+                            } else if (typeof window.AndroidBridge.notifyOnlineWriteSuccess === 'function') {
+                              if (fnName === 'submitAbsensi' || fnName === 'saveFinancialData' || fnName === 'saveSuratData') {
+                                window.AndroidBridge.notifyOnlineWriteSuccess(label);
+                              }
                             }
                           }
                         } catch (e) {}
@@ -357,6 +455,42 @@ class PwaJsBridge(
           }
 
           window.google.script.run = wrapGasChain(null, null);
+
+          // Polling otomatis setiap 45 detik saat online & aktif untuk notifikasi HP real-time saat ada upload informasi/galeri baru
+          function pollLatestUpdates() {
+            if (!navigator.onLine) return;
+            try {
+              rawGasRun
+                .withSuccessHandler(function(res) {
+                  checkRealtimeAnnouncement(res);
+                  checkRealtimeGallery(res);
+                  if (res && Array.isArray(res.pengumuman) && typeof renderPengumuman === 'function') {
+                    pengumumanCache = res.pengumuman;
+                    renderPengumuman(pengumumanCache);
+                  }
+                })
+                .withFailureHandler(function() {})
+                .getFastLoginData();
+            } catch (e) {}
+            try {
+              rawGasRun
+                .withSuccessHandler(function(list) {
+                  checkRealtimeGallery(list);
+                })
+                .withFailureHandler(function() {})
+                .getGaleriData();
+            } catch (e) {}
+          }
+
+          if (!window.__androidInfoPollerStarted) {
+            window.__androidInfoPollerStarted = true;
+            setInterval(function() {
+              if (document.visibilityState === 'visible') pollLatestUpdates();
+            }, 45000);
+            document.addEventListener('visibilitychange', function() {
+              if (document.visibilityState === 'visible') pollLatestUpdates();
+            });
+          }
         }
 
         window.__androidOnSyncCompleted = function(syncedCount) {

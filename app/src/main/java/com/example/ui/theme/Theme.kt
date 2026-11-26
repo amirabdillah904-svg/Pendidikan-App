@@ -1,7 +1,6 @@
 package com.example.ui.theme
 
 import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -13,14 +12,16 @@ import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme =
   darkColorScheme(
-    primary = BrandBlue600,
-    onPrimary = Color.White,
-    primaryContainer = BrandNavy900,
-    onPrimaryContainer = BrandBlue100,
-    secondary = BrandEmerald,
+    primary = LuminousMint,
+    onPrimary = ObsidianBg,
+    primaryContainer = ElectricIndigoContainer,
+    onPrimaryContainer = Color.White,
+    secondary = ElectricIndigo,
     onSecondary = Color.White,
+    secondaryContainer = SlateSurface,
+    onSecondaryContainer = DarkTextMain,
     tertiary = BrandGold,
-    onTertiary = BrandNavy950,
+    onTertiary = ObsidianBg,
     background = DarkPageBg,
     onBackground = DarkTextMain,
     surface = DarkSurface,
@@ -28,30 +29,32 @@ private val DarkColorScheme =
     onSurfaceVariant = DarkTextMuted,
     outline = DarkOutline,
     error = BrandError,
+    errorContainer = BrandErrorContainerDark,
+    onErrorContainer = BrandOnErrorContainerDark,
   )
 
 private val LightColorScheme =
   lightColorScheme(
-    primary = BrandBlue700,
+    primary = ElectricIndigoDark,
     onPrimary = Color.White,
-    primaryContainer = BrandBlue50,
-    onPrimaryContainer = BrandNavy900,
-    secondary = BrandEmerald,
+    primaryContainer = Color(0xFFE0E7FF),
+    onPrimaryContainer = ElectricIndigoContainer,
+    secondary = EmeraldDeep,
     onSecondary = Color.White,
     tertiary = BrandGold,
-    onTertiary = BrandNavy950,
+    onTertiary = ObsidianBg,
     background = LightPageBg,
     onBackground = LightTextMain,
     surface = LightSurface,
     onSurface = LightTextMain,
     onSurfaceVariant = LightTextMuted,
     outline = LightOutline,
-    error = BrandError,
+    error = Color(0xFFDC2626),
   )
 
 @Composable
 fun DeptPendidikanTheme(
-  darkTheme: Boolean = isSystemInDarkTheme(),
+  darkTheme: Boolean = true,
   dynamicColor: Boolean = false,
   content: @Composable () -> Unit,
 ) {
