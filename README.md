@@ -1,6 +1,8 @@
 # Dept. Pendidikan — YPM Al-Rifa'ie 2 (Android App)
 
-Aplikasi Android untuk PWA **Departemen Pendidikan - YPM Al-Rifa'ie 2** yang dibundel lokal (`app/src/main/assets/www/`) dengan dukungan Photo Picker, ekspor PDF/CSV, cetak dokumen, WhatsApp, sinkronisasi mode gelap, navigasi tombol kembali, serta workflow **GitHub Actions** untuk build APK/AAB otomatis.
+Aplikasi Android untuk PWA **Departemen Pendidikan - YPM Al-Rifa'ie 2** yang dibundel lokal (`app/src/main/assets/www/`) dengan dukungan **Offline-First & Google Sheet Auto-Sync** (Room Database lokal, antrean sinkronisasi otomatis saat koneksi stabil, dan notifikasi HP real-time), Photo Picker, ekspor PDF/CSV, cetak dokumen, WhatsApp, sinkronisasi mode gelap, navigasi tombol kembali, serta workflow **GitHub Actions** untuk build APK/AAB otomatis.
+
+Kode backend Google Apps Script untuk sinkronisasi offline batch & anti-duplikat (`SyncLog`) tersedia di `backend/appscript_offline_sync.gs`.
 
 ## GitHub Actions Workflow
 

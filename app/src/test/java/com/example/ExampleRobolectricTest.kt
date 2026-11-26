@@ -2,6 +2,7 @@ package com.example
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.example.offline.OfflineSyncRepository
 import com.example.pwa.PwaAssetInterceptor
 import com.example.pwa.PwaFileExporter
 import org.junit.Assert.assertEquals
@@ -47,6 +48,21 @@ class ExampleRobolectricTest {
     assertEquals(
       "Dokumen_DeptPendidikan.csv",
       PwaFileExporter.sanitizeFileName("   ", "csv"),
+    )
+  }
+
+  @Test
+  fun `offline sync repository builds readable Indonesian labels`() {
+    assertEquals(
+      "Absensi WB • Kamar A1",
+      OfflineSyncRepository.buildSummaryLabel(
+        "submitAbsensi",
+        """[{"type":"wb","target":"Kamar A1"}]""",
+      ),
+    )
+    assertEquals(
+      "Pengumuman Baru",
+      OfflineSyncRepository.buildSummaryLabel("savePengumuman", """["Rapat"]"""),
     )
   }
 }

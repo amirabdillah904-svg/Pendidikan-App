@@ -1,6 +1,11 @@
 <resources>
     <string name="app_name">Dept. Pendidikan</string>
-    <string name="offline_banner_message">Tidak ada koneksi internet. Beberapa data server mungkin tidak termuat.</string>
+    <string name="offline_banner_message">Mode Offline aktif. Data yang diinput disimpan otomatis di HP dan akan disinkronkan saat online.</string>
+    <string name="offline_pending_banner_message">Mode Offline • %1$d data tersimpan lokal menunggu sinkronisasi.</string>
+    <string name="online_pending_banner_message">%1$d data offline siap disinkronkan ke Google Sheet.</string>
+    <string name="syncing_banner_message">Menyinkronkan %1$d data ke Google Sheet...</string>
+    <string name="action_sync_now">Sinkronkan</string>
+    <string name="action_view_queue">Antrean</string>
     <string name="retry_action">Muat Ulang</string>
     <string name="error_load_title">Gagal Memuat Halaman</string>
     <string name="error_load_subtitle">Periksa koneksi internet Anda lalu coba muat ulang aplikasi.</string>
@@ -11,6 +16,27 @@
     <string name="copied_to_clipboard">Teks disalin ke papan klip</string>
     <string name="open_external_error">Tidak ada aplikasi yang dapat membuka tautan ini</string>
     <string name="print_job_name">Departemen Pendidikan - Dokumen</string>
-    <string name="content_desc_offline_icon">Ikon tanpa koneksi</string>
+    <string name="content_desc_offline_icon">Ikon mode offline</string>
+    <string name="content_desc_sync_icon">Ikon sinkronisasi Google Sheet</string>
     <string name="content_desc_error_icon">Ikon kesalahan pemuatan</string>
+    <string name="content_desc_delete_queue_item">Hapus item antrean</string>
+    <string name="sync_channel_name">Sinkronisasi &amp; Info Real-Time</string>
+    <string name="sync_channel_desc">Notifikasi status penyimpanan offline, sinkronisasi Google Sheet, dan informasi terbaru.</string>
+    <string name="notif_offline_saved_title">Tersimpan Offline di Perangkat</string>
+    <string name="notif_offline_saved_body">%1$s disimpan secara lokal (%2$d antrean). Akan otomatis tersinkron ke Google Sheet saat koneksi stabil.</string>
+    <string name="notif_sync_success_title">Sinkronisasi Google Sheet Berhasil</string>
+    <string name="notif_sync_success_body">%1$d data offline berhasil dikirim dan tersimpan di Google Sheet.</string>
+    <string name="notif_sync_partial_title">Sebagian Data Belum Tersinkron</string>
+    <string name="notif_sync_partial_body">%1$d berhasil, %2$d menunggu koneksi stabil untuk percobaan ulang otomatis.</string>
+    <string name="notif_online_saved_title">Tersimpan ke Google Sheet</string>
+    <string name="notif_online_saved_body">%1$s berhasil disinkronkan secara real-time.</string>
+    <string name="queue_sheet_title">Antrean Sinkronisasi Offline</string>
+    <string name="queue_sheet_subtitle">Data lokal yang menunggu dikirim ke Google Sheet</string>
+    <string name="queue_empty_message">Semua data sudah tersinkronisasi dengan Google Sheet.</string>
+    <string name="queue_status_pending">Menunggu</string>
+    <string name="queue_status_syncing">Menyinkronkan</string>
+    <string name="queue_status_failed">Coba Lagi</string>
+    <string name="snackbar_offline_saved">Tersimpan lokal (Offline). Akan disinkronkan otomatis saat online.</string>
+    <string name="snackbar_sync_done">%1$d data berhasil disinkronkan ke Google Sheet.</string>
+    <string name="snackbar_sync_failed">Sinkronisasi tertunda. Akan dicoba otomatis saat koneksi stabil.</string>
 </resources>
