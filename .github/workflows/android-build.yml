@@ -45,6 +45,14 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
+      - name: Cache Robolectric SDK jars
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-sdk36-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            robolectric-sdk36-
+
       - name: Verify bundled PWA assets
         run: |
           test -f app/src/main/assets/www/index.html
@@ -69,6 +77,15 @@ jobs:
 
       - name: Run Unit & Robolectric Tests
         run: gradle :app:testDebugUnitTest --stacktrace
+
+      - name: Upload Test Report on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-debug-report
+          path: app/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Build Debug APK
         run: gradle :app:assembleDebug --stacktrace
