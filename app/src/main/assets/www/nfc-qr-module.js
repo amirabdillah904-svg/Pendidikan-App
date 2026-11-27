@@ -41,6 +41,9 @@
 
   // Pending scan confirmation popup state (NFC / QR -> pilih pelanggaran -> auto simpan)
   let pendingScanConfirm = null;
+  let qrPauseTimer = null;
+  let lastHandledPersonKey = '';
+  let lastHandledPersonTime = 0;
 
   // Modal Input Izin / Alpa state (hanya menampilkan nama yang belum terverifikasi)
   let activeIzinAlpaContext = null; // { type, target, tglSesi, items: [{ nama, nfcCode, qrCode, choice }] }
@@ -725,24 +728,31 @@
     const btn = document.getElementById('scanConfirmSaveBtn');
     if (!btn) return;
     const pel = readSelectedScanConfirmPelanggaran(pendingScanConfirm.match.type);
+    const isUpdate = Boolean(pendingScanConfirm.isUpdateExisting);
     if (pel.length > 0) {
       btn.className = 'w-full py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-[0.98] text-white font-bold text-xs inline-flex items-center justify-center gap-2 shadow-md transition-all';
-      btn.innerHTML = '<i class="fa-solid fa-circle-check"></i><span>Simpan Hadir + ' + pel.length + ' Pelanggaran</span>';
+      btn.innerHTML = isUpdate
+        ? '<i class="fa-solid fa-circle-check"></i><span>Perbarui Hadir + ' + pel.length + ' Pelanggaran</span>'
+        : '<i class="fa-solid fa-circle-check"></i><span>Simpan Hadir + ' + pel.length + ' Pelanggaran</span>';
     } else {
       btn.className = 'w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-xs inline-flex items-center justify-center gap-2 shadow-md transition-all';
-      btn.innerHTML = '<i class="fa-solid fa-circle-check"></i><span>Hadir &amp; Simpan (Tanpa Pelanggaran)</span>';
+      btn.innerHTML = isUpdate
+        ? '<i class="fa-solid fa-circle-check"></i><span>Simpan Tanpa Pelanggaran</span>'
+        : '<i class="fa-solid fa-circle-check"></i><span>Hadir &amp; Simpan (Tanpa Pelanggaran)</span>';
     }
   }
 
-  function openScanConfirmPopup(match, source, preferredType, rawCode) {
-    // Jika masih ada kartu sebelumnya yang belum sempat diklik (antrean scan QR/NFC beruntun),
+  function openScanConfirmPopup(match, source, preferredType, rawCode, existingRecord) {
+    // Jika masih ada kartu orang LAIN yang belum sempat diklik (antrean scan QR/NFC beruntun),
     // otomatis langsung simpan yang sebelumnya agar antrean lancar tanpa hambatan!
     if (pendingScanConfirm) {
       commitScanConfirmToDatabase(true);
     }
 
+    const isUpdateExisting = Boolean(existingRecord && (existingRecord.status || 'Hadir') === 'Hadir');
+
     // Evaluasi batas waktu absen dari Setelan Admin (otomatis tercatat Terlambat jika melewati jam batas)
-    const lateInfo = (global.AlRifaieAdminSettings && typeof global.AlRifaieAdminSettings.evaluateDeadline === 'function')
+    const lateInfo = (!isUpdateExisting && global.AlRifaieAdminSettings && typeof global.AlRifaieAdminSettings.evaluateDeadline === 'function')
       ? global.AlRifaieAdminSettings.evaluateDeadline(match.type)
       : { enabled: false, isLate: false, diffMinutes: 0, deadlineTime: '' };
 
@@ -751,12 +761,19 @@
       source: source,
       preferredType: preferredType,
       rawCode: rawCode,
-      lateInfo: lateInfo
+      lateInfo: lateInfo,
+      isUpdateExisting: isUpdateExisting,
+      existingRecord: existingRecord || null
     };
 
-    // Biarkan kamera QR tetap aktif dengan jeda singkat 900ms agar scan berikutnya langsung auto-simpan santri ini
+    // Jeda singkat 1200ms agar kartu berbeda di antrean tetap cepat terbaca,
+    // sementara kartu orang yang SAMA dijaga tidak memicu auto-simpan saat petugas sedang memilih pelanggaran.
     qrScanPausedForConfirm = true;
-    setTimeout(() => { qrScanPausedForConfirm = false; }, 900);
+    if (qrPauseTimer) clearTimeout(qrPauseTimer);
+    qrPauseTimer = setTimeout(() => {
+      qrScanPausedForConfirm = false;
+      qrPauseTimer = null;
+    }, 1200);
 
     const nameEl = document.getElementById('scanConfirmName');
     const subEl = document.getElementById('scanConfirmSub');
@@ -766,8 +783,17 @@
     const boxPetugas = document.getElementById('scanConfirmPelPetugas');
 
     if (nameEl) nameEl.innerText = match.nama;
-    if (subEl) subEl.innerText = (match.target || match.type.toUpperCase()) + ' • ' + getWibTimeStr();
-    if (badgeEl) badgeEl.innerHTML = `<i class="fa-solid ${source === 'NFC' ? 'fa-wifi rotate-90' : 'fa-qrcode'}"></i><span>${source} Terdeteksi</span>`;
+    if (subEl) {
+      const waktuLabel = isUpdateExisting && existingRecord && existingRecord.waktuScan
+        ? ('Hadir ' + existingRecord.waktuScan)
+        : getWibTimeStr();
+      subEl.innerText = (match.target || match.type.toUpperCase()) + ' • ' + waktuLabel;
+    }
+    if (badgeEl) {
+      badgeEl.innerHTML = isUpdateExisting
+        ? `<i class="fa-solid ${source === 'NFC' ? 'fa-wifi rotate-90' : 'fa-qrcode'}"></i><span>${source} • Sudah Hadir (Edit Pelanggaran)</span>`
+        : `<i class="fa-solid ${source === 'NFC' ? 'fa-wifi rotate-90' : 'fa-qrcode'}"></i><span>${source} Terdeteksi</span>`;
+    }
 
     if (lateBadgeEl) {
       if (lateInfo && lateInfo.isLate) {
@@ -782,17 +808,37 @@
     if (boxSantri) boxSantri.classList.toggle('hidden', !isSantri);
     if (boxPetugas) boxPetugas.classList.toggle('hidden', isSantri);
 
-    // Reset seluruh pilihan pelanggaran lalu auto-centang Terlambat jika melewati batas waktu
+    const existingPel = (isUpdateExisting && existingRecord && Array.isArray(existingRecord.pelanggaran))
+      ? existingRecord.pelanggaran
+      : [];
+
+    // Reset seluruh pilihan pelanggaran lalu isi sesuai data lama (saat edit) atau auto-centang Terlambat jika lewat batas waktu
     document.querySelectorAll('input[name="scanConfirmPelSantri"]').forEach(chk => {
-      chk.checked = Boolean(isSantri && lateInfo && lateInfo.isLate && chk.value === 'Terlambat');
+      if (isSantri && isUpdateExisting) {
+        chk.checked = existingPel.includes(chk.value);
+      } else {
+        chk.checked = Boolean(isSantri && lateInfo && lateInfo.isLate && chk.value === 'Terlambat');
+      }
     });
     const cekTelat = document.getElementById('scanConfirmCekTelat');
     const wrapTelat = document.getElementById('scanConfirmMenitWrap');
     const inpTelat = document.getElementById('scanConfirmMenitTelat');
-    const autoLatePetugas = Boolean(!isSantri && lateInfo && lateInfo.isLate);
-    if (cekTelat) cekTelat.checked = autoLatePetugas;
-    if (wrapTelat) wrapTelat.classList.toggle('hidden', !autoLatePetugas);
-    if (inpTelat) inpTelat.value = autoLatePetugas ? String(lateInfo.diffMinutes || 1) : '';
+    let petugasLateChecked = false;
+    let petugasLateMinutes = '';
+    if (!isSantri && isUpdateExisting) {
+      const telatEntry = existingPel.find(p => String(p || '').toLowerCase().includes('terlambat'));
+      if (telatEntry) {
+        petugasLateChecked = true;
+        const mMatch = String(telatEntry).match(/\d+/);
+        petugasLateMinutes = mMatch ? mMatch[0] : '';
+      }
+    } else if (!isSantri && lateInfo && lateInfo.isLate) {
+      petugasLateChecked = true;
+      petugasLateMinutes = String(lateInfo.diffMinutes || 1);
+    }
+    if (cekTelat) cekTelat.checked = petugasLateChecked;
+    if (wrapTelat) wrapTelat.classList.toggle('hidden', !petugasLateChecked);
+    if (inpTelat) inpTelat.value = petugasLateMinutes;
 
     updateScanConfirmButtonLabel();
 
@@ -805,11 +851,18 @@
 
   function commitScanConfirmToDatabase(silentReopenNext) {
     if (!pendingScanConfirm) return;
-    const { match, source, preferredType, rawCode } = pendingScanConfirm;
+    const { match, source, preferredType, rawCode, isUpdateExisting, existingRecord } = pendingScanConfirm;
     const selectedPel = readSelectedScanConfirmPelanggaran(match.type);
     pendingScanConfirm = null;
 
+    lastHandledPersonKey = match.type + '|' + normText(match.nama);
+    lastHandledPersonTime = Date.now();
+
     if (!silentReopenNext) {
+      if (qrPauseTimer) {
+        clearTimeout(qrPauseTimer);
+        qrPauseTimer = null;
+      }
       const modalEl = document.getElementById('scanConfirmModal');
       if (modalEl) {
         modalEl.classList.add('hidden');
@@ -819,13 +872,15 @@
     }
 
     const tglSesi = getActiveDateForType(match.type);
-    const waktuScan = getWibTimeStr();
+    const waktuScan = (isUpdateExisting && existingRecord && existingRecord.waktuScan)
+      ? existingRecord.waktuScan
+      : getWibTimeStr();
     const verifiedRec = {
       status: 'Hadir',
-      method: source,
+      method: (isUpdateExisting && existingRecord && existingRecord.method) ? existingRecord.method : source,
       code: rawCode,
-      nfcCode: source === 'NFC' ? (match.nfcCode || rawCode) : (match.nfcCode || ''),
-      qrCode: source === 'QR' ? (match.qrCode || rawCode) : (match.qrCode || ''),
+      nfcCode: source === 'NFC' ? (match.nfcCode || rawCode) : (match.nfcCode || (existingRecord && existingRecord.nfcCode) || ''),
+      qrCode: source === 'QR' ? (match.qrCode || rawCode) : (match.qrCode || (existingRecord && existingRecord.qrCode) || ''),
       waktuScan: waktuScan,
       pelanggaran: selectedPel,
       synced: true
@@ -866,7 +921,7 @@
         pelanggaran: selectedPel,
         nfcCode: verifiedRec.nfcCode,
         qrCode: verifiedRec.qrCode,
-        metodeAbsen: source,
+        metodeAbsen: verifiedRec.method,
         waktuScan: waktuScan,
         autoScan: true
       }]
@@ -877,6 +932,9 @@
         .withSuccessHandler(() => {
           if (typeof global.rekCache !== 'undefined') global.rekCache = {};
           if (typeof global.missingCache !== 'undefined') global.missingCache = null;
+          if (typeof global.markTargetSubmittedInMissingCache === 'function') {
+            global.markTargetSubmittedInMissingCache(match.type, match.target, tglSesi);
+          }
         })
         .withFailureHandler(err => {
           console.warn('Auto-save scan gagal:', err);
@@ -889,13 +947,23 @@
     vibrateSafe(45);
     const sameRoom = activeTargetNow === match.target;
     const pelText = selectedPel.length ? (' • ' + selectedPel.join(', ')) : '';
-    const msg = sameRoom
-      ? match.nama + ' Hadir (' + source + ')' + pelText
-      : match.nama + ' Hadir → ' + match.target + ' (' + source + ')' + pelText;
+    const msg = isUpdateExisting
+      ? ('Pelanggaran ' + match.nama + ' diperbarui' + (selectedPel.length ? ': ' + selectedPel.join(', ') : ' (Tanpa Pelanggaran)'))
+      : (sameRoom
+        ? match.nama + ' Hadir (' + source + ')' + pelText
+        : match.nama + ' Hadir → ' + match.target + ' (' + source + ')' + pelText);
     showScanBanner(preferredType, 'success', msg);
   }
 
   function cancelScanConfirmPopup() {
+    if (pendingScanConfirm && pendingScanConfirm.match) {
+      lastHandledPersonKey = pendingScanConfirm.match.type + '|' + normText(pendingScanConfirm.match.nama);
+      lastHandledPersonTime = Date.now();
+    }
+    if (qrPauseTimer) {
+      clearTimeout(qrPauseTimer);
+      qrPauseTimer = null;
+    }
     pendingScanConfirm = null;
     qrScanPausedForConfirm = false;
     const modalEl = document.getElementById('scanConfirmModal');
@@ -919,16 +987,33 @@
       return false;
     }
 
+    const personKey = match.type + '|' + normText(match.nama);
+
+    // Jika popup pilihan pelanggaran untuk ORANG YANG SAMA sedang terbuka, abaikan bacaan ulang kamera/NFC
+    // agar popup tidak ter-reset atau otomatis tertutup saat petugas sedang memilih pelanggaran!
+    if (
+      pendingScanConfirm &&
+      pendingScanConfirm.match &&
+      (pendingScanConfirm.match.type + '|' + normText(pendingScanConfirm.match.nama)) === personKey
+    ) {
+      return true;
+    }
+
+    // Jeda anti-pantulan 3.5 detik khusus untuk kartu yang BARU SAJA disimpan/dibatalkan
+    if (lastHandledPersonKey === personKey && (Date.now() - lastHandledPersonTime) < 3500) {
+      return true;
+    }
+
     const tglSesi = getActiveDateForType(match.type);
     const existing = getVerifiedRecord(tglSesi, match.type, match.target, match.nama);
     if (existing && (existing.status || 'Hadir') === 'Hadir') {
-      vibrateSafe(35);
-      showScanBanner(preferredType, 'info', match.nama + ' (' + match.target + ') sudah terverifikasi Hadir pukul ' + (existing.waktuScan || '-') + '.');
+      vibrateSafe(40);
+      openScanConfirmPopup(match, source, preferredType, rawCode, existing);
       return true;
     }
 
     vibrateSafe(55);
-    openScanConfirmPopup(match, source, preferredType, rawCode);
+    openScanConfirmPopup(match, source, preferredType, rawCode, null);
     return true;
   }
 
@@ -1144,6 +1229,9 @@
 
         if (typeof global.rekCache !== 'undefined') global.rekCache = {};
         if (typeof global.missingCache !== 'undefined') global.missingCache = null;
+        if (typeof global.markTargetSubmittedInMissingCache === 'function') {
+          global.markTargetSubmittedInMissingCache(type, target, tglSesi);
+        }
 
         global.Swal.fire(
           res && res.success === false ? 'Peringatan' : 'Terkirim',

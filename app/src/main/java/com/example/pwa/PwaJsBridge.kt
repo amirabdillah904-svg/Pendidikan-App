@@ -341,7 +341,8 @@ class PwaJsBridge(
         var READ_FNS = [
           'getFastLoginData', 'getInitialBundle', 'getRekapData', 'getMissingAttendance',
           'getFinancialData', 'getUsersData', 'getWaliSantriUsers', 'getPengumuman', 'getGaleriData',
-          'getSaran', 'getSurat', 'getDbData', 'getIzinDigital', 'getSantriTindakan'
+          'getSaran', 'getSurat', 'getDbData', 'getIzinDigital', 'getSantriTindakan',
+          'getDriveBackupStatus', 'getUserProfilePhoto'
         ];
         var WRITE_FNS = [
           'submitAbsensi', 'saveFinancialData', 'deleteFinancialData',
@@ -349,8 +350,24 @@ class PwaJsBridge(
           'toggleGaleriLike', 'saveSaran', 'deleteSaran', 'saveSuratData', 'deleteSurat',
           'saveDbData', 'deleteDbData', 'saveUserData', 'deleteUserData',
           'saveWaliSantriUser', 'deleteWaliSantriUser', 'updateAppSettings',
-          'saveIzinDigital', 'updateIzinDigitalStatus', 'deleteIzinDigital', 'saveSantriTindakan'
+          'saveIzinDigital', 'updateIzinDigitalStatus', 'deleteIzinDigital', 'saveSantriTindakan',
+          'saveDriveBackupConfig', 'backupSuratPdfToDrive', 'saveUserProfilePhoto'
         ];
+
+        function isValidGasReadPayload(fnName, res) {
+          if (res === null || typeof res === 'undefined') return false;
+          if (typeof res === 'string') {
+            var s = res.trim().toLowerCase();
+            if (s.indexOf('<') === 0 || s.indexOf('<!doctype') !== -1) return false;
+          }
+          if (typeof res === 'object' && res.success === false && typeof res.error === 'string' && res.error.trim().length > 0) {
+            return false;
+          }
+          if (fnName === 'getMissingAttendance') {
+            return Boolean(res && typeof res === 'object' && (Array.isArray(res.wb) || Array.isArray(res.takhassus) || (res.riwayat && typeof res.riwayat === 'object')));
+          }
+          return true;
+        }
 
         function genClientOpId() {
           return 'op_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
@@ -467,6 +484,12 @@ class PwaJsBridge(
 
                     rawGasRun
                       .withSuccessHandler(function(res) {
+                        if (!isValidGasReadPayload(fnName, res)) {
+                          if (!tryServeCache() && typeof onFailure === 'function') {
+                            onFailure(new Error((res && res.error) ? String(res.error) : 'Respons server tidak valid.'));
+                          }
+                          return;
+                        }
                         try {
                           if (window.AndroidBridge && typeof window.AndroidBridge.cacheGasRead === 'function') {
                             window.AndroidBridge.cacheGasRead(cacheKey, fnName, JSON.stringify(res));
@@ -580,12 +603,17 @@ class PwaJsBridge(
 
           window.google.script.run = wrapGasChain(null, null);
 
-          // Polling otomatis setiap 45 detik saat online & aktif untuk notifikasi HP real-time saat ada upload informasi/galeri baru
+          // Polling hemat kuota setiap 90 detik saat online & aktif (tidak membebani kuota Apps Script)
+          var lastPollAt = 0;
           function pollLatestUpdates() {
             if (!navigator.onLine) return;
+            var nowMs = Date.now();
+            if (nowMs - lastPollAt < 40000) return;
+            lastPollAt = nowMs;
             try {
               rawGasRun
                 .withSuccessHandler(function(res) {
+                  if (!isValidGasReadPayload('getFastLoginData', res)) return;
                   checkRealtimeAnnouncement(res);
                   checkRealtimeGallery(res);
                   if (res && Array.isArray(res.pengumuman) && typeof renderPengumuman === 'function') {
@@ -596,21 +624,13 @@ class PwaJsBridge(
                 .withFailureHandler(function() {})
                 .getFastLoginData();
             } catch (e) {}
-            try {
-              rawGasRun
-                .withSuccessHandler(function(list) {
-                  checkRealtimeGallery(list);
-                })
-                .withFailureHandler(function() {})
-                .getGaleriData();
-            } catch (e) {}
           }
 
           if (!window.__androidInfoPollerStarted) {
             window.__androidInfoPollerStarted = true;
             setInterval(function() {
               if (document.visibilityState === 'visible') pollLatestUpdates();
-            }, 45000);
+            }, 90000);
             document.addEventListener('visibilitychange', function() {
               if (document.visibilityState === 'visible') pollLatestUpdates();
             });
@@ -621,8 +641,18 @@ class PwaJsBridge(
           try {
             if (typeof rekCache !== 'undefined') rekCache = {};
             if (typeof missingCache !== 'undefined') missingCache = null;
+            if (typeof window.invalidateMissingAttendanceCache === 'function') {
+              window.invalidateMissingAttendanceCache();
+            }
             if (typeof loadInit === 'function') loadInit(true);
             if (typeof loadGaleri === 'function') loadGaleri();
+            if (window.AlRifaieSmart && typeof window.AlRifaieSmart.refreshMissingMonitor === 'function') {
+              window.AlRifaieSmart.refreshMissingMonitor(false);
+            }
+            var tungTab = document.getElementById('tab-tunggakan');
+            if (tungTab && !tungTab.classList.contains('hidden') && typeof loadMissingAttendance === 'function') {
+              loadMissingAttendance(true);
+            }
           } catch (e) {}
         };
 

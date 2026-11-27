@@ -332,6 +332,63 @@
     return Array.from(map.values()).sort((a, b) => a.nama.localeCompare(b.nama));
   }
 
+  function getIzinDeadlineStatus(startDateStr) {
+    if (global.AlRifaieAdminSettings && typeof global.AlRifaieAdminSettings.evaluateIzinDeadline === 'function') {
+      return global.AlRifaieAdminSettings.evaluateIzinDeadline(startDateStr);
+    }
+    return { enabled: false, isExpired: false, diffMinutes: 0, deadlineTime: '' };
+  }
+
+  function renderIzinDeadlineBanner() {
+    const el = document.getElementById('izinDeadlineBanner');
+    if (!el) return;
+    const ev = getIzinDeadlineStatus(getTodayWib());
+    if (!ev || !ev.enabled) {
+      el.classList.add('hidden');
+      return;
+    }
+    el.classList.remove('hidden');
+    if (ev.isExpired) {
+      el.className = 'p-3 rounded-2xl bg-red-50/90 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 flex items-start gap-2.5 text-xs';
+      el.innerHTML = `<div class="w-8 h-8 rounded-xl bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-300 flex items-center justify-center shrink-0"><i class="fa-solid fa-hourglass-end"></i></div>
+        <div class="min-w-0 flex-1">
+          <div class="font-extrabold text-red-700 dark:text-red-300">Batas Waktu Izin Hari Ini Telah Lewat (${escHtml(ev.deadlineTime)} WIB)</div>
+          <p class="text-[11px] text-red-600/90 dark:text-red-300/85 mt-0.5 leading-snug">Pengajuan izin untuk hari ini yang melewati pukul <b>${escHtml(ev.deadlineTime)} WIB</b> akan <b>otomatis tertolak oleh sistem</b>. Pengajuan untuk tanggal besok atau setelahnya tetap dapat diproses.</p>
+        </div>`;
+    } else {
+      el.className = 'p-3 rounded-2xl bg-emerald-50/90 dark:bg-emerald-950/35 border border-emerald-200 dark:border-emerald-900/60 flex items-start gap-2.5 text-xs';
+      el.innerHTML = `<div class="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0"><i class="fa-regular fa-clock"></i></div>
+        <div class="min-w-0 flex-1">
+          <div class="font-extrabold text-emerald-800 dark:text-emerald-300">Batas Pengajuan Izin Hari Ini: ${escHtml(ev.deadlineTime)} WIB</div>
+          <p class="text-[11px] text-emerald-700/90 dark:text-emerald-300/85 mt-0.5 leading-snug">Pengajuan sebelum batas waktu diteruskan ke Admin untuk persetujuan. Jika melewati <b>${escHtml(ev.deadlineTime)} WIB</b>, izin otomatis tertolak.</p>
+        </div>`;
+    }
+  }
+
+  function updateIzinFormDeadlineNotice() {
+    const noticeEl = document.getElementById('izFormDeadlineNotice');
+    if (!noticeEl) return;
+    const sess = global.session || {};
+    if (sess.role === 'admin') {
+      noticeEl.classList.add('hidden');
+      return;
+    }
+    const startVal = document.getElementById('izStartDate')?.value || getTodayWib();
+    const ev = getIzinDeadlineStatus(startVal);
+    if (!ev || !ev.enabled) {
+      noticeEl.classList.add('hidden');
+      return;
+    }
+    noticeEl.classList.remove('hidden');
+    if (ev.isExpired) {
+      noticeEl.className = 'p-2.5 rounded-xl bg-red-50 dark:bg-red-950/45 border border-red-200 dark:border-red-800/60 text-[11px] text-red-700 dark:text-red-300 font-semibold flex items-start gap-2';
+      noticeEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation mt-0.5 shrink-0"></i><span><b>Perhatian:</b> Waktu pengajuan untuk tanggal ini telah melewati batas Admin (<b>${escHtml(ev.deadlineTime)} WIB</b>). Jika tetap dikirim, pengajuan akan <b>otomatis tertolak</b>.</span>`;
+    } else {
+      noticeEl.className = 'p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/70 dark:border-indigo-800/50 text-[11px] text-indigo-700 dark:text-indigo-300 font-medium flex items-start gap-2';
+      noticeEl.innerHTML = `<i class="fa-regular fa-clock mt-0.5 shrink-0"></i><span>Batas pengajuan izin hari ini pukul <b>${escHtml(ev.deadlineTime)} WIB</b>. Pengajuan Anda masih dalam batas waktu yang berlaku.</span>`;
+    }
+  }
+
   function renderIzinDigitalUI() {
     const container = document.getElementById('izinDigitalList');
     const pendingBadge = document.getElementById('izinPendingCountBadge');
@@ -339,6 +396,8 @@
     const subEl = document.getElementById('izinTabSubtitle');
     const list = izinListCache.length ? izinListCache : readLocalIzin();
     izinListCache = list;
+
+    renderIzinDeadlineBanner();
 
     const sess = global.session || {};
     const isAdmin = sess.role === 'admin';
@@ -418,10 +477,13 @@
       const isPending = !isApproved && !isRejected;
       const isActiveToday = isApproved && todayStr >= String(it.startDate || '').slice(0, 10) && todayStr <= String(it.endDate || it.startDate || '').slice(0, 10);
 
+      const isAutoRejected = isRejected && /otomatis|sistem/i.test(String(it.diprosesOleh || '') + ' ' + String(it.catatanAdmin || ''));
       const statusPill = isApproved
         ? '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300"><i class="fa-solid fa-check-circle mr-1"></i>Disetujui Admin</span>'
         : (isRejected
-          ? '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300"><i class="fa-solid fa-circle-xmark mr-1"></i>Ditolak Admin</span>'
+          ? (isAutoRejected
+            ? '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300"><i class="fa-solid fa-hourglass-end mr-1"></i>Otomatis Ditolak</span>'
+            : '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300"><i class="fa-solid fa-circle-xmark mr-1"></i>Ditolak Admin</span>')
           : '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300"><i class="fa-solid fa-clock mr-1"></i>Menunggu ACC Admin</span>');
 
       const jenisPill = it.jenis === 'Sakit'
@@ -446,7 +508,7 @@
           </div>`
         : (isAdmin
           ? `<div class="flex items-center justify-between pt-2 mt-2 border-t border-slate-100 dark:border-slate-800">
-              <span class="text-[10px] text-slate-400">${it.diprosesOleh ? ('Diproses Admin: ' + escHtml(it.diprosesOleh)) : ''}</span>
+              <span class="text-[10px] text-slate-400">${it.diprosesOleh ? ('Diproses: ' + escHtml(it.diprosesOleh)) : ''}</span>
               <button type="button" onclick="window.AlRifaieSmart.deleteIzinItem('${safeId}')" class="px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 text-[10px] font-bold"><i class="fa-solid fa-trash mr-1"></i>Hapus</button>
             </div>`
           : (isOwnPending
@@ -454,7 +516,11 @@
                 <span class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">Menunggu konfirmasi Admin</span>
                 <button type="button" onclick="window.AlRifaieSmart.deleteIzinItem('${safeId}')" class="px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 text-[10px] font-bold"><i class="fa-solid fa-xmark mr-1"></i>Batalkan</button>
               </div>`
-            : (it.diprosesOleh ? `<div class="text-[10px] text-slate-400 pt-2 mt-2 border-t border-slate-100 dark:border-slate-800">Diproses oleh Admin: <b>${escHtml(it.diprosesOleh)}</b></div>` : '')));
+            : (it.diprosesOleh ? `<div class="text-[10px] text-slate-400 pt-2 mt-2 border-t border-slate-100 dark:border-slate-800">Diproses: <b>${escHtml(it.diprosesOleh)}</b></div>` : '')));
+
+      const catatanHtml = it.catatanAdmin
+        ? `<div class="mt-2 p-2 rounded-lg ${isRejected ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200/70 dark:border-red-900/50' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'} text-[10.5px] font-semibold"><i class="fa-solid fa-circle-info mr-1"></i>${escHtml(it.catatanAdmin)}</div>`
+        : '';
 
       return `<div class="bento-card p-4">
         <div class="flex items-start justify-between gap-2">
@@ -476,6 +542,7 @@
           </div>
           <p class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">${escHtml(it.alasan || 'Tanpa keterangan tambahan')}</p>
         </div>
+        ${catatanHtml}
         ${actionBar}
       </div>`;
     }).join('');
@@ -528,19 +595,20 @@
       <div class="grid grid-cols-2 gap-2.5">
         <div>
           <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">Mulai Tanggal</label>
-          <input type="date" id="izStartDate" value="${today}" class="clean-input w-full px-3 py-2.5 text-xs font-semibold" required>
+          <input type="date" id="izStartDate" value="${today}" onchange="window.AlRifaieSmart && window.AlRifaieSmart.updateIzinFormDeadlineNotice()" class="clean-input w-full px-3 py-2.5 text-xs font-semibold" required>
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">Sampai Tanggal</label>
           <input type="date" id="izEndDate" value="${today}" class="clean-input w-full px-3 py-2.5 text-xs font-semibold" required>
         </div>
       </div>
+      <div id="izFormDeadlineNotice" class="hidden"></div>
       <div>
         <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">Alasan / Keterangan (dan Badal jika ada)</label>
         <textarea id="izAlasan" rows="3" placeholder="Tuliskan alasan berhalangan hadir dan keterangan pengganti/badal bila ada..." class="clean-input w-full px-3.5 py-2.5 text-xs font-medium" required></textarea>
       </div>
       <p class="text-[10.5px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-xl">
-        <i class="fa-solid fa-user-check mr-1"></i>${isAdmin ? 'Izin yang dicatat Admin langsung berstatus <b>Disetujui</b> &amp; otomatis tercatat di Absensi Musyrif/Pengajar.' : 'Pengajuan izin Anda akan dikirim ke <b>Admin</b> untuk disetujui. Setelah disetujui, status kehadiran Anda di Absensi Musyrif/Pengajar otomatis bertanda <b>Izin Digital</b>.'}
+        <i class="fa-solid fa-user-check mr-1"></i>${isAdmin ? 'Izin yang dicatat Admin langsung berstatus <b>Disetujui</b> &amp; otomatis tercatat di Absensi Musyrif/Pengajar.' : 'Pengajuan izin Anda akan dikirim ke <b>Admin</b> untuk disetujui. Jika melewati jam batas yang ditetapkan Admin, izin akan <b>otomatis tertolak</b>.'}
       </p>
       <div class="flex gap-2 pt-1">
         <button type="button" onclick="window.AlRifaieSmart.closeBottomSheet()" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold">Batal</button>
@@ -549,6 +617,7 @@
     </form>`;
 
     openBottomSheet('Ajukan Izin Musyrif / Pengajar', 'Persetujuan oleh Admin Departemen Pendidikan', bodyHtml, '');
+    setTimeout(() => updateIzinFormDeadlineNotice(), 30);
   }
 
   function autoFillIzinKamar(namaVal) {
@@ -584,7 +653,21 @@
     }
 
     const id = 'iz_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-    const initialStatus = isAdmin ? 'Disetujui' : 'Menunggu';
+    let initialStatus = isAdmin ? 'Disetujui' : 'Menunggu';
+    let diprosesOleh = isAdmin ? (sess.name || 'Admin') : '';
+    let catatanAdmin = '';
+    let autoRejected = false;
+
+    if (!isAdmin) {
+      const dlEval = getIzinDeadlineStatus(startDate);
+      if (dlEval && dlEval.enabled && dlEval.isExpired) {
+        initialStatus = 'Ditolak';
+        diprosesOleh = 'Sistem (Otomatis)';
+        catatanAdmin = `Ditolak otomatis: melewati batas waktu pengajuan izin (${dlEval.deadlineTime} WIB).`;
+        autoRejected = true;
+      }
+    }
+
     const record = {
       id: id,
       namaSantri: namaPemohon,
@@ -596,8 +679,8 @@
       pengaju: sess.name || sess.username || namaPemohon,
       peranPengaju: sess.role || '',
       status: initialStatus,
-      diprosesOleh: isAdmin ? (sess.name || 'Admin') : '',
-      catatanAdmin: '',
+      diprosesOleh: diprosesOleh,
+      catatanAdmin: catatanAdmin,
       createdAt: new Date().toISOString(),
       localOnly: true
     };
@@ -613,7 +696,15 @@
         global.google.script.run
           .withSuccessHandler(res => {
             if (res && res.success) {
-              const synced = readLocalIzin().map(x => x.id === id ? Object.assign({}, x, { id: res.id || id, status: res.status || initialStatus, localOnly: false }) : x);
+              const synced = readLocalIzin().map(x => x.id === id
+                ? Object.assign({}, x, {
+                    id: res.id || id,
+                    status: res.status || initialStatus,
+                    diprosesOleh: res.diprosesOleh || diprosesOleh,
+                    catatanAdmin: res.catatanAdmin || catatanAdmin,
+                    localOnly: false
+                  })
+                : x);
               writeLocalIzin(synced);
               renderIzinDigitalUI();
             }
@@ -624,9 +715,17 @@
     } catch (err) {}
 
     if (typeof global.Swal !== 'undefined') {
-      global.Swal.fire('Pengajuan Terkirim', initialStatus === 'Disetujui'
-        ? 'Izin langsung disetujui & otomatis terhubung ke absensi Musyrif/Pengajar.'
-        : 'Pengajuan izin Anda berhasil dikirim dan menunggu persetujuan Admin.', 'success');
+      if (autoRejected) {
+        global.Swal.fire(
+          'Izin Otomatis Tertolak',
+          catatanAdmin + ' Silakan hubungi Admin jika ada keperluan mendesak.',
+          'error'
+        );
+      } else {
+        global.Swal.fire('Pengajuan Terkirim', initialStatus === 'Disetujui'
+          ? 'Izin langsung disetujui & otomatis terhubung ke absensi Musyrif/Pengajar.'
+          : 'Pengajuan izin Anda berhasil dikirim dan menunggu persetujuan Admin.', 'success');
+      }
     }
   }
 
@@ -700,10 +799,15 @@
             .withSuccessHandler(res => {
               const arr = Array.isArray(res) ? res : [];
               if (!global.rekCache) global.rekCache = {};
-              global.rekCache[actType] = arr;
-              resolve(arr);
+              if (arr.length > 0 || !global.rekCache[actType]) {
+                global.rekCache[actType] = arr;
+              }
+              if (typeof global.syncMissingFromRekapUpdate === 'function') {
+                global.syncMissingFromRekapUpdate(actType);
+              }
+              resolve(global.rekCache[actType] || []);
             })
-            .withFailureHandler(() => resolve([]))
+            .withFailureHandler(() => resolve((global.rekCache && global.rekCache[actType]) || []))
             .getRekapData(actType);
         } else {
           resolve([]);
@@ -958,19 +1062,73 @@
     }, 180);
   }
 
-  function buildOfficialKopHtml() {
-    const appTitle = (global.appSettings && global.appSettings.appName) ? global.appSettings.appName : 'DEPARTEMEN PENDIDIKAN';
+  function getOfficialSuratAssetsSafe() {
+    if (typeof global.getOfficialSuratAssets === 'function') {
+      return global.getOfficialSuratAssets();
+    }
     const fallbackLogo = 'https://lh3.googleusercontent.com/d/1cVVxzS5pcO35NXDLh_W2YXUiSYuS3zg5';
-    const rawLogo = String(document.querySelector('.logo-img')?.src || '').trim();
-    const logoSrc = /^(https?:\/\/|data:image\/)/i.test(rawLogo) ? rawLogo : fallbackLogo;
-    return `<div style="display:flex;align-items:center;gap:14px;border-bottom:3px double #0f172a;padding-bottom:10px;margin-bottom:16px;">
-      <img src="${escHtml(logoSrc)}" crossorigin="anonymous" style="width:58px;height:58px;object-fit:contain;flex-shrink:0;">
-      <div style="flex:1;text-align:center;">
-        <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#065f46;text-transform:uppercase;">YAYASAN PENDIDIKAN MA'ARIF AL-RIFA'IE 2</div>
-        <div style="font-size:16px;font-weight:900;letter-spacing:0.4px;color:#0f172a;text-transform:uppercase;margin-top:2px;">${escHtml(appTitle)}</div>
-        <div style="font-size:10px;color:#475569;margin-top:2px;">Pondok Pesantren Modern Al-Rifa'ie 2 Gondanglegi — Malang, Jawa Timur</div>
+    const rawLogo = String(document.getElementById('kopLogoKiri')?.src || document.querySelector('.logo-img')?.src || '').trim();
+    let logoKiri = fallbackLogo;
+    let logoKanan = '';
+    let ttdKetua = '';
+    let ttdSekretaris = '';
+    let namaKetua = 'Ust. Feriyanto';
+    let jabatanKetua = 'Ketua Dept. Pendidikan';
+    let namaSekretaris = 'Ust. M. Amir Abdillah';
+    let jabatanSekretaris = 'Sekretaris Dept. Pendidikan';
+    try {
+      logoKiri = localStorage.getItem('alrifaie_logo_kiri') || localStorage.getItem('alrifaie_logo') || (/^(https?:\/\/|data:image\/)/i.test(rawLogo) ? rawLogo : fallbackLogo);
+      logoKanan = localStorage.getItem('alrifaie_logo_kanan') || '';
+      ttdKetua = localStorage.getItem('alrifaie_ttd_ketua') || '';
+      ttdSekretaris = localStorage.getItem('alrifaie_ttd_sekretaris') || '';
+      namaKetua = localStorage.getItem('alrifaie_nama_ketua') || namaKetua;
+      jabatanKetua = localStorage.getItem('alrifaie_jabatan_ketua') || jabatanKetua;
+      namaSekretaris = localStorage.getItem('alrifaie_nama_sekretaris') || namaSekretaris;
+      jabatanSekretaris = localStorage.getItem('alrifaie_jabatan_sekretaris') || jabatanSekretaris;
+    } catch (e) {}
+    return { logoKiri, logoKanan, ttdKetua, ttdSekretaris, namaKetua, jabatanKetua, namaSekretaris, jabatanSekretaris };
+  }
+
+  function buildOfficialKopHtml() {
+    const a = getOfficialSuratAssetsSafe();
+    const rightLogoHtml = a.logoKanan
+      ? `<img src="${escHtml(a.logoKanan)}" crossorigin="anonymous" style="max-width:80px;max-height:80px;object-fit:contain;margin:0 auto;display:block;">`
+      : `<div style="font-size:7pt;font-weight:700;color:#000000;text-align:center;">DEPT. PENDIDIKAN</div>`;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;border-bottom:3px double #000000;padding-bottom:8px;margin-bottom:14px;">
+      <div style="width:18%;text-align:center;">
+        <img src="${escHtml(a.logoKiri)}" crossorigin="anonymous" style="max-width:90px;max-height:90px;object-fit:contain;margin:0 auto;display:block;">
       </div>
-      <div style="width:58px;"></div>
+      <div style="width:64%;text-align:center;font-family:'Times New Roman',Georgia,serif;color:#000000;line-height:1.28;">
+        <p style="margin:0;font-size:11pt;font-weight:700;">Departemen Pendidikan</p>
+        <p style="margin:0;font-size:12pt;font-weight:900;">YAYASAN PONDOK MODERN AL-RIFA'IE 2</p>
+        <h1 style="margin:0;font-size:14pt;font-weight:900;text-transform:uppercase;">MAJELIS PONDOK PESANTREN PUTRA</h1>
+        <p style="margin:2px 0 0 0;font-size:8.5pt;">Jl. Raya Ketawang No. 02 (0341) 876388 Gondanglegi - Malang 65174</p>
+      </div>
+      <div style="width:18%;text-align:center;">${rightLogoHtml}</div>
+    </div>`;
+  }
+
+  function buildOfficialTtdBlockHtml(todayIndo) {
+    const a = getOfficialSuratAssetsSafe();
+    const ttdKetuaImg = a.ttdKetua
+      ? `<img src="${escHtml(a.ttdKetua)}" crossorigin="anonymous" style="max-width:160px;max-height:80px;object-fit:contain;display:block;margin:0 auto;">`
+      : '';
+    const ttdSekImg = a.ttdSekretaris
+      ? `<img src="${escHtml(a.ttdSekretaris)}" crossorigin="anonymous" style="max-width:160px;max-height:80px;object-fit:contain;display:block;margin:0 auto;">`
+      : '';
+    return `<div style="display:flex;justify-content:space-between;font-size:12pt;font-family:'Times New Roman',Georgia,serif;color:#000000;text-align:center;margin-top:14px;">
+      <div style="width:50%;display:flex;flex-direction:column;align-items:center;padding-top:10px;">
+        <div style="margin-bottom:4px;visibility:hidden;">Gondanglegi</div>
+        <div style="height:80px;width:160px;display:flex;align-items:center;justify-content:center;margin-bottom:-6px;">${ttdKetuaImg}</div>
+        <p style="margin:0;font-weight:700;text-decoration:underline;">${escHtml(a.namaKetua)}</p>
+        <p style="margin:0;">${escHtml(a.jabatanKetua)}</p>
+      </div>
+      <div style="width:50%;display:flex;flex-direction:column;align-items:center;padding-top:10px;">
+        <div style="margin-bottom:4px;">Gondanglegi, ${escHtml(todayIndo)}</div>
+        <div style="height:80px;width:160px;display:flex;align-items:center;justify-content:center;margin-bottom:-6px;">${ttdSekImg}</div>
+        <p style="margin:0;font-weight:700;text-decoration:underline;">${escHtml(a.namaSekretaris)}</p>
+        <p style="margin:0;">${escHtml(a.jabatanSekretaris)}</p>
+      </div>
     </div>`;
   }
 
@@ -994,6 +1152,7 @@
     const periodText = document.getElementById('roomRecapPeriodBadge')?.innerText || 'Periode Berjalan';
     const todayIndo = formatIndoDate(getTodayWib());
     const kopHtml = buildOfficialKopHtml();
+    const ttdOfficialHtml = buildOfficialTtdBlockHtml(todayIndo);
 
     if (typeof global.Swal !== 'undefined') {
       global.Swal.fire({
@@ -1007,80 +1166,118 @@
     try {
       if (typeof global.ensureHtml2Pdf === 'function') await global.ensureHtml2Pdf();
 
+      const romanMonths = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+      const monthIdx = Math.max(0, Math.min(11, parseInt(getTodayWib().slice(5, 7), 10) - 1));
+      const romanMonth = romanMonths[monthIdx] || 'I';
+      const yearNow = getTodayWib().slice(0, 4);
+
       const pagesHtml = selected.map((person, idx) => {
         const pageBreak = idx < selected.length - 1 ? 'page-break-after:always;break-after:page;' : '';
-        const noSurat = `${String(idx + 1).padStart(2, '0')}/${isHukuman ? 'SH' : 'SP'}/DEPTPENDIK/${getTodayWib().slice(5, 7)}/${getTodayWib().slice(0, 4)}`;
-        const rincianRows = person.alpaDates.slice(0, 12).map((d, i) => `<tr>
-          <td style="border:1px solid #cbd5e1;padding:4px 8px;text-align:center;">${i + 1}</td>
-          <td style="border:1px solid #cbd5e1;padding:4px 8px;">${escHtml(formatIndoDate(d.tanggal))}</td>
-          <td style="border:1px solid #cbd5e1;padding:4px 8px;">${escHtml(d.sumber || (isMusyrif ? 'Absensi Musyrif' : 'Kegiatan Pendidikan'))}</td>
-          <td style="border:1px solid #cbd5e1;padding:4px 8px;color:#b91c1c;font-weight:700;">Alpa (Tanpa Keterangan)</td>
+        const noSurat = `${String(idx + 1).padStart(2, '0')}/${isHukuman ? 'SH' : 'SP'}/MAA/DEPTPENDIK/${romanMonth}/${yearNow}`;
+        const perihalText = isHukuman ? 'Surat Keputusan Hukuman (Ta\'zir)' : 'Surat Pernyataan Kedisiplinan';
+        const rincianRows = person.alpaDates.slice(0, 8).map((d, i) => `<tr>
+          <td style="border:1px solid #000000;padding:3px 6px;text-align:center;">${i + 1}</td>
+          <td style="border:1px solid #000000;padding:3px 6px;">${escHtml(formatIndoDate(d.tanggal))}</td>
+          <td style="border:1px solid #000000;padding:3px 6px;">${escHtml(d.sumber || (isMusyrif ? 'Absensi Musyrif' : 'Kegiatan Pendidikan'))}</td>
+          <td style="border:1px solid #000000;padding:3px 6px;font-weight:700;">Alpa (Tanpa Keterangan)</td>
         </tr>`).join('');
 
         const pelExtraHtml = person.pelList.length
-          ? `<div style="margin-top:8px;font-size:11px;"><b>Catatan Pelanggaran / Keterlambatan:</b> ${escHtml(person.pelList.slice(0, 5).map(p => `${p.tanggal}: ${p.ket}`).join('; '))}</div>`
+          ? `<div style="margin-top:6px;font-size:10.5pt;"><b>Catatan Pelanggaran / Keterlambatan:</b> ${escHtml(person.pelList.slice(0, 4).map(p => `${p.tanggal}: ${p.ket}`).join('; '))}</div>`
           : '';
 
         const bodyParagraphs = isHukuman
-          ? `<p style="margin:10px 0;text-align:justify;">Berdasarkan data rekapitulasi kehadiran Departemen Pendidikan pada periode <b>${escHtml(periodText)}</b>, yang bersangkutan tercatat melakukan ketidakhadiran tanpa keterangan (<b>Alpa</b>) sebanyak <b>${person.alpaCount} kali</b>. Sebagai bentuk pembinaan kedisiplinan di lingkungan YPM Al-Rifa'ie 2, maka ditetapkan sanksi / hukuman (ta'zir) sebagai berikut:</p>
-             <div style="border:1.5px solid #b91c1c;background:#fef2f2;padding:10px 14px;border-radius:8px;margin:10px 0;font-size:12px;font-weight:700;color:#7f1d1d;">${escHtml(hukumanText)}</div>
-             <p style="margin:10px 0;text-align:justify;">Demikian surat hukuman / ta'zir ini diterbitkan untuk dilaksanakan dengan penuh tanggung jawab serta menjadi bahan evaluasi agar tidak mengulangi pelanggaran serupa di kemudian hari.</p>`
-          : `<p style="margin:10px 0;text-align:justify;">Dengan ini saya menyatakan bahwa pada periode <b>${escHtml(periodText)}</b> saya benar telah melakukan ketidakhadiran tanpa keterangan (<b>Alpa</b>) sebanyak <b>${person.alpaCount} kali</b> sebagaimana rincian di bawah ini.</p>
-             <p style="margin:10px 0;text-align:justify;">Saya menyadari sepenuhnya bahwa perbuatan tersebut melanggar tata tertib kedisiplinan <b>YPM Al-Rifa'ie 2</b>. Oleh karena itu, saya berjanji dengan sungguh-sungguh <b>tidak akan mengulangi ketidakhadiran tanpa izin (Alpa)</b> maupun pelanggaran disiplin lainnya di kemudian hari. Apabila di kemudian hari saya kembali melanggar pernyataan ini, saya bersedia menerima sanksi / ta'zir yang ditetapkan oleh Departemen Pendidikan.</p>`;
+          ? `<p style="margin:0 0 6px 0;text-indent:1.27cm;text-align:justify;">Alhamdulillahi rabbil 'alamin, segala puji bagi Allah SWT atas segala limpahan rahmat, taufiq, dan hidayah-Nya kepada kita semua.</p>
+             <p style="margin:0 0 8px 0;text-indent:1.27cm;text-align:justify;">Berdasarkan data rekapitulasi kehadiran Departemen Pendidikan pada periode <b>${escHtml(periodText)}</b>, yang bersangkutan di bawah ini tercatat melakukan ketidakhadiran tanpa keterangan (<b>Alpa</b>) sebanyak <b>${person.alpaCount} kali</b>:</p>`
+          : `<p style="margin:0 0 6px 0;text-indent:1.27cm;text-align:justify;">Alhamdulillahi rabbil 'alamin, segala puji bagi Allah SWT atas segala limpahan rahmat, taufiq, dan hidayah-Nya kepada kita semua.</p>
+             <p style="margin:0 0 8px 0;text-indent:1.27cm;text-align:justify;">Sehubungan dengan penegakan tata tertib kedisiplinan Departemen Pendidikan YPM Al-Rifa'ie 2 pada periode <b>${escHtml(periodText)}</b>, yang bertanda tangan di bawah ini:</p>`;
 
-        const signerRightTitle = isMusyrif ? 'Musyrif yang Bersangkutan,' : 'Santri yang Bersangkutan,';
-        const signerLeftTitle = isMusyrif ? 'Koordinator Musyrif,' : 'Mengetahui, Musyrif Kamar / Wali,';
+        const closingParagraphs = isHukuman
+          ? `<div style="border:1.5px solid #000000;padding:8px 12px;margin:8px 0;font-size:11pt;"><b>Keputusan Sanksi / Ta'zir:</b><br>${escHtml(hukumanText)}</div>
+             <p style="margin:6px 0;text-indent:1.27cm;text-align:justify;">Demikian surat keputusan hukuman (ta'zir) ini kami sampaikan untuk dilaksanakan dengan penuh tanggung jawab serta menjadi bahan evaluasi agar tidak mengulangi pelanggaran serupa di kemudian hari.</p>`
+          : `<p style="margin:6px 0;text-indent:1.27cm;text-align:justify;">Dengan ini menyatakan dengan sungguh-sungguh bahwa pada periode <b>${escHtml(periodText)}</b> saya benar telah melakukan ketidakhadiran tanpa keterangan (<b>Alpa</b>) sebanyak <b>${person.alpaCount} kali</b>, dan saya berjanji tidak akan mengulangi ketidakhadiran tanpa izin maupun pelanggaran disiplin lainnya. Apabila di kemudian hari saya kembali melanggar pernyataan ini, saya bersedia menerima sanksi / ta'zir dari Departemen Pendidikan.</p>
+             <p style="margin:6px 0;text-indent:1.27cm;text-align:justify;">Demikian surat pernyataan ini dibuat dengan penuh kesadaran. Atas perhatian dan pembinaannya kami ucapkan terima kasih.</p>`;
 
-        return `<div style="font-family:'Times New Roman',Georgia,serif;color:#0f172a;background:#ffffff;padding:18px 22px;font-size:12.5px;line-height:1.55;${pageBreak}">
+        const personalSignHtml = !isHukuman
+          ? `<div style="display:flex;justify-content:flex-end;margin-top:8px;margin-bottom:4px;font-size:11.5pt;font-family:'Times New Roman',Georgia,serif;color:#000000;">
+              <div style="width:50%;text-align:center;">
+                <div>Yang Membuat Pernyataan,</div>
+                <div style="height:48px;"></div>
+                <div style="font-weight:700;text-decoration:underline;">${escHtml(person.nama)}</div>
+                <div style="font-size:10.5pt;">${isMusyrif ? 'Musyrif Kamar' : 'Santri'} (${escHtml(person.kamar)})</div>
+              </div>
+            </div>`
+          : '';
+
+        return `<div style="width:210mm;min-height:296mm;box-sizing:border-box;background:#ffffff;color:#000000;padding:1.8cm 2.54cm 2.2cm 3cm;font-family:'Times New Roman',Georgia,serif;font-size:12pt;line-height:1.42;position:relative;${pageBreak}">
           ${kopHtml}
-          <div style="text-align:center;margin-bottom:14px;">
-            <div style="font-size:15px;font-weight:900;text-decoration:underline;letter-spacing:0.6px;">${isHukuman ? 'SURAT KEPUTUSAN HUKUMAN (TA\'ZIR)' : 'SURAT PERNYATAAN KEDISIPLINAN'}</div>
-            <div style="font-size:11px;color:#475569;margin-top:2px;">Nomor: ${escHtml(noSurat)}</div>
-          </div>
-          <p style="margin:8px 0;">Yang bertanda tangan / tercantum di bawah ini:</p>
-          <table style="width:100%;border-collapse:collapse;margin:6px 0 12px 0;font-size:12.5px;">
-            <tr><td style="width:155px;padding:3px 0;">Nama Lengkap</td><td style="width:12px;">:</td><td style="font-weight:700;">${escHtml(person.nama)}</td></tr>
-            <tr><td style="padding:3px 0;">Status / Peran</td><td>:</td><td>${isMusyrif ? 'Musyrif Kamar' : 'Santri'}</td></tr>
-            <tr><td style="padding:3px 0;">Kamar / Kelas</td><td>:</td><td>${escHtml(person.kamar)}</td></tr>
-            <tr><td style="padding:3px 0;">Periode Rekap</td><td>:</td><td>${escHtml(periodText)} (${person.alpaCount}x Alpa)</td></tr>
+          <table style="width:100%;font-size:12pt;font-family:'Times New Roman',Georgia,serif;margin-bottom:10px;color:#000000;border-collapse:collapse;">
+            <tr><td style="width:15%;padding:1px 0;">Nomor</td><td style="width:3%;">:</td><td>${escHtml(noSurat)}</td></tr>
+            <tr><td style="padding:1px 0;">Lampiran</td><td>:</td><td>-</td></tr>
+            <tr><td style="padding:1px 0;">Hal</td><td>:</td><td style="font-weight:700;">${escHtml(perihalText)}</td></tr>
           </table>
-          ${bodyParagraphs}
-          ${rincianRows ? `<div style="margin:12px 0;">
-            <div style="font-size:11px;font-weight:700;margin-bottom:4px;">Rincian Catatan Ketidakhadiran (Alpa):</div>
-            <table style="width:100%;border-collapse:collapse;font-size:11px;">
+          <div style="font-size:12pt;margin-bottom:10px;color:#000000;">
+            <p style="margin:0;">Yth. <b>${escHtml(person.nama)}</b> (${isMusyrif ? 'Musyrif' : 'Santri'} &bull; ${escHtml(person.kamar)})</p>
+            <p style="margin:0;">-Di Tempat</p>
+          </div>
+          <div style="font-size:12pt;margin-bottom:6px;color:#000000;">Assalamu'alaikum Warahmatullahi Wabarakatuh</div>
+          <div style="font-size:11.5pt;color:#000000;">
+            ${bodyParagraphs}
+          </div>
+          <table style="font-size:11.5pt;font-family:'Times New Roman',Georgia,serif;margin:0 0 8px 1.27cm;width:calc(100% - 1.27cm);color:#000000;border-collapse:collapse;">
+            <tr><td style="width:28%;padding:1.5px 0;">Nama Lengkap</td><td style="width:3%;">:</td><td style="font-weight:700;">${escHtml(person.nama)}</td></tr>
+            <tr><td style="padding:1.5px 0;">Status / Peran</td><td>:</td><td>${isMusyrif ? 'Musyrif Kamar' : 'Santri'}</td></tr>
+            <tr><td style="padding:1.5px 0;">Kamar / Kelas</td><td>:</td><td>${escHtml(person.kamar)}</td></tr>
+            <tr><td style="padding:1.5px 0;">Jumlah Alpa</td><td>:</td><td><b>${person.alpaCount} kali</b> (${escHtml(periodText)})</td></tr>
+          </table>
+          ${rincianRows ? `<div style="margin:6px 0 8px 0;">
+            <div style="font-size:10.5pt;font-weight:700;margin-bottom:3px;">Rincian Catatan Ketidakhadiran (Alpa):</div>
+            <table style="width:100%;border-collapse:collapse;font-size:10pt;">
               <thead><tr style="background:#f1f5f9;">
-                <th style="border:1px solid #cbd5e1;padding:4px 8px;width:32px;">No</th>
-                <th style="border:1px solid #cbd5e1;padding:4px 8px;text-align:left;">Tanggal</th>
-                <th style="border:1px solid #cbd5e1;padding:4px 8px;text-align:left;">Kegiatan</th>
-                <th style="border:1px solid #cbd5e1;padding:4px 8px;text-align:left;">Status</th>
+                <th style="border:1px solid #000000;padding:3px 6px;width:28px;">No</th>
+                <th style="border:1px solid #000000;padding:3px 6px;text-align:left;">Tanggal</th>
+                <th style="border:1px solid #000000;padding:3px 6px;text-align:left;">Kegiatan</th>
+                <th style="border:1px solid #000000;padding:3px 6px;text-align:left;">Status</th>
               </tr></thead>
               <tbody>${rincianRows}</tbody>
             </table>
             ${pelExtraHtml}
           </div>` : ''}
-          <div style="text-align:right;margin-top:16px;font-size:12px;">Malang, ${escHtml(todayIndo)}</div>
-          <table style="width:100%;margin-top:10px;font-size:12px;text-align:center;">
-            <tr>
-              <td style="width:50%;padding:4px;">${signerLeftTitle}<br><br><br><br><b>( _______________________ )</b></td>
-              <td style="width:50%;padding:4px;">${signerRightTitle}<br><br><br><br><b>${escHtml(person.nama)}</b></td>
-            </tr>
-          </table>
-          <div style="text-align:center;margin-top:18px;font-size:12px;">
-            Mengetahui,<br><b>Ketua Departemen Pendidikan YPM Al-Rifa'ie 2</b><br><br><br><br>
-            <b>( _____________________________ )</b>
+          <div style="font-size:11.5pt;color:#000000;">
+            ${closingParagraphs}
           </div>
+          <div style="font-size:12pt;margin-top:6px;margin-bottom:4px;color:#000000;">Wassalamu'alaikum Warahmatullahi Wabarakatuh</div>
+          ${personalSignHtml}
+          <div style="font-size:11pt;text-align:center;margin-top:6px;margin-bottom:-6px;color:#000000;">Mengetahui,</div>
+          ${ttdOfficialHtml}
         </div>`;
       }).join('');
 
       const filename = `${isHukuman ? 'Surat_Hukuman' : 'Surat_Pernyataan'}_${isMusyrif ? 'Musyrif' : 'Santri'}_${getTodayWib()}.pdf`;
       await global.html2pdf().set({
-        margin: 8,
+        margin: 0,
         filename: filename,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true, scrollY: 0 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         pagebreak: { mode: ['css', 'legacy'] }
       }).from(`<div>${pagesHtml}</div>`).save();
+
+      // Otomatis cadangkan salinan PDF surat pernyataan/hukuman ke Google Drive di latar belakang
+      try {
+        if (global.google && global.google.script && global.google.script.run && typeof global.google.script.run.backupSuratPdfToDrive === 'function') {
+          global.google.script.run
+            .withSuccessHandler(() => {})
+            .withFailureHandler(() => {})
+            .backupSuratPdfToDrive({
+              nomor: (isHukuman ? 'SH-' : 'SP-') + getTodayWib().replace(/-/g, ''),
+              perihal: `${isHukuman ? 'Surat Hukuman' : 'Surat Pernyataan'} ${isMusyrif ? 'Musyrif' : 'Santri'} (${selected.length} orang)`,
+              kategori: isHukuman ? 'Surat Hukuman' : 'Surat Pernyataan',
+              tujuan: selected.map(s => s.nama).slice(0, 5).join(', '),
+              html: `<div>${pagesHtml}</div>`
+            });
+        }
+      } catch (drvErr) {}
 
       if (typeof global.Swal !== 'undefined') global.Swal.close();
     } catch (err) {
@@ -1406,11 +1603,78 @@
     }
   }
 
+  function getLatestSyncedMissingToday() {
+    const tgl = getTodayWib();
+    const ym = tgl.slice(0, 7);
+    if (typeof global.getCachedMissingEntry === 'function') {
+      const cached = global.getCachedMissingEntry(tgl, ym);
+      if (cached && cached.data) {
+        return {
+          wb: cached.data.wb || [],
+          takhassus: cached.data.takhassus || [],
+          riwayat: cached.data.riwayat || {},
+          ts: cached.ts || 0
+        };
+      }
+    }
+    if (cachedMissingToday) return cachedMissingToday;
+    if (typeof global.computeLocalMissingFallback === 'function') {
+      const est = global.computeLocalMissingFallback(tgl, ym);
+      if (est) {
+        return {
+          wb: est.wb || [],
+          takhassus: est.takhassus || [],
+          riwayat: est.riwayat || {},
+          ts: 0
+        };
+      }
+    }
+    return null;
+  }
+
+  function syncMissingData(data, tgl) {
+    if (!data || typeof data !== 'object') return;
+    const today = getTodayWib();
+    if (tgl && String(tgl).slice(0, 10) !== today) return;
+    cachedMissingToday = {
+      wb: Array.isArray(data.wb) ? data.wb.slice() : [],
+      takhassus: Array.isArray(data.takhassus) ? data.takhassus.slice() : [],
+      riwayat: (data.riwayat && typeof data.riwayat === 'object') ? data.riwayat : {},
+      ts: Date.now()
+    };
+    if (global.session && (global.session.role === 'admin' || global.session.role === 'user')) {
+      renderRoleBentoDashboard();
+    }
+    if (isBottomSheetOpen()) {
+      const titleEl = document.getElementById('smartBottomSheetTitle');
+      if (titleEl && titleEl.innerText.indexOf('Belum Absen') !== -1) {
+        openMissingMonitorSheet();
+      }
+    }
+  }
+
   function openMissingMonitorSheet() {
-    const data = cachedMissingToday || { wb: [], takhassus: [] };
+    const latest = getLatestSyncedMissingToday();
+    if (latest) cachedMissingToday = latest;
+    const data = latest || { wb: [], takhassus: [], riwayat: {} };
     const wbList = data.wb || [];
     const tkList = data.takhassus || [];
+    const riwEntries = Object.entries(data.riwayat || {}).filter(x => Array.isArray(x[1]) && x[1].length > 0).sort((a, b) => b[1].length - a[1].length);
     const bodyHtml = `<div class="space-y-3">
+      <div class="grid grid-cols-3 gap-2">
+        <div class="p-2 rounded-xl bg-red-50 dark:bg-red-950/40 text-center">
+          <div class="text-[9.5px] font-bold text-red-600 dark:text-red-300 uppercase">WB Hari Ini</div>
+          <div class="text-base font-extrabold text-red-700 dark:text-red-200">${wbList.length}</div>
+        </div>
+        <div class="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-center">
+          <div class="text-[9.5px] font-bold text-indigo-600 dark:text-indigo-300 uppercase">Takhassus</div>
+          <div class="text-base font-extrabold text-indigo-700 dark:text-indigo-200">${tkList.length}</div>
+        </div>
+        <div class="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-center">
+          <div class="text-[9.5px] font-bold text-amber-700 dark:text-amber-300 uppercase">Rekap Bulan</div>
+          <div class="text-base font-extrabold text-amber-800 dark:text-amber-200">${riwEntries.length}</div>
+        </div>
+      </div>
       <div>
         <div class="text-[11px] font-extrabold uppercase text-red-600 mb-1.5 flex items-center justify-between">
           <span>Wajib Belajar Belum Absen</span>
@@ -1439,14 +1703,48 @@
     openBottomSheet('Monitor Belum Absen Hari Ini', formatIndoDate(getTodayWib()), bodyHtml, footerHtml);
   }
 
+  let lastHomeMissingRefreshAt = 0;
+
   function refreshMissingMonitor(reopenSheet) {
     const tgl = getTodayWib();
     const ym = tgl.slice(0, 7);
+    lastHomeMissingRefreshAt = Date.now();
+
+    // Tampilkan data cache/rekap secara instan agar kartu monitor di beranda langsung terisi & sinkron
+    const instant = getLatestSyncedMissingToday();
+    if (instant) {
+      cachedMissingToday = instant;
+      renderRoleBentoDashboard();
+    }
+
+    if (typeof global.fetchMissingAttendanceFast === 'function') {
+      global.fetchMissingAttendanceFast(tgl, ym, { forceRefresh: Boolean(reopenSheet) })
+        .then(res => {
+          if (res && typeof res === 'object') {
+            cachedMissingToday = { wb: res.wb || [], takhassus: res.takhassus || [], riwayat: res.riwayat || {}, ts: Date.now() };
+            renderRoleBentoDashboard();
+            if (reopenSheet && isBottomSheetOpen()) openMissingMonitorSheet();
+          }
+        })
+        .catch(() => {
+          // Fallback diam-diam lewat Rekap agar Beranda tidak pernah stuck "..."
+          Promise.all([fetchRekapCached('wb'), fetchRekapCached('takhassus')]).then(() => {
+            const est = getLatestSyncedMissingToday();
+            if (est) {
+              cachedMissingToday = est;
+              renderRoleBentoDashboard();
+              if (reopenSheet && isBottomSheetOpen()) openMissingMonitorSheet();
+            }
+          });
+        });
+      return;
+    }
+
     if (global.google && global.google.script && global.google.script.run && typeof global.google.script.run.getMissingAttendance === 'function') {
       global.google.script.run
         .withSuccessHandler(res => {
-          if (res && typeof res === 'object') {
-            cachedMissingToday = { wb: res.wb || [], takhassus: res.takhassus || [] };
+          if (res && typeof res === 'object' && !res.error) {
+            cachedMissingToday = { wb: res.wb || [], takhassus: res.takhassus || [], riwayat: res.riwayat || {}, ts: Date.now() };
             renderRoleBentoDashboard();
             if (reopenSheet && isBottomSheetOpen()) openMissingMonitorSheet();
           }
@@ -1534,25 +1832,31 @@
       }
     }
 
-    // ===== 1. BERANDA WALI SANTRI =====
+    // ===== 1. BERANDA WALI SANTRI (1 AKUN BERSAMA + SEARCHING NAMA ANAK) =====
     if (role === 'walisantri') {
-      const childRaw = String(sess.namaSantri || '').trim();
-      const childNorm = normText(childRaw);
-      const dir = getAllSantriDirectory();
+      const dir = getSearchableWaliSantriDirectory();
+      const savedChild = getSavedWaliChildName();
+      const selectedChildName = savedChild || String(sess.namaSantri || '').trim();
+      const childNorm = normText(selectedChildName);
       const matchedChild = childNorm
-        ? dir.find(s => normText(s.nama) === childNorm || childNorm.includes(normText(s.nama)) || normText(s.nama).includes(childNorm))
+        ? dir.find(s => normText(s.nama) === childNorm) || dir.find(s => normText(s.nama).includes(childNorm) || childNorm.includes(normText(s.nama)))
         : null;
-      const displayChildName = matchedChild ? matchedChild.nama : (childRaw || 'Putra / Putri Anda');
-      const childMeta = matchedChild ? [matchedChild.kamar ? ('Kamar ' + matchedChild.kamar) : '', matchedChild.kelas].filter(Boolean).join(' • ') : 'Terhubung ke akun Wali Santri';
+      const displayChildName = matchedChild ? matchedChild.nama : selectedChildName;
+      const hasSelectedChild = Boolean(displayChildName);
+      const childMeta = matchedChild
+        ? [matchedChild.kamar ? ('Kamar ' + matchedChild.kamar) : '', matchedChild.kelas].filter(Boolean).join(' • ') || 'Santri YPM Al-Rifa\'ie 2'
+        : 'Santri YPM Al-Rifa\'ie 2';
 
       const wbRows = (global.rekCache && global.rekCache.wb) || [];
       const tkRows = (global.rekCache && global.rekCache.takhassus) || [];
-      const allChildRecs = wbRows.concat(tkRows).filter(r => {
-        const rn = normText(r.nama);
-        const target = normText(displayChildName);
-        if (!target || !rn) return false;
-        return (rn === target || rn.includes(target) || target.includes(rn)) && String(r.tanggal || '').startsWith(todayYm);
-      });
+      const allChildRecs = hasSelectedChild
+        ? wbRows.concat(tkRows).filter(r => {
+            const rn = normText(r.nama);
+            const target = normText(displayChildName);
+            if (!target || !rn) return false;
+            return (rn === target || rn.includes(target) || target.includes(rn)) && String(r.tanggal || '').startsWith(todayYm);
+          })
+        : [];
 
       let cH = 0, cI = 0, cA = 0;
       const pelNotes = [];
@@ -1566,9 +1870,33 @@
         }
       });
 
+      const canViewRekap = typeof global.hasPerm === 'function' ? global.hasPerm('rekap') : true;
+
       root.innerHTML = `<div class="space-y-3">
-        <div class="bento-card p-4 border-l-4 border-l-emerald-600 space-y-3.5">
-          <div class="flex items-start justify-between gap-3">
+        <!-- Kartu Pencarian Nama Anak (Berlaku untuk 1 Akun Bersama Wali Santri) -->
+        <div class="bento-card p-4 border border-emerald-200/80 dark:border-emerald-900/50 bg-gradient-to-br from-emerald-50/75 via-white to-teal-50/40 dark:from-emerald-950/35 dark:via-slate-900 dark:to-teal-950/20 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                <i class="fa-solid fa-magnifying-glass text-xs"></i>
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">Cari Nama Putra / Putri Anda</h3>
+                <p class="text-[10.5px] text-slate-500 dark:text-slate-400">Ketik nama santri untuk memantau kehadiran &amp; catatan pembinaan (${dir.length} santri terdaftar)</p>
+              </div>
+            </div>
+            ${hasSelectedChild ? `<button type="button" onclick="window.AlRifaieSmart.clearWaliChildSelection()" class="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10.5px] font-bold text-slate-600 dark:text-slate-300 hover:text-emerald-600 shrink-0"><i class="fa-solid fa-rotate mr-1"></i>Ganti Anak</button>` : ''}
+          </div>
+          <div class="relative">
+            <i class="fa-solid fa-user-graduate text-emerald-500 text-xs absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            <input type="text" id="waliChildSearchInput" value="${escHtml(hasSelectedChild ? '' : waliChildSearchQuery)}" oninput="window.AlRifaieSmart.onWaliChildSearchInput(this.value)" placeholder="Ketik nama anak (misal: Ahmad, Muhammad, Fauzan)..." autocomplete="off" class="clean-input w-full pl-9 pr-9 py-2.5 text-xs font-semibold">
+            <button type="button" onclick="window.AlRifaieSmart.onWaliChildSearchInput(''); const el=document.getElementById('waliChildSearchInput'); if(el){el.value=''; el.focus();}" aria-label="Bersihkan pencarian" class="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 flex items-center justify-center"><i class="fa-solid fa-xmark text-xs"></i></button>
+          </div>
+          <div id="waliChildSearchResults" class="space-y-1.5"></div>
+        </div>
+
+        ${hasSelectedChild ? `<div class="bento-card p-4 border-l-4 border-l-emerald-600 space-y-3.5">
+          <div class="flex items-start justify-between gap-3 flex-wrap">
             <div class="flex items-center gap-3 min-w-0">
               <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-lg shadow-md shrink-0">
                 <i class="fa-solid fa-user-graduate"></i>
@@ -1579,6 +1907,7 @@
                 <p class="text-[11px] text-slate-500 truncate">${escHtml(childMeta)}</p>
               </div>
             </div>
+            ${canViewRekap ? `<button type="button" onclick="window.AlRifaieSmart.openRekapForWaliChild('${escJsAttr(displayChildName)}')" class="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold hover:bg-emerald-100 inline-flex items-center gap-1.5 shrink-0"><i class="fa-solid fa-chart-pie text-[10px]"></i><span>Lihat Rekap Lengkap</span></button>` : ''}
           </div>
 
           <div class="grid grid-cols-3 gap-2">
@@ -1602,8 +1931,18 @@
             <div class="font-bold text-amber-800 dark:text-amber-300"><i class="fa-solid fa-note-sticky mr-1"></i>Catatan Pembinaan Terbaru:</div>
             ${pelNotes.slice(0, 3).map(p => `<div class="text-slate-700 dark:text-slate-200">&bull; <b>${escHtml(p.tanggal)}</b>: ${escHtml(p.ket)}</div>`).join('')}
           </div>` : ''}
-        </div>
+        </div>` : `<div class="bento-card p-5 text-center space-y-2 border border-dashed border-emerald-300/80 dark:border-emerald-800/60">
+          <div class="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto text-lg">
+            <i class="fa-solid fa-magnifying-glass-chart"></i>
+          </div>
+          <div class="text-xs font-bold text-slate-800 dark:text-slate-200">Silakan Cari Nama Putra / Putri Anda di Atas</div>
+          <p class="text-[11px] text-slate-500 max-w-sm mx-auto">Ketik minimal 2 huruf nama santri lalu pilih dari daftar hasil pencarian untuk melihat kehadiran bulan ini, kalender harian, dan catatan pembinaan.</p>
+        </div>`}
       </div>`;
+
+      if (!hasSelectedChild && waliChildSearchQuery) {
+        onWaliChildSearchInput(waliChildSearchQuery);
+      }
       return;
     }
 
@@ -1751,12 +2090,22 @@
       return;
     }
 
-    // ===== 3. BERANDA ADMIN & PENGURUS (SOFT BENTO OPERATIONAL KPI) =====
+    // ===== 3. BERANDA ADMIN & PENGURUS (SOFT BENTO OPERATIONAL KPI — TERSINKRON DENGAN REKAP & TUNGGAKAN) =====
     if (role === 'admin' || role === 'user') {
       const isAdmin = role === 'admin';
+      const syncedMissing = getLatestSyncedMissingToday();
+      if (syncedMissing) cachedMissingToday = syncedMissing;
+      // Segarkan diam-diam di latar belakang jika data sudah > 90 detik saat membuka Beranda
+      if ((Date.now() - lastHomeMissingRefreshAt) > 90000) {
+        setTimeout(() => refreshMissingMonitor(false), 120);
+      }
+
       const missingWb = cachedMissingToday ? (cachedMissingToday.wb || []).length : null;
       const missingTk = cachedMissingToday ? (cachedMissingToday.takhassus || []).length : null;
       const totalMissing = missingWb !== null ? (missingWb + missingTk) : '...';
+      const missingSubLabel = missingWb !== null
+        ? (totalMissing === 0 ? 'Semua Lengkap' : `WB ${missingWb} • TK ${missingTk}`)
+        : 'Menyinkronkan...';
       const pendingIzin = (izinListCache.length ? izinListCache : readLocalIzin()).filter(x => x.status === 'Menunggu').length;
       let offlinePending = 0;
       try {
@@ -1789,8 +2138,8 @@
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <button type="button" onclick="window.AlRifaieSmart.openMissingMonitorSheet()" class="bento-card p-3.5 text-left hover:border-red-400 active:scale-[0.98] transition-all">
             <div class="flex items-center justify-between">
-              <span class="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center text-sm"><i class="fa-solid fa-clock-rotate-left"></i></span>
-              <span class="text-[10px] font-bold text-slate-400">Hari Ini</span>
+              <span class="w-9 h-9 rounded-xl ${totalMissing === 0 ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400' : 'bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400'} flex items-center justify-center text-sm"><i class="fa-solid ${totalMissing === 0 ? 'fa-circle-check' : 'fa-clock-rotate-left'}"></i></span>
+              <span class="text-[10px] font-bold ${totalMissing === 0 ? 'text-emerald-600' : 'text-slate-400'}">${escHtml(missingSubLabel)}</span>
             </div>
             <div class="text-xl font-extrabold text-slate-900 dark:text-white mt-2.5">${escHtml(String(totalMissing))}</div>
             <div class="text-[11px] font-bold text-slate-600 dark:text-slate-300">Belum Absen</div>
@@ -1882,6 +2231,116 @@
     setTimeout(checkInAppDeadlineReminder, 2000);
   }
 
+  const WALI_SELECTED_CHILD_KEY = 'alrifaie_wali_selected_child_v1';
+  let waliChildSearchQuery = '';
+
+  function getSavedWaliChildName() {
+    try {
+      return String(localStorage.getItem(WALI_SELECTED_CHILD_KEY) || '').trim();
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function getSearchableWaliSantriDirectory() {
+    const map = new Map();
+    const base = getAllSantriDirectory();
+    base.forEach(item => {
+      const k = normText(item.nama);
+      if (k) map.set(k, Object.assign({}, item));
+    });
+    const wbRows = (global.rekCache && global.rekCache.wb) || [];
+    const tkRows = (global.rekCache && global.rekCache.takhassus) || [];
+    wbRows.forEach(r => {
+      const nm = String(r && r.nama || '').trim();
+      const k = normText(nm);
+      if (!k) return;
+      if (!map.has(k)) map.set(k, { nama: nm, kamar: String(r.target || '').trim(), kelas: '' });
+      else if (!map.get(k).kamar && r.target) map.get(k).kamar = String(r.target).trim();
+    });
+    tkRows.forEach(r => {
+      const nm = String(r && r.nama || '').trim();
+      const k = normText(nm);
+      if (!k) return;
+      if (!map.has(k)) map.set(k, { nama: nm, kamar: '', kelas: String(r.target || '').trim() });
+      else if (!map.get(k).kelas && r.target) map.get(k).kelas = String(r.target).trim();
+    });
+    return Array.from(map.values()).sort((a, b) => a.nama.localeCompare(b.nama));
+  }
+
+  function onWaliChildSearchInput(rawVal) {
+    waliChildSearchQuery = String(rawVal || '').trim();
+    const box = document.getElementById('waliChildSearchResults');
+    if (!box) return;
+    const q = normText(waliChildSearchQuery);
+    if (q.length < 2) {
+      box.innerHTML = '';
+      return;
+    }
+    const dir = getSearchableWaliSantriDirectory();
+    const matches = dir.filter(s =>
+      normText(s.nama).includes(q) ||
+      normText(s.kamar).includes(q) ||
+      normText(s.kelas).includes(q)
+    ).slice(0, 12);
+
+    if (!matches.length) {
+      box.innerHTML = `<div class="p-3 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-700 text-xs text-slate-400 text-center">Santri dengan kata kunci "<b>${escHtml(waliChildSearchQuery)}</b>" tidak ditemukan.</div>`;
+      return;
+    }
+
+    box.innerHTML = `<div class="max-h-56 overflow-y-auto space-y-1.5 pr-0.5">${matches.map(s => {
+      const safeNama = escJsAttr(s.nama);
+      const badges = [
+        s.kamar ? `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">Kamar ${escHtml(s.kamar)}</span>` : '',
+        s.kelas ? `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">${escHtml(s.kelas)}</span>` : ''
+      ].filter(Boolean).join('');
+      return `<button type="button" onclick="window.AlRifaieSmart.selectWaliChild('${safeNama}')" class="w-full p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80 hover:border-emerald-400 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/30 flex items-center justify-between gap-2 text-left transition-all">
+        <div class="min-w-0">
+          <div class="text-xs font-extrabold text-slate-900 dark:text-white truncate">${escHtml(s.nama)}</div>
+          <div class="flex flex-wrap gap-1 mt-1">${badges || '<span class="text-[10px] text-slate-400">Santri</span>'}</div>
+        </div>
+        <span class="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[10px] font-bold shrink-0">Pilih</span>
+      </button>`;
+    }).join('')}</div>`;
+  }
+
+  function selectWaliChild(nama) {
+    const clean = String(nama || '').trim();
+    if (!clean) return;
+    waliChildSearchQuery = '';
+    try { localStorage.setItem(WALI_SELECTED_CHILD_KEY, clean); } catch (e) {}
+    if (global.session && global.session.role === 'walisantri') {
+      global.session.namaSantri = clean;
+    }
+    renderRoleBentoDashboard();
+  }
+
+  function clearWaliChildSelection() {
+    waliChildSearchQuery = '';
+    try { localStorage.removeItem(WALI_SELECTED_CHILD_KEY); } catch (e) {}
+    if (global.session && global.session.role === 'walisantri') {
+      global.session.namaSantri = '';
+    }
+    renderRoleBentoDashboard();
+    setTimeout(() => {
+      const inp = document.getElementById('waliChildSearchInput');
+      if (inp) inp.focus();
+    }, 60);
+  }
+
+  function openRekapForWaliChild(nama) {
+    const clean = String(nama || '').trim();
+    if (typeof global.switchTab === 'function') global.switchTab('rekap');
+    setTimeout(() => {
+      const inp = document.getElementById('rekSearchName');
+      if (inp) {
+        inp.value = clean;
+        if (typeof global.filterRekapVisual === 'function') global.filterRekapVisual();
+      }
+    }, 220);
+  }
+
   function onIzinTabOpened() {
     loadIzinDigital(true);
   }
@@ -1892,6 +2351,8 @@
     isBottomSheetOpen: isBottomSheetOpen,
     loadIzinDigital: loadIzinDigital,
     renderIzinDigitalUI: renderIzinDigitalUI,
+    renderIzinDeadlineBanner: renderIzinDeadlineBanner,
+    updateIzinFormDeadlineNotice: updateIzinFormDeadlineNotice,
     setIzinFilter: setIzinFilter,
     openIzinFormSheet: openIzinFormSheet,
     autoFillIzinKamar: autoFillIzinKamar,
@@ -1914,7 +2375,12 @@
     saveTindakanForm: saveTindakanForm,
     openMissingMonitorSheet: openMissingMonitorSheet,
     refreshMissingMonitor: refreshMissingMonitor,
+    syncMissingData: syncMissingData,
     renderRoleBentoDashboard: renderRoleBentoDashboard,
+    onWaliChildSearchInput: onWaliChildSearchInput,
+    selectWaliChild: selectWaliChild,
+    clearWaliChildSelection: clearWaliChildSelection,
+    openRekapForWaliChild: openRekapForWaliChild,
     onSessionActivated: onSessionActivated,
     onIzinTabOpened: onIzinTabOpened
   };

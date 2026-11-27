@@ -92,9 +92,28 @@ function doPost(e) {
  * dan pencegahan duplikasi berbasis clientOpId.
  * @param {Array<Object>} items - Daftar operasi: [{ clientOpId, fn, args, createdAt }]
  */
+function tryAcquireLock_(lock, waitMs) {
+  try {
+    if (lock.tryLock(waitMs || 12000)) return true;
+  } catch (e) {}
+  try {
+    Utilities.sleep(400);
+    return lock.tryLock(5000);
+  } catch (e2) {
+    return false;
+  }
+}
+
 function syncOfflineBatch(items) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(25000);
+  if (!tryAcquireLock_(lock, 15000)) {
+    return {
+      success: false,
+      busy: true,
+      batchHandled: false,
+      message: 'Server sedang sibuk memproses antrean lain. Aplikasi akan mencoba ulang otomatis.'
+    };
+  }
   try {
     const list = Array.isArray(items) ? items : [];
     const results = [];
@@ -187,7 +206,13 @@ function routeOfflineFirstAction_(fnName, args, clientOpId) {
   }
 
   const lock = LockService.getScriptLock();
-  lock.waitLock(20000);
+  if (!tryAcquireLock_(lock, 15000)) {
+    return {
+      success: false,
+      busy: true,
+      message: 'Server sedang sibuk, silakan coba beberapa detik lagi.'
+    };
+  }
   try {
     if (isOpAlreadySynced_(clientOpId)) {
       return { success: true, duplicate: true, message: 'Data sudah tersinkron sebelumnya.' };
@@ -243,25 +268,73 @@ function dispatchExistingFunction_(fnName, args) {
   if (fnName === 'saveSantriTindakan') {
     return saveSantriTindakan(args && args[0] ? args[0] : {});
   }
+  if (fnName === 'getDriveBackupStatus') {
+    return getDriveBackupStatus();
+  }
+  if (fnName === 'saveDriveBackupConfig') {
+    return saveDriveBackupConfig(args && args[0] ? args[0] : {});
+  }
+  if (fnName === 'backupSuratPdfToDrive') {
+    return backupSuratPdfToDrive(args && args[0] ? args[0] : {});
+  }
+  if (fnName === 'getUserProfilePhoto') {
+    return getUserProfilePhoto(args && args[0] ? args[0] : '');
+  }
+  if (fnName === 'saveUserProfilePhoto') {
+    return saveUserProfilePhoto(args && args[0] ? args[0] : {});
+  }
 
-  // Otomatis simpan gambar HD (data:image/...) ke Google Drive agar Google Sheet hanya menyimpan URL HD tajam
+  // Otomatis cadangkan foto Galeri & file Surat ke Google Drive agar tidak membebani limit 50.000 karakter sel Google Sheet
   const safeArgs = Array.isArray(args) ? args.slice() : [];
+  let driveBackupMeta = null;
+
   if (fnName === 'saveGaleriData' && safeArgs[0] && typeof safeArgs[0] === 'object') {
     const item = Object.assign({}, safeArgs[0]);
-    if (typeof item.imageUrl === 'string' && item.imageUrl.indexOf('data:image/') === 0 && item.imageUrl.length > 48000) {
-      const up = saveHdImageToDrive_(item.imageUrl, 'galeri');
-      if (up && up.url) item.imageUrl = up.url;
+    const driveCfg = getDriveBackupConfig_();
+    if (driveCfg.enabled && driveCfg.backupGaleri && typeof item.imageUrl === 'string' && item.imageUrl.indexOf('data:image/') === 0) {
+      try {
+        const up = saveHdImageToDrive_(item.imageUrl, 'galeri_santri', 'Galeri_Santri');
+        if (up && up.url) {
+          item.imageUrl = up.url;
+          item.driveFileId = up.fileId;
+          item.driveUrl = up.viewUrl;
+          driveBackupMeta = up;
+        }
+      } catch (drvErr) {
+        Logger.log('Info backup Drive galeri: ' + drvErr);
+      }
     }
     safeArgs[0] = item;
+  } else if (fnName === 'saveSuratData' && safeArgs[0] && typeof safeArgs[0] === 'object') {
+    const suratPayload = Object.assign({}, safeArgs[0]);
+    const htmlSnap = suratPayload.driveHtmlSnapshot || '';
+    delete suratPayload.driveHtmlSnapshot;
+    const driveCfg = getDriveBackupConfig_();
+    if (driveCfg.enabled && driveCfg.backupSurat) {
+      try {
+        driveBackupMeta = backupSuratHtmlToDriveInternal_(suratPayload, htmlSnap);
+        if (driveBackupMeta && driveBackupMeta.viewUrl) {
+          suratPayload.driveFileId = driveBackupMeta.fileId;
+          suratPayload.driveUrl = driveBackupMeta.viewUrl;
+        }
+      } catch (suratDrvErr) {
+        Logger.log('Info backup Drive surat: ' + suratDrvErr);
+      }
+    }
+    safeArgs[0] = suratPayload;
   } else if (fnName === 'updateAppSettings' && safeArgs[0] && typeof safeArgs[0] === 'object') {
     const cfg = Object.assign({}, safeArgs[0]);
-    if (typeof cfg.bannerUrl === 'string' && cfg.bannerUrl.indexOf('data:image/') === 0 && cfg.bannerUrl.length > 48000) {
-      const upBanner = saveHdImageToDrive_(cfg.bannerUrl, 'banner');
-      if (upBanner && upBanner.url) cfg.bannerUrl = upBanner.url;
+    if (typeof cfg.bannerUrl === 'string' && cfg.bannerUrl.indexOf('data:image/') === 0) {
+      try {
+        const upBanner = saveHdImageToDrive_(cfg.bannerUrl, 'banner', 'Media_Aplikasi');
+        if (upBanner && upBanner.url) cfg.bannerUrl = upBanner.url;
+      } catch (e) {}
     }
-    if (typeof cfg.logoUrl === 'string' && cfg.logoUrl.indexOf('data:image/') === 0 && cfg.logoUrl.length > 48000) {
-      const upLogo = saveHdImageToDrive_(cfg.logoUrl, 'logo');
-      if (upLogo && upLogo.url) cfg.logoUrl = upLogo.url;
+    if (typeof cfg.logoUrl === 'string' && cfg.logoUrl.indexOf('data:image/') === 0) {
+      try {
+        const upLogo = saveHdImageToDrive_(cfg.logoUrl, 'logo', 'Media_Aplikasi');
+        if (upLogo && upLogo.url) cfg.logoUrl = upLogo.url;
+      } catch (e) {}
     }
     try {
       const props = PropertiesService.getScriptProperties();
@@ -273,6 +346,9 @@ function dispatchExistingFunction_(fnName, args) {
       }
       if (cfg.staffPermissionOverrides && typeof cfg.staffPermissionOverrides === 'object') {
         props.setProperty('ALRIFAIE_STAFF_PERM_OVERRIDES', JSON.stringify(cfg.staffPermissionOverrides));
+      }
+      if (cfg.driveConfig && typeof cfg.driveConfig === 'object') {
+        saveDriveBackupConfig(cfg.driveConfig);
       }
     } catch (propErr) {
       Logger.log('Info simpan extra settings: ' + propErr);
@@ -316,24 +392,136 @@ function dispatchExistingFunction_(fnName, args) {
   if (!targetFn) {
     throw new Error('Fungsi tidak dikenali atau belum tersedia di Apps Script: ' + fnName);
   }
+
+  // Server-side cache untuk endpoint baca berat agar Apps Script tidak timeout / kelebihan beban
+  if (fnName === 'getMissingAttendance') {
+    const cacheTgl = String(safeArgs[0] || '').trim();
+    const cacheBulan = String(safeArgs[1] || '').trim();
+    const cacheKey = 'MISSING_ATT_V1_' + cacheTgl + '_' + cacheBulan;
+    const snapPropKey = 'ALRIFAIE_LAST_MISSING_SNAP_V1';
+    try {
+      const scriptCache = CacheService.getScriptCache();
+      const cachedJson = scriptCache.get(cacheKey);
+      if (cachedJson) {
+        return JSON.parse(cachedJson);
+      }
+      let freshResult = null;
+      try {
+        freshResult = targetFn.apply(null, safeArgs);
+      } catch (missErr) {
+        Logger.log('Fallback getMissingAttendance karena error: ' + missErr);
+        freshResult = computeMissingAttendanceFallbackServer_(cacheTgl, cacheBulan);
+      }
+      if (!freshResult || typeof freshResult !== 'object') {
+        freshResult = computeMissingAttendanceFallbackServer_(cacheTgl, cacheBulan);
+      }
+      if (freshResult && typeof freshResult === 'object') {
+        const serialized = JSON.stringify(freshResult);
+        if (serialized && serialized.length < 95000) {
+          scriptCache.put(cacheKey, serialized, 180);
+          trackCacheKey_(scriptCache, 'MISSING_ATT_V1_KEYS', cacheKey);
+          try {
+            if (serialized.length < 8000) {
+              PropertiesService.getScriptProperties().setProperty(snapPropKey, serialized);
+            }
+          } catch (propSnapErr) {}
+        }
+        return freshResult;
+      }
+    } catch (cacheErr) {
+      Logger.log('Info cache getMissingAttendance: ' + cacheErr);
+    }
+    try {
+      const lastSnap = PropertiesService.getScriptProperties().getProperty(snapPropKey);
+      if (lastSnap) return JSON.parse(lastSnap);
+    } catch (snapReadErr) {}
+    return { wb: [], takhassus: [], riwayat: {} };
+  }
+
+  if (fnName === 'getRekapData' || fnName === 'getFastLoginData' || fnName === 'getGaleriData') {
+    const readArgKey = safeArgs.length ? String(safeArgs[0] || '').trim() : 'all';
+    const readCacheKey = 'READ_CACHE_V1_' + fnName + '_' + readArgKey;
+    const ttlSec = fnName === 'getRekapData' ? 60 : 90;
+    try {
+      const scriptCache = CacheService.getScriptCache();
+      const hit = scriptCache.get(readCacheKey);
+      if (hit) {
+        return JSON.parse(hit);
+      }
+      const freshRead = targetFn.apply(null, safeArgs);
+      if (freshRead !== null && typeof freshRead !== 'undefined') {
+        const enriched = enrichReadResult_(fnName, freshRead);
+        const ser = JSON.stringify(enriched);
+        if (ser && ser.length < 95000) {
+          scriptCache.put(readCacheKey, ser, ttlSec);
+          trackCacheKey_(scriptCache, 'READ_CACHE_V1_KEYS', readCacheKey);
+        }
+        return enriched;
+      }
+    } catch (readCacheErr) {
+      Logger.log('Info read cache ' + fnName + ': ' + readCacheErr);
+    }
+  }
+
   const result = targetFn.apply(null, safeArgs);
 
-  // Sisipkan batas waktu absen & hak akses peran ke respons settings secara otomatis
+  // Bersihkan cache server otomatis saat ada data baru/perubahan agar semua klien selalu sinkron
+  invalidateReadCachesForWrite_(fnName);
+
+  // Sisipkan batas waktu absen, hak akses peran & konfigurasi Drive ke respons settings secara otomatis
   try {
     if ((fnName === 'getInitialBundle' || fnName === 'getFastLoginData') && result && typeof result === 'object') {
-      const props = PropertiesService.getScriptProperties();
-      const rawDl = props.getProperty('ALRIFAIE_ATTENDANCE_DEADLINES');
-      const rawRp = props.getProperty('ALRIFAIE_ROLE_PERMISSIONS');
-      const rawSp = props.getProperty('ALRIFAIE_STAFF_PERM_OVERRIDES');
-      if (rawDl || rawRp || rawSp) {
-        result.settings = result.settings && typeof result.settings === 'object' ? result.settings : {};
-        if (rawDl) result.settings.attendanceDeadlines = JSON.parse(rawDl);
-        if (rawRp) result.settings.rolePermissions = JSON.parse(rawRp);
-        if (rawSp) result.settings.staffPermissionOverrides = JSON.parse(rawSp);
+      return enrichReadResult_(fnName, result);
+    }
+    if (fnName === 'getSurat' && Array.isArray(result)) {
+      const suratMap = readSuratDriveMap_();
+      return result.map(function (row) {
+        const key = normalizeSuratDriveKey_(row && row.nomor, row && row.perihal);
+        const meta = suratMap[key] || (row && row.id ? suratMap['id_' + String(row.id)] : null);
+        if (meta && meta.viewUrl) {
+          return Object.assign({}, row, {
+            driveFileId: meta.fileId || '',
+            driveUrl: meta.viewUrl || '',
+            driveFileName: meta.fileName || ''
+          });
+        }
+        return row;
+      });
+    }
+    if (fnName === 'saveSuratData' && driveBackupMeta && driveBackupMeta.viewUrl) {
+      if (result && typeof result === 'object') {
+        return Object.assign({}, result, {
+          driveBackedUp: true,
+          driveFileId: driveBackupMeta.fileId,
+          driveUrl: driveBackupMeta.viewUrl
+        });
       }
+      return {
+        success: true,
+        driveBackedUp: true,
+        driveFileId: driveBackupMeta.fileId,
+        driveUrl: driveBackupMeta.viewUrl
+      };
+    }
+    if (fnName === 'saveGaleriData' && driveBackupMeta && driveBackupMeta.viewUrl) {
+      if (result && typeof result === 'object') {
+        return Object.assign({}, result, {
+          driveBackedUp: true,
+          driveFileId: driveBackupMeta.fileId,
+          driveUrl: driveBackupMeta.viewUrl,
+          imageUrl: driveBackupMeta.url
+        });
+      }
+      return {
+        success: true,
+        driveBackedUp: true,
+        driveFileId: driveBackupMeta.fileId,
+        driveUrl: driveBackupMeta.viewUrl,
+        imageUrl: driveBackupMeta.url
+      };
     }
   } catch (mergeErr) {
-    Logger.log('Info merge extra settings: ' + mergeErr);
+    Logger.log('Info merge extra settings/drive: ' + mergeErr);
   }
 
   // Otomatis tambahkan header "NFC Code" & "QR Code" pada sheet absensi / database setelah data masuk
@@ -347,6 +535,147 @@ function dispatchExistingFunction_(fnName, args) {
     Logger.log('Info sync kolom NFC/QR: ' + extraErr);
   }
   return result;
+}
+
+function trackCacheKey_(scriptCache, listKey, cacheKey) {
+  try {
+    const rawKeys = scriptCache.get(listKey);
+    let keyList = [];
+    try { keyList = rawKeys ? JSON.parse(rawKeys) : []; } catch (e) { keyList = []; }
+    if (!Array.isArray(keyList)) keyList = [];
+    if (keyList.indexOf(cacheKey) === -1) {
+      keyList.push(cacheKey);
+      if (keyList.length > 35) keyList = keyList.slice(keyList.length - 35);
+      scriptCache.put(listKey, JSON.stringify(keyList), 600);
+    }
+  } catch (e) {}
+}
+
+function clearTrackedCacheKeys_(scriptCache, listKey) {
+  try {
+    const rawKeys = scriptCache.get(listKey);
+    if (rawKeys) {
+      const keyList = JSON.parse(rawKeys);
+      if (Array.isArray(keyList) && keyList.length > 0) {
+        scriptCache.removeAll(keyList);
+      }
+      scriptCache.remove(listKey);
+    }
+  } catch (e) {}
+}
+
+function invalidateReadCachesForWrite_(fnName) {
+  try {
+    const scriptCache = CacheService.getScriptCache();
+    if (fnName === 'submitAbsensi') {
+      clearTrackedCacheKeys_(scriptCache, 'MISSING_ATT_V1_KEYS');
+      scriptCache.remove('READ_CACHE_V1_getRekapData_wb');
+      scriptCache.remove('READ_CACHE_V1_getRekapData_takhassus');
+      scriptCache.remove('READ_CACHE_V1_getRekapData_musyrif');
+      scriptCache.remove('READ_CACHE_V1_getRekapData_pengajar');
+    } else if (
+      fnName === 'saveGaleriData' || fnName === 'deleteGaleriData' || fnName === 'toggleGaleriLike' ||
+      fnName === 'savePengumuman' || fnName === 'deletePengumuman' ||
+      fnName === 'updateAppSettings' || fnName === 'saveDbData' || fnName === 'deleteDbData' ||
+      fnName === 'saveUserData' || fnName === 'deleteUserData'
+    ) {
+      clearTrackedCacheKeys_(scriptCache, 'READ_CACHE_V1_KEYS');
+      if (fnName === 'saveDbData' || fnName === 'deleteDbData') {
+        clearTrackedCacheKeys_(scriptCache, 'MISSING_ATT_V1_KEYS');
+      }
+    }
+  } catch (invErr) {
+    Logger.log('Info invalidate read cache: ' + invErr);
+  }
+}
+
+function enrichReadResult_(fnName, result) {
+  if ((fnName === 'getInitialBundle' || fnName === 'getFastLoginData') && result && typeof result === 'object') {
+    try {
+      const props = PropertiesService.getScriptProperties();
+      const rawDl = props.getProperty('ALRIFAIE_ATTENDANCE_DEADLINES');
+      const rawRp = props.getProperty('ALRIFAIE_ROLE_PERMISSIONS');
+      const rawSp = props.getProperty('ALRIFAIE_STAFF_PERM_OVERRIDES');
+      result.settings = result.settings && typeof result.settings === 'object' ? result.settings : {};
+      if (rawDl) result.settings.attendanceDeadlines = JSON.parse(rawDl);
+      if (rawRp) result.settings.rolePermissions = JSON.parse(rawRp);
+      if (rawSp) result.settings.staffPermissionOverrides = JSON.parse(rawSp);
+      try {
+        result.settings.driveConfig = getDriveBackupConfig_();
+      } catch (dcErr) {}
+    } catch (e) {}
+  }
+  return result;
+}
+
+function computeMissingAttendanceFallbackServer_(tgl, monthStr) {
+  try {
+    const today = String(tgl || Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd')).slice(0, 10);
+    const ym = String(monthStr || today.slice(0, 7));
+    const norm = function (s) {
+      return String(s || '').trim().toLowerCase().replace(/^(kamar|kelas)\s+/i, '').replace(/\s+/g, ' ').trim();
+    };
+    const bundle = typeof getInitialBundle === 'function' ? getInitialBundle() : null;
+    const core = bundle && bundle.coreData ? bundle.coreData : {};
+    const wbRooms = Array.isArray(core.rooms) ? core.rooms.filter(Boolean) : [];
+    const tkClasses = Array.isArray(core.classes) ? core.classes.filter(Boolean) : [];
+    const wbRecs = typeof getRekapData === 'function' ? (getRekapData('wb') || []) : [];
+    const tkRecs = typeof getRekapData === 'function' ? (getRekapData('takhassus') || []) : [];
+
+    const wbDoneToday = {};
+    wbRecs.forEach(function (r) {
+      if (String(r && r.tanggal || '').slice(0, 10) === today) wbDoneToday[norm(r.target)] = true;
+    });
+    const tkDoneToday = {};
+    tkRecs.forEach(function (r) {
+      if (String(r && r.tanggal || '').slice(0, 10) === today) tkDoneToday[norm(r.target)] = true;
+    });
+
+    const missingWb = wbRooms.filter(function (rm) { return !wbDoneToday[norm(rm)]; });
+    const missingTk = tkClasses.filter(function (cl) { return !tkDoneToday[norm(cl)]; });
+
+    const riwayat = {};
+    const wbDates = {};
+    wbRecs.forEach(function (r) {
+      const d = String(r && r.tanggal || '').slice(0, 10);
+      if (d.indexOf(ym) === 0) {
+        if (!wbDates[d]) wbDates[d] = {};
+        wbDates[d][norm(r.target)] = true;
+      }
+    });
+    Object.keys(wbDates).sort().forEach(function (d) {
+      wbRooms.forEach(function (rm) {
+        if (!wbDates[d][norm(rm)]) {
+          const lbl = '[WB] ' + rm;
+          if (!riwayat[lbl]) riwayat[lbl] = [];
+          riwayat[lbl].push(d);
+        }
+      });
+    });
+
+    const tkDates = {};
+    tkRecs.forEach(function (r) {
+      const d = String(r && r.tanggal || '').slice(0, 10);
+      if (d.indexOf(ym) === 0) {
+        if (!tkDates[d]) tkDates[d] = {};
+        tkDates[d][norm(r.target)] = true;
+      }
+    });
+    Object.keys(tkDates).sort().forEach(function (d) {
+      tkClasses.forEach(function (cl) {
+        if (!tkDates[d][norm(cl)]) {
+          const lbl = '[Takhassus] ' + cl;
+          if (!riwayat[lbl]) riwayat[lbl] = [];
+          riwayat[lbl].push(d);
+        }
+      });
+    });
+
+    return { wb: missingWb, takhassus: missingTk, riwayat: riwayat };
+  } catch (fbErr) {
+    Logger.log('Fallback missing server gagal: ' + fbErr);
+    return null;
+  }
 }
 
 /**
@@ -476,20 +805,123 @@ function syncDatabaseNfcQrColumns_(dbType, rowIdx, data) {
 }
 
 /**
- * Mengunggah gambar Full-HD ke Google Drive ("AlRifaie_HD_Media") dan mengembalikan
- * URL CDN tajam (lh3.googleusercontent.com/d/<ID>=w1920) tanpa batas 50.000 karakter sel Sheet.
+ * =========================================================================
+ * INTEGRASI GOOGLE DRIVE (CADANGAN OTOMATIS GALERI SANTRI, ARSIP SURAT & PROFIL)
+ * =========================================================================
  */
+const DRIVE_CONFIG_PROP_KEY = 'ALRIFAIE_DRIVE_BACKUP_CONFIG_V1';
+const SURAT_DRIVE_MAP_PROP_KEY = 'ALRIFAIE_SURAT_DRIVE_MAP_V1';
+const PROFILE_PHOTO_PROP_KEY = 'ALRIFAIE_USER_PROFILE_PHOTOS_V1';
+const DEFAULT_DRIVE_ROOT_FOLDER = 'Arsip_Departemen_Pendidikan_AlRifaie';
+
+function getDriveBackupConfig_() {
+  const def = {
+    enabled: true,
+    backupGaleri: true,
+    backupSurat: true,
+    rootFolderId: '',
+    rootFolderName: DEFAULT_DRIVE_ROOT_FOLDER
+  };
+  try {
+    const raw = PropertiesService.getScriptProperties().getProperty(DRIVE_CONFIG_PROP_KEY);
+    if (!raw) return def;
+    const parsed = JSON.parse(raw);
+    return {
+      enabled: typeof parsed.enabled === 'boolean' ? parsed.enabled : true,
+      backupGaleri: typeof parsed.backupGaleri === 'boolean' ? parsed.backupGaleri : true,
+      backupSurat: typeof parsed.backupSurat === 'boolean' ? parsed.backupSurat : true,
+      rootFolderId: String(parsed.rootFolderId || '').trim(),
+      rootFolderName: String(parsed.rootFolderName || DEFAULT_DRIVE_ROOT_FOLDER).trim() || DEFAULT_DRIVE_ROOT_FOLDER
+    };
+  } catch (e) {
+    return def;
+  }
+}
+
+function getOrCreateDriveRootFolder_() {
+  const cfg = getDriveBackupConfig_();
+  if (cfg.rootFolderId) {
+    try {
+      return DriveApp.getFolderById(cfg.rootFolderId);
+    } catch (e) {
+      Logger.log('Folder ID Drive tidak ditemukan, membuat folder default: ' + e);
+    }
+  }
+  const folderName = cfg.rootFolderName || DEFAULT_DRIVE_ROOT_FOLDER;
+  const folders = DriveApp.getFoldersByName(folderName);
+  const root = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+  return root;
+}
+
+function getOrCreateDriveSubfolder_(subName) {
+  const root = getOrCreateDriveRootFolder_();
+  if (!subName) return root;
+  const subs = root.getFoldersByName(subName);
+  return subs.hasNext() ? subs.next() : root.createFolder(subName);
+}
+
+function getDriveBackupStatus() {
+  try {
+    const cfg = getDriveBackupConfig_();
+    const root = getOrCreateDriveRootFolder_();
+    const galeriFolder = getOrCreateDriveSubfolder_('Galeri_Santri');
+    const suratFolder = getOrCreateDriveSubfolder_('Arsip_Surat');
+    const countFiles = function (f) {
+      let c = 0;
+      const it = f.getFiles();
+      while (it.hasNext() && c < 500) { it.next(); c++; }
+      return c;
+    };
+    return {
+      success: true,
+      connected: true,
+      config: cfg,
+      rootFolderId: root.getId(),
+      rootFolderName: root.getName(),
+      rootFolderUrl: root.getUrl(),
+      galeriFolderUrl: galeriFolder.getUrl(),
+      suratFolderUrl: suratFolder.getUrl(),
+      galeriCount: countFiles(galeriFolder),
+      suratCount: countFiles(suratFolder)
+    };
+  } catch (err) {
+    return {
+      success: false,
+      connected: false,
+      config: getDriveBackupConfig_(),
+      error: err && err.message ? err.message : String(err)
+    };
+  }
+}
+
+function saveDriveBackupConfig(payload) {
+  const d = payload && typeof payload === 'object' ? payload : {};
+  const prev = getDriveBackupConfig_();
+  const next = {
+    enabled: typeof d.enabled === 'boolean' ? d.enabled : prev.enabled,
+    backupGaleri: typeof d.backupGaleri === 'boolean' ? d.backupGaleri : prev.backupGaleri,
+    backupSurat: typeof d.backupSurat === 'boolean' ? d.backupSurat : prev.backupSurat,
+    rootFolderId: typeof d.rootFolderId === 'string' ? d.rootFolderId.trim() : prev.rootFolderId,
+    rootFolderName: (typeof d.rootFolderName === 'string' && d.rootFolderName.trim()) ? d.rootFolderName.trim() : prev.rootFolderName
+  };
+  PropertiesService.getScriptProperties().setProperty(DRIVE_CONFIG_PROP_KEY, JSON.stringify(next));
+  return getDriveBackupStatus();
+}
+
 function uploadHdImage(payload) {
   const dataUrl = payload && payload.dataUrl ? String(payload.dataUrl) : '';
   const prefix = payload && payload.prefix ? String(payload.prefix).replace(/[^a-zA-Z0-9_-]/g, '') : 'media';
+  const subFolder = payload && payload.subFolder
+    ? String(payload.subFolder).replace(/[^a-zA-Z0-9_-]/g, '')
+    : (prefix.indexOf('galeri') !== -1 ? 'Galeri_Santri' : (prefix.indexOf('profil') !== -1 ? 'Profil_Pengguna' : 'Media_Aplikasi'));
   if (!dataUrl || dataUrl.indexOf('data:image/') !== 0) {
     return { success: false, error: 'Data gambar tidak valid.' };
   }
-  const saved = saveHdImageToDrive_(dataUrl, prefix);
-  return { success: true, url: saved.url, fileId: saved.fileId };
+  const saved = saveHdImageToDrive_(dataUrl, prefix, subFolder);
+  return { success: true, url: saved.url, viewUrl: saved.viewUrl, fileId: saved.fileId, folderName: subFolder };
 }
 
-function saveHdImageToDrive_(dataUrl, prefix) {
+function saveHdImageToDrive_(dataUrl, prefix, subFolderName) {
   const match = String(dataUrl).match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
   if (!match) {
     throw new Error('Format data URL gambar tidak dikenali.');
@@ -501,16 +933,137 @@ function saveHdImageToDrive_(dataUrl, prefix) {
   const fileName = (prefix || 'media') + '_' + Date.now() + '.' + ext;
   const blob = Utilities.newBlob(bytes, mimeType, fileName);
 
-  const folderName = 'AlRifaie_HD_Media';
-  const folders = DriveApp.getFoldersByName(folderName);
-  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+  const folder = getOrCreateDriveSubfolder_(subFolderName || 'Galeri_Santri');
   const file = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (shareErr) {
+    Logger.log('Info sharing Drive file: ' + shareErr);
+  }
   const fileId = file.getId();
   return {
     fileId: fileId,
-    url: 'https://lh3.googleusercontent.com/d/' + fileId + '=w1920'
+    url: 'https://lh3.googleusercontent.com/d/' + fileId + '=w1600',
+    viewUrl: 'https://drive.google.com/file/d/' + fileId + '/view',
+    fileName: fileName
   };
+}
+
+function normalizeSuratDriveKey_(nomor, perihal) {
+  return (String(nomor || '').trim().toLowerCase() + '|' + String(perihal || '').trim().toLowerCase()).slice(0, 120);
+}
+
+function readSuratDriveMap_() {
+  try {
+    const raw = PropertiesService.getScriptProperties().getProperty(SURAT_DRIVE_MAP_PROP_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return (parsed && typeof parsed === 'object') ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveSuratDriveMapEntry_(key, meta) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const map = readSuratDriveMap_();
+    map[key] = meta;
+    const keys = Object.keys(map);
+    if (keys.length > 120) {
+      keys.slice(0, keys.length - 120).forEach(function (oldK) { delete map[oldK]; });
+    }
+    props.setProperty(SURAT_DRIVE_MAP_PROP_KEY, JSON.stringify(map));
+  } catch (e) {
+    Logger.log('Info simpan surat drive map: ' + e);
+  }
+}
+
+function backupSuratHtmlToDriveInternal_(suratPayload, htmlSnapshot) {
+  const nomor = String(suratPayload.nomor || ('Surat_' + Date.now())).trim();
+  const perihal = String(suratPayload.perihal || 'Dokumen_Surat').trim();
+  const safeBase = ('Surat_' + nomor + '_' + perihal).replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 80);
+  const fullHtml = htmlSnapshot && htmlSnapshot.length > 40
+    ? ('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Times New Roman,serif;margin:0;padding:12mm;color:#111;background:#fff;}</style></head><body>' + htmlSnapshot + '</body></html>')
+    : ('<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:serif;padding:24px;"><h2>' + perihal + '</h2><p><b>Nomor:</b> ' + nomor + '</p><p><b>Kategori:</b> ' + String(suratPayload.kategori || '-') + '</p><p><b>Tujuan:</b> ' + String(suratPayload.tujuan || '-') + '</p></body></html>');
+
+  const folder = getOrCreateDriveSubfolder_('Arsip_Surat');
+  let file = null;
+  try {
+    const htmlBlob = Utilities.newBlob(fullHtml, 'text/html', safeBase + '.html');
+    const pdfBlob = htmlBlob.getAs(MimeType.PDF).setName(safeBase + '.pdf');
+    file = folder.createFile(pdfBlob);
+  } catch (pdfErr) {
+    const fallbackBlob = Utilities.newBlob(fullHtml, 'text/html', safeBase + '.html');
+    file = folder.createFile(fallbackBlob);
+  }
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (shareErr) {}
+
+  const meta = {
+    fileId: file.getId(),
+    viewUrl: 'https://drive.google.com/file/d/' + file.getId() + '/view',
+    fileName: file.getName(),
+    backupAt: new Date().toISOString()
+  };
+  saveSuratDriveMapEntry_(normalizeSuratDriveKey_(nomor, perihal), meta);
+  return meta;
+}
+
+function backupSuratPdfToDrive(payload) {
+  try {
+    const cfg = getDriveBackupConfig_();
+    if (!cfg.enabled || !cfg.backupSurat) {
+      return { success: false, skipped: true, message: 'Backup otomatis surat ke Drive sedang dinonaktifkan.' };
+    }
+    const d = payload && typeof payload === 'object' ? payload : {};
+    const meta = backupSuratHtmlToDriveInternal_(d, String(d.html || d.driveHtmlSnapshot || ''));
+    return {
+      success: true,
+      fileId: meta.fileId,
+      driveUrl: meta.viewUrl,
+      fileName: meta.fileName
+    };
+  } catch (err) {
+    return { success: false, error: err && err.message ? err.message : String(err) };
+  }
+}
+
+function getUserProfilePhoto(userKey) {
+  try {
+    const key = String(userKey || '').trim().toLowerCase();
+    if (!key) return { success: true, photoUrl: '' };
+    const raw = PropertiesService.getScriptProperties().getProperty(PROFILE_PHOTO_PROP_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    return { success: true, photoUrl: (map && map[key]) ? String(map[key]) : '' };
+  } catch (e) {
+    return { success: false, photoUrl: '' };
+  }
+}
+
+function saveUserProfilePhoto(payload) {
+  try {
+    const d = payload && typeof payload === 'object' ? payload : {};
+    const key = String(d.userKey || '').trim().toLowerCase();
+    if (!key) return { success: false, message: 'Kunci pengguna tidak valid.' };
+    const raw = PropertiesService.getScriptProperties().getProperty(PROFILE_PHOTO_PROP_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    if (d.remove === true || !d.dataUrl) {
+      delete map[key];
+      PropertiesService.getScriptProperties().setProperty(PROFILE_PHOTO_PROP_KEY, JSON.stringify(map));
+      return { success: true, photoUrl: '' };
+    }
+    let finalUrl = String(d.dataUrl);
+    if (finalUrl.indexOf('data:image/') === 0) {
+      const saved = saveHdImageToDrive_(finalUrl, 'profil_' + key.replace(/[^a-z0-9]/g, '_').slice(0, 24), 'Profil_Pengguna');
+      finalUrl = saved.url;
+    }
+    map[key] = finalUrl;
+    PropertiesService.getScriptProperties().setProperty(PROFILE_PHOTO_PROP_KEY, JSON.stringify(map));
+    return { success: true, photoUrl: finalUrl };
+  } catch (err) {
+    return { success: false, error: err && err.message ? err.message : String(err) };
+  }
 }
 
 /**
@@ -620,7 +1173,9 @@ function getWaliSantriUsers() {
 
 function saveWaliSantriUser(payload) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(15000);
+  if (!tryAcquireLock_(lock, 15000)) {
+    return { success: false, busy: true, message: 'Server sedang sibuk, silakan coba sesaat lagi.' };
+  }
   try {
     const data = payload && typeof payload === 'object' ? payload : {};
     const id = String(data.id || '').trim();
@@ -628,7 +1183,8 @@ function saveWaliSantriUser(payload) {
     const password = String(data.password || '');
     const namaWali = String(data.namaWali || '').trim();
     const namaSantri = String(data.namaSantri || '').trim();
-    const allowedPermKeys = ['wb', 'takhassus', 'musyrif', 'pengajar', 'izin', 'rekap', 'tunggakan', 'simpanan', 'operasional', 'surat', 'saranAdmin', 'database', 'admin'];
+    const sharedSingle = Boolean(data.sharedSingle);
+    const allowedPermKeys = ['wb', 'takhassus', 'musyrif', 'pengajar', 'rekap', 'tunggakan', 'simpanan', 'operasional', 'surat', 'saranAdmin', 'database', 'admin'];
     const akses = Array.isArray(data.akses)
       ? data.akses.map(function (x) { return String(x); }).filter(function (k) { return allowedPermKeys.indexOf(k) !== -1; })
       : [];
@@ -638,6 +1194,41 @@ function saveWaliSantriUser(payload) {
     }
 
     const list = readWaliSantriStore_();
+
+    if (sharedSingle) {
+      const existing = list.find(function (x) { return String(x.id) === 'wali_shared_main' || x.sharedSingle; }) || list[0] || null;
+      let nextSalt = existing && existing.salt ? existing.salt : '';
+      let nextHash = existing && existing.passwordHash ? existing.passwordHash : '';
+      if (password) {
+        if (password.length < 4) {
+          return { success: false, message: 'Password minimal 4 karakter.' };
+        }
+        nextSalt = Utilities.getUuid().replace(/-/g, '').slice(0, 16);
+        nextHash = computeSaltedSha256_(password, nextSalt);
+      } else if (data.passwordHash && data.salt) {
+        nextSalt = String(data.salt);
+        nextHash = String(data.passwordHash);
+      }
+      if (!nextHash || !nextSalt) {
+        return { success: false, message: 'Password wajib diisi untuk akun bersama Wali Santri.' };
+      }
+      const sharedId = 'wali_shared_main';
+      const sharedRecord = {
+        id: sharedId,
+        username: username,
+        namaWali: namaWali || 'Wali Santri',
+        namaSantri: '',
+        akses: akses,
+        salt: nextSalt,
+        passwordHash: nextHash,
+        sharedSingle: true,
+        createdAt: (existing && existing.createdAt) || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      writeWaliSantriStore_([sharedRecord]);
+      return { success: true, id: sharedId };
+    }
+
     const dupIdx = list.findIndex(function (x) {
       return String(x.username || '').toLowerCase() === username.toLowerCase() && String(x.id) !== id;
     });
@@ -708,7 +1299,9 @@ function saveWaliSantriUser(payload) {
 
 function deleteWaliSantriUser(id) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(15000);
+  if (!tryAcquireLock_(lock, 15000)) {
+    return { success: false, busy: true, message: 'Server sedang sibuk, silakan coba sesaat lagi.' };
+  }
   try {
     const targetId = String(id || '').trim();
     if (!targetId) return { success: false, message: 'ID akun tidak valid.' };
@@ -816,7 +1409,9 @@ function safeSheetCell_(val, maxLen) {
 
 function saveIzinDigital(payload) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(15000);
+  if (!tryAcquireLock_(lock, 15000)) {
+    return { success: false, busy: true, message: 'Server sedang sibuk, silakan coba sesaat lagi.' };
+  }
   try {
     const d = payload && typeof payload === 'object' ? payload : {};
     const namaPemohon = safeSheetCell_(d.namaSantri || d.namaPemohon, 120);
@@ -838,12 +1433,36 @@ function saveIzinDigital(payload) {
 
     const sh = getOrCreateIzinSheet_();
     const id = String(d.id || ('iz_' + Date.now() + '_' + Utilities.getUuid().slice(0, 6))).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60);
-    const initialStatus = (peranPengaju === 'admin') ? 'Disetujui' : 'Menunggu';
-    const diprosesOleh = (peranPengaju === 'admin') ? pengaju : '';
-    const createdAt = new Date().toISOString();
+    let initialStatus = (peranPengaju === 'admin') ? 'Disetujui' : 'Menunggu';
+    let diprosesOleh = (peranPengaju === 'admin') ? pengaju : '';
+    let catatanAdmin = safeSheetCell_(d.catatanAdmin || '', 300);
+    let autoRejected = false;
 
-    sh.appendRow([id, namaPemohon, unitTugas, jenis, startDate, endDate, alasan, pengaju, peranPengaju, initialStatus, diprosesOleh, '', createdAt]);
-    return { success: true, id: id, status: initialStatus };
+    // Validasi batas waktu Izin Digital yang diatur Admin (WIB): otomatis tertolak jika melewati batas waktu
+    if (peranPengaju !== 'admin') {
+      try {
+        const rawDl = PropertiesService.getScriptProperties().getProperty('ALRIFAIE_ATTENDANCE_DEADLINES');
+        const dlCfg = rawDl ? JSON.parse(rawDl) : null;
+        const izinCfg = dlCfg && dlCfg.izinDigital ? dlCfg.izinDigital : { enabled: true, time: '16:00' };
+        if (izinCfg && izinCfg.enabled && /^\d{2}:\d{2}$/.test(String(izinCfg.time || ''))) {
+          const nowDate = new Date();
+          const todayWib = Utilities.formatDate(nowDate, 'Asia/Jakarta', 'yyyy-MM-dd');
+          const nowTimeWib = Utilities.formatDate(nowDate, 'Asia/Jakarta', 'HH:mm');
+          if (startDate < todayWib || (startDate === todayWib && nowTimeWib > String(izinCfg.time))) {
+            initialStatus = 'Ditolak';
+            diprosesOleh = 'Sistem (Otomatis)';
+            catatanAdmin = 'Ditolak otomatis: melewati batas waktu pengajuan izin (' + izinCfg.time + ' WIB).';
+            autoRejected = true;
+          }
+        }
+      } catch (dlErr) {
+        Logger.log('Info cek batas izin digital: ' + dlErr);
+      }
+    }
+
+    const createdAt = new Date().toISOString();
+    sh.appendRow([id, namaPemohon, unitTugas, jenis, startDate, endDate, alasan, pengaju, peranPengaju, initialStatus, diprosesOleh, catatanAdmin, createdAt]);
+    return { success: true, id: id, status: initialStatus, autoRejected: autoRejected, diprosesOleh: diprosesOleh, catatanAdmin: catatanAdmin };
   } finally {
     lock.releaseLock();
   }
@@ -851,7 +1470,9 @@ function saveIzinDigital(payload) {
 
 function updateIzinDigitalStatus(id, nextStatus, approverName, catatanAdmin) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(15000);
+  if (!tryAcquireLock_(lock, 15000)) {
+    return { success: false, busy: true, message: 'Server sedang sibuk, silakan coba sesaat lagi.' };
+  }
   try {
     const targetId = String(id || '').trim();
     const allowedStatuses = ['Menunggu', 'Disetujui', 'Ditolak'];
@@ -879,7 +1500,9 @@ function updateIzinDigitalStatus(id, nextStatus, approverName, catatanAdmin) {
 
 function deleteIzinDigital(id) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(15000);
+  if (!tryAcquireLock_(lock, 15000)) {
+    return { success: false, busy: true, message: 'Server sedang sibuk, silakan coba sesaat lagi.' };
+  }
   try {
     const targetId = String(id || '').trim();
     if (!targetId) return { success: false, message: 'ID izin tidak valid.' };
@@ -944,7 +1567,9 @@ function getSantriTindakan() {
 
 function saveSantriTindakan(payload) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(15000);
+  if (!tryAcquireLock_(lock, 15000)) {
+    return { success: false, busy: true, message: 'Server sedang sibuk, silakan coba sesaat lagi.' };
+  }
   try {
     const d = payload && typeof payload === 'object' ? payload : {};
     const namaSantri = safeSheetCell_(d.namaSantri, 120);

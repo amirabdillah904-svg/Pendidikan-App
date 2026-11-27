@@ -12,11 +12,22 @@
   const STAFF_OVERRIDES_KEY = 'alrifaie_staff_perm_overrides_v1';
   const WALI_ACCOUNTS_KEY = 'alrifaie_walisantri_accounts_v1';
 
+  const DRIVE_CONFIG_KEY = 'alrifaie_drive_backup_cfg_v1';
+
   const DEFAULT_DEADLINES = {
     wb: { enabled: true, time: '20:15' },
     takhassus: { enabled: true, time: '16:15' },
     musyrif: { enabled: true, time: '20:10' },
-    pengajar: { enabled: true, time: '16:10' }
+    pengajar: { enabled: true, time: '16:10' },
+    izinDigital: { enabled: true, time: '16:00' }
+  };
+
+  const DEFAULT_DRIVE_CONFIG = {
+    enabled: true,
+    backupGaleri: true,
+    backupSurat: true,
+    rootFolderId: '',
+    rootFolderName: 'Arsip_Departemen_Pendidikan_AlRifaie'
   };
 
   const ALL_PERMISSIONS = [
@@ -128,6 +139,42 @@
     };
   }
 
+  function getWibTodayStr() {
+    const now = new Date();
+    const wib = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + 25200000);
+    const y = wib.getFullYear();
+    const m = String(wib.getMonth() + 1).padStart(2, '0');
+    const d = String(wib.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function evaluateIzinDeadline(startDateStr) {
+    const cfg = loadDeadlines().izinDigital || DEFAULT_DEADLINES.izinDigital;
+    if (!cfg || !cfg.enabled || !cfg.time) {
+      return { enabled: false, isExpired: false, diffMinutes: 0, deadlineTime: '' };
+    }
+    const parts = cfg.time.split(':');
+    const limitH = parseInt(parts[0], 10);
+    const limitM = parseInt(parts[1], 10);
+    if (isNaN(limitH) || isNaN(limitM)) {
+      return { enabled: false, isExpired: false, diffMinutes: 0, deadlineTime: cfg.time };
+    }
+    const todayWib = getWibTodayStr();
+    const targetDate = String(startDateStr || todayWib).trim().slice(0, 10);
+    const now = getWibNowParts();
+    const limitTotal = limitH * 60 + limitM;
+    const diff = now.totalMinutes - limitTotal;
+    const isPastDate = targetDate < todayWib;
+    const isSameDayExpired = targetDate === todayWib && diff > 0;
+    return {
+      enabled: true,
+      isExpired: isPastDate || isSameDayExpired,
+      isPastDate: isPastDate,
+      diffMinutes: Math.max(0, diff),
+      deadlineTime: cfg.time
+    };
+  }
+
   function renderDeadlineBadges() {
     const all = loadDeadlines();
     ['wb', 'takhassus', 'musyrif', 'pengajar'].forEach(t => {
@@ -148,11 +195,14 @@
         el.innerHTML = `<i class="fa-regular fa-clock text-[9px]"></i><span>Batas: ${escHtml(item.time)} WIB</span>`;
       }
     });
+    if (global.AlRifaieSmart && typeof global.AlRifaieSmart.renderIzinDeadlineBanner === 'function') {
+      global.AlRifaieSmart.renderIzinDeadlineBanner();
+    }
   }
 
   function populateDeadlineSettingsForm() {
     const all = loadDeadlines();
-    ['wb', 'takhassus', 'musyrif', 'pengajar'].forEach(t => {
+    ['wb', 'takhassus', 'musyrif', 'pengajar', 'izinDigital'].forEach(t => {
       const chk = document.getElementById('dlEnable_' + t);
       const inp = document.getElementById('dlTime_' + t);
       if (chk) chk.checked = Boolean(all[t] && all[t].enabled);
@@ -163,7 +213,7 @@
   function saveAttendanceDeadlines(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
     const next = {};
-    ['wb', 'takhassus', 'musyrif', 'pengajar'].forEach(t => {
+    ['wb', 'takhassus', 'musyrif', 'pengajar', 'izinDigital'].forEach(t => {
       const chk = document.getElementById('dlEnable_' + t);
       const inp = document.getElementById('dlTime_' + t);
       next[t] = {
@@ -178,7 +228,7 @@
       global.appSettings.attendanceDeadlines = next;
     }
 
-    syncExtraSettingsToServer({ attendanceDeadlines: next }, 'Batas waktu absen berhasil disimpan. Scan yang melewati jam batas akan otomatis tercatat Terlambat.');
+    syncExtraSettingsToServer({ attendanceDeadlines: next }, 'Batas waktu absen & batas Izin Digital berhasil disimpan.');
   }
 
   // ===================== 2. PENGATURAN HAK AKSES PERAN & FITUR =====================
@@ -251,7 +301,7 @@
     if (!container) return;
     const cfg = loadRolePermissions();
     const roles = [
-      { key: 'walisantri', title: 'Default Wali Santri', desc: 'Hak akses bawaan saat menambah akun Wali Santri baru (Beranda & Galeri selalu aktif)', badgeCls: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300' },
+      { key: 'walisantri', title: 'Akun Bersama Wali Santri', desc: 'Hak akses fitur untuk akun bersama Wali Santri (Beranda cari nama anak & Galeri selalu aktif)', badgeCls: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300' },
       { key: 'musyrif', title: 'Peran Musyrif', desc: 'Akses fitur untuk semua akun login sebagai Musyrif', badgeCls: 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300' },
       { key: 'pengajar', title: 'Peran Pengajar', desc: 'Akses fitur untuk semua akun login sebagai Pengajar', badgeCls: 'bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300' },
       { key: 'user', title: 'Default Pengurus', desc: 'Hak akses bawaan saat menambah pengurus baru', badgeCls: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300' }
@@ -297,6 +347,12 @@
       return;
     }
     saveRolePermissionsLocal(next);
+    const sharedWali = getPrimarySharedWaliAccount();
+    if (sharedWali) {
+      const updatedShared = Object.assign({}, sharedWali, { akses: (next.walisantri || []).filter(k => k !== 'izin') });
+      writeLocalWaliAccounts([updatedShared]);
+      renderWaliSantriTable();
+    }
     renderRolePermissionsUI();
 
     if (global.appSettings && typeof global.appSettings === 'object') {
@@ -429,53 +485,160 @@
     return found ? found.label : key;
   }
 
-  function renderWaliSantriTable() {
-    const tbody = document.getElementById('waliSantriTableBody');
-    const countBadge = document.getElementById('badgeCountWali');
-    const q = (document.getElementById('waliSearchInput')?.value || '').trim().toLowerCase();
+  const SHARED_WALI_ACCOUNT_ID = 'wali_shared_main';
+
+  function getPrimarySharedWaliAccount() {
     const list = cachedWaliAccounts.length ? cachedWaliAccounts : readLocalWaliAccounts();
     cachedWaliAccounts = list;
+    if (!list.length) return null;
+    return list.find(x => String(x.id) === SHARED_WALI_ACCOUNT_ID || x.sharedSingle) || list[0];
+  }
 
-    if (countBadge) countBadge.innerText = String(list.length);
-    if (!tbody) return;
+  function renderWaliSantriTable() {
+    const countBadge = document.getElementById('badgeCountWali');
+    const statusBadge = document.getElementById('wsSharedStatusBadge');
+    const userEl = document.getElementById('wsSharedUsername');
+    const pwdEl = document.getElementById('wsSharedPassword');
+    const pwdHintEl = document.getElementById('wsSharedPasswordHint');
+    const namaEl = document.getElementById('wsSharedNamaWali');
+    const metaEl = document.getElementById('wsSharedMetaInfo');
 
-    const filtered = q
-      ? list.filter(u =>
-        String(u.username || '').toLowerCase().includes(q) ||
-        String(u.namaWali || '').toLowerCase().includes(q) ||
-        String(u.namaSantri || '').toLowerCase().includes(q)
-      )
-      : list;
+    const acc = getPrimarySharedWaliAccount();
+    if (countBadge) countBadge.innerText = acc ? '1' : '0';
 
-    if (!filtered.length) {
-      tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400 text-xs">Belum ada akun Wali Santri. Klik <b>+ Tambah Wali Santri</b> untuk membuat akun.</td></tr>';
+    if (acc) {
+      if (statusBadge) {
+        statusBadge.innerText = 'Aktif • 1 Akun Bersama';
+        statusBadge.className = 'px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/60';
+      }
+      if (userEl && document.activeElement !== userEl) userEl.value = acc.username || '';
+      if (pwdEl && document.activeElement !== pwdEl) {
+        pwdEl.value = '';
+        pwdEl.required = false;
+        pwdEl.placeholder = 'Kosongkan jika password tetap';
+      }
+      if (pwdHintEl) pwdHintEl.innerText = 'Password tersimpan terenkripsi. Isi hanya jika ingin mengganti password.';
+      if (namaEl && document.activeElement !== namaEl) namaEl.value = acc.namaWali || 'Wali Santri';
+      if (metaEl) metaEl.innerHTML = `Username aktif: <b class="font-mono text-emerald-700 dark:text-emerald-300">${escHtml(acc.username)}</b> &bull; Bisa dipakai bersama oleh semua Wali Santri.`;
+
+      const perms = (Array.isArray(acc.akses) ? acc.akses : (loadRolePermissions().walisantri || ['rekap'])).filter(k => k !== 'izin');
+      document.querySelectorAll('input[name="wsSharedPerm"]').forEach(c => {
+        c.checked = perms.includes(c.value);
+      });
+    } else {
+      if (statusBadge) {
+        statusBadge.innerText = 'Belum Diatur';
+        statusBadge.className = 'px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/60';
+      }
+      if (userEl && !userEl.value && document.activeElement !== userEl) userEl.value = 'walisantri';
+      if (pwdEl) {
+        pwdEl.required = true;
+        pwdEl.placeholder = 'Minimal 4 karakter';
+      }
+      if (pwdHintEl) pwdHintEl.innerText = 'Buat password bersama untuk seluruh Wali Santri (minimal 4 karakter).';
+      if (metaEl) metaEl.innerText = 'Atur 1 username & password di atas, lalu bagikan ke grup Wali Santri.';
+      const defPerms = (loadRolePermissions().walisantri || ['rekap']).filter(k => k !== 'izin');
+      document.querySelectorAll('input[name="wsSharedPerm"]').forEach(c => {
+        c.checked = defPerms.includes(c.value);
+      });
+    }
+  }
+
+  async function saveSharedWaliAccount(e) {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    const username = (document.getElementById('wsSharedUsername')?.value || '').trim();
+    const password = document.getElementById('wsSharedPassword')?.value || '';
+    const namaWali = (document.getElementById('wsSharedNamaWali')?.value || '').trim() || 'Wali Santri';
+    const akses = Array.from(document.querySelectorAll('input[name="wsSharedPerm"]:checked'))
+      .map(c => c.value)
+      .filter(k => k !== 'izin');
+
+    if (username.length < 3) {
+      if (typeof global.Swal !== 'undefined') global.Swal.fire('Perhatian', 'Username bersama minimal 3 karakter.', 'warning');
       return;
     }
 
-    tbody.innerHTML = filtered.map(u => {
-      const akses = Array.isArray(u.akses) ? u.akses : [];
-      const permChips = akses.length
-        ? akses.map(a => `<span class="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 text-[10px] font-semibold">${escHtml(getPermLabel(a))}</span>`).join('')
-        : '<span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-semibold">Beranda &amp; Galeri</span>';
-      const safeId = escHtml(u.id).replace(/'/g, "\\'");
-      const santriNote = u.namaSantri ? `<div class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-user-graduate mr-1 text-emerald-500"></i>${escHtml(u.namaSantri)}</div>` : '';
+    const existing = getPrimarySharedWaliAccount();
+    if (!existing && password.length < 4) {
+      if (typeof global.Swal !== 'undefined') global.Swal.fire('Perhatian', 'Password bersama minimal 4 karakter.', 'warning');
+      return;
+    }
+    if (existing && password && password.length < 4) {
+      if (typeof global.Swal !== 'undefined') global.Swal.fire('Perhatian', 'Password baru minimal 4 karakter.', 'warning');
+      return;
+    }
 
-      return `<tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-        <td class="p-3">
-          <div class="font-bold text-slate-900 dark:text-white font-mono text-xs">${escHtml(u.username)}</div>
-          <div class="text-[10px] text-slate-400">Password terenkripsi</div>
-        </td>
-        <td class="p-3">
-          <div class="font-semibold text-slate-800 dark:text-slate-200">${escHtml(u.namaWali || u.username)}</div>
-          ${santriNote}
-        </td>
-        <td class="p-3"><div class="flex flex-wrap gap-1">${permChips}</div></td>
-        <td class="p-3 text-center whitespace-nowrap">
-          <button type="button" onclick="window.AlRifaieAdminSettings.openWaliModal('${safeId}')" class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 hover:bg-blue-100 inline-flex items-center justify-center mr-1" title="Edit Akun"><i class="fa-solid fa-pen text-[11px]"></i></button>
-          <button type="button" onclick="window.AlRifaieAdminSettings.deleteWaliSantri('${safeId}')" class="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 hover:bg-red-100 inline-flex items-center justify-center" title="Hapus Akun"><i class="fa-solid fa-trash text-[11px]"></i></button>
-        </td>
-      </tr>`;
-    }).join('');
+    let salt = existing && existing.salt ? existing.salt : generateRandomSalt();
+    let passwordHash = existing && existing.passwordHash ? existing.passwordHash : '';
+    if (password) {
+      salt = generateRandomSalt();
+      passwordHash = await hashPasswordWithSalt(password, salt);
+    }
+
+    const recordId = (existing && existing.id) ? String(existing.id) : SHARED_WALI_ACCOUNT_ID;
+    const localRecord = {
+      id: recordId,
+      username: username,
+      namaWali: namaWali,
+      namaSantri: '',
+      akses: akses,
+      salt: salt,
+      passwordHash: passwordHash,
+      sharedSingle: true,
+      localOnly: true,
+      createdAt: (existing && existing.createdAt) || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // Simpan ketat hanya 1 akun bersama Wali Santri
+    writeLocalWaliAccounts([localRecord]);
+
+    // Sinkronkan juga konfigurasi role permissions default walisantri
+    const roleCfg = loadRolePermissions();
+    roleCfg.walisantri = akses.slice();
+    try { localStorage.setItem(ROLE_PERMS_KEY, JSON.stringify(roleCfg)); } catch (err) {}
+    renderRolePermissionsUI();
+    renderWaliSantriTable();
+
+    const serverPayload = {
+      id: recordId,
+      username: username,
+      namaWali: namaWali,
+      namaSantri: '',
+      akses: akses,
+      sharedSingle: true
+    };
+    if (!existing || password) {
+      serverPayload.salt = salt;
+      serverPayload.passwordHash = passwordHash;
+    }
+
+    try {
+      if (global.google && global.google.script && global.google.script.run && typeof global.google.script.run.saveWaliSantriUser === 'function') {
+        global.google.script.run
+          .withSuccessHandler(res => {
+            if (res && res.success) {
+              const finalId = res.id || recordId;
+              writeLocalWaliAccounts([Object.assign({}, localRecord, { id: finalId, localOnly: false })]);
+              renderWaliSantriTable();
+            }
+            if (typeof global.Swal !== 'undefined') {
+              global.Swal.fire('Tersimpan', `Akun bersama Wali Santri (${username}) berhasil disimpan & aktif untuk semua wali.`, 'success');
+            }
+          })
+          .withFailureHandler(() => {
+            if (typeof global.Swal !== 'undefined') {
+              global.Swal.fire('Tersimpan Lokal', `Akun bersama Wali Santri (${username}) tersimpan di perangkat dan siap digunakan.`, 'success');
+            }
+          })
+          .saveWaliSantriUser(serverPayload);
+        return;
+      }
+    } catch (err) {}
+
+    if (typeof global.Swal !== 'undefined') {
+      global.Swal.fire('Tersimpan', `Akun bersama Wali Santri (${username}) berhasil disimpan.`, 'success');
+    }
   }
 
   function loadWaliSantriAccounts() {
@@ -485,23 +648,15 @@
       if (global.google && global.google.script && global.google.script.run && typeof global.google.script.run.getWaliSantriUsers === 'function') {
         global.google.script.run
           .withSuccessHandler(serverList => {
-            if (!Array.isArray(serverList)) return;
-            const localById = {};
-            readLocalWaliAccounts().forEach(item => { localById[String(item.id)] = item; });
-            const merged = serverList.map(sv => {
-              const loc = localById[String(sv.id)] || {};
-              return Object.assign({}, loc, sv, {
-                akses: Array.isArray(sv.akses) ? sv.akses : (loc.akses || [])
-              });
+            if (!Array.isArray(serverList) || !serverList.length) return;
+            const localMain = getPrimarySharedWaliAccount();
+            const svMain = serverList.find(x => String(x.id) === SHARED_WALI_ACCOUNT_ID || x.sharedSingle) || serverList[0];
+            if (!svMain) return;
+            const mergedMain = Object.assign({}, localMain || {}, svMain, {
+              sharedSingle: true,
+              akses: (Array.isArray(svMain.akses) ? svMain.akses : ((localMain && localMain.akses) || ['rekap'])).filter(k => k !== 'izin')
             });
-            // Pertahankan akun yang baru dibuat lokal (jika server belum ter-update)
-            const serverIds = new Set(merged.map(x => String(x.id)));
-            readLocalWaliAccounts().forEach(loc => {
-              if (!serverIds.has(String(loc.id)) && loc.localOnly) {
-                merged.push(loc);
-              }
-            });
-            writeLocalWaliAccounts(merged);
+            writeLocalWaliAccounts([mergedMain]);
             renderWaliSantriTable();
           })
           .withFailureHandler(() => {})
@@ -818,6 +973,9 @@
       populateDeadlineSettingsForm();
     } else if (activeAdminCategory === 'offline') {
       refreshAdminOfflineQueueUI();
+    } else if (activeAdminCategory === 'drive') {
+      populateDriveSettingsForm();
+      refreshDriveBackupStatus(false);
     }
   }
 
@@ -1318,6 +1476,137 @@
     }
   }
 
+  // ===================== 4. INTEGRASI CADANGAN GOOGLE DRIVE =====================
+  function loadDriveConfig() {
+    try {
+      const raw = localStorage.getItem(DRIVE_CONFIG_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return Object.assign({}, DEFAULT_DRIVE_CONFIG, parsed || {});
+    } catch (e) {
+      return Object.assign({}, DEFAULT_DRIVE_CONFIG);
+    }
+  }
+
+  function saveDriveConfigLocal(cfg) {
+    try {
+      localStorage.setItem(DRIVE_CONFIG_KEY, JSON.stringify(Object.assign({}, DEFAULT_DRIVE_CONFIG, cfg || {})));
+    } catch (e) {}
+  }
+
+  function populateDriveSettingsForm() {
+    const cfg = loadDriveConfig();
+    const enEl = document.getElementById('driveBackupEnabled');
+    const galEl = document.getElementById('driveBackupGaleri');
+    const surEl = document.getElementById('driveBackupSurat');
+    const fidEl = document.getElementById('driveRootFolderId');
+    const fnameEl = document.getElementById('driveRootFolderName');
+    if (enEl) enEl.checked = Boolean(cfg.enabled);
+    if (galEl) galEl.checked = Boolean(cfg.backupGaleri);
+    if (surEl) surEl.checked = Boolean(cfg.backupSurat);
+    if (fidEl) fidEl.value = cfg.rootFolderId || '';
+    if (fnameEl) fnameEl.value = cfg.rootFolderName || DEFAULT_DRIVE_CONFIG.rootFolderName;
+  }
+
+  function renderDriveStatusUI(res) {
+    const badge = document.getElementById('driveStatusBadge');
+    const statsWrap = document.getElementById('driveStatsContainer');
+    const galCountEl = document.getElementById('driveStatGaleriCount');
+    const surCountEl = document.getElementById('driveStatSuratCount');
+    const folderLinkEl = document.getElementById('driveRootFolderLink');
+    const galLinkEl = document.getElementById('driveGaleriFolderLink');
+    const surLinkEl = document.getElementById('driveSuratFolderLink');
+
+    if (res && res.connected) {
+      if (badge) {
+        badge.className = 'px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1';
+        badge.innerHTML = '<i class="fa-solid fa-circle-check text-[10px]"></i><span>Terhubung ke Google Drive</span>';
+      }
+      if (statsWrap) statsWrap.classList.remove('hidden');
+      if (galCountEl) galCountEl.innerText = String(res.galeriCount || 0) + ' Foto';
+      if (surCountEl) surCountEl.innerText = String(res.suratCount || 0) + ' Berkas';
+      if (folderLinkEl && res.rootFolderUrl) {
+        folderLinkEl.href = res.rootFolderUrl;
+        folderLinkEl.classList.remove('hidden');
+      }
+      if (galLinkEl && res.galeriFolderUrl) galLinkEl.href = res.galeriFolderUrl;
+      if (surLinkEl && res.suratFolderUrl) surLinkEl.href = res.suratFolderUrl;
+    } else {
+      if (badge) {
+        badge.className = 'px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 inline-flex items-center gap-1';
+        badge.innerHTML = '<i class="fa-solid fa-cloud text-[10px]"></i><span>Siap (Perbarui Apps Script jika belum aktif)</span>';
+      }
+    }
+  }
+
+  function refreshDriveBackupStatus(showToast) {
+    const badge = document.getElementById('driveStatusBadge');
+    if (badge) {
+      badge.className = 'px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-300 inline-flex items-center gap-1';
+      badge.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i><span>Memeriksa Google Drive...</span>';
+    }
+    try {
+      if (global.google && global.google.script && global.google.script.run && typeof global.google.script.run.getDriveBackupStatus === 'function') {
+        global.google.script.run
+          .withSuccessHandler(res => {
+            if (res && res.config) {
+              saveDriveConfigLocal(res.config);
+              populateDriveSettingsForm();
+            }
+            renderDriveStatusUI(res);
+            if (showToast && typeof global.Swal !== 'undefined') {
+              if (res && res.connected) {
+                global.Swal.fire('Google Drive Aktif', `Folder "${res.rootFolderName}" siap mencadangkan foto Galeri Santri (${res.galeriCount || 0}) & Arsip Surat (${res.suratCount || 0}) otomatis.`, 'success');
+              } else {
+                global.Swal.fire('Info Integrasi Drive', (res && res.error) || 'Pastikan kode Apps Script terbaru sudah di-deploy dengan izin DriveApp.', 'info');
+              }
+            }
+          })
+          .withFailureHandler(() => {
+            renderDriveStatusUI(null);
+            if (showToast && typeof global.Swal !== 'undefined') {
+              global.Swal.fire('Belum Terhubung', 'Gagal memeriksa status Google Drive. Periksa koneksi atau deploy ulang Apps Script.', 'warning');
+            }
+          })
+          .getDriveBackupStatus();
+        return;
+      }
+    } catch (e) {}
+    renderDriveStatusUI(null);
+  }
+
+  function saveDriveConfigAction(e) {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    const cfg = {
+      enabled: Boolean(document.getElementById('driveBackupEnabled')?.checked),
+      backupGaleri: Boolean(document.getElementById('driveBackupGaleri')?.checked),
+      backupSurat: Boolean(document.getElementById('driveBackupSurat')?.checked),
+      rootFolderId: (document.getElementById('driveRootFolderId')?.value || '').trim(),
+      rootFolderName: (document.getElementById('driveRootFolderName')?.value || '').trim() || DEFAULT_DRIVE_CONFIG.rootFolderName
+    };
+    saveDriveConfigLocal(cfg);
+    if (global.appSettings && typeof global.appSettings === 'object') {
+      global.appSettings.driveConfig = cfg;
+    }
+
+    try {
+      if (global.google && global.google.script && global.google.script.run && typeof global.google.script.run.saveDriveBackupConfig === 'function') {
+        global.google.script.run
+          .withSuccessHandler(res => {
+            renderDriveStatusUI(res);
+            if (typeof global.Swal !== 'undefined') {
+              global.Swal.fire('Tersimpan', 'Konfigurasi cadangan otomatis Google Drive berhasil disimpan.', 'success');
+            }
+          })
+          .withFailureHandler(() => {
+            syncExtraSettingsToServer({ driveConfig: cfg }, 'Konfigurasi Google Drive tersimpan.');
+          })
+          .saveDriveBackupConfig(cfg);
+        return;
+      }
+    } catch (err) {}
+    syncExtraSettingsToServer({ driveConfig: cfg }, 'Konfigurasi Google Drive tersimpan.');
+  }
+
   function onSettingsFromServer(settingsObj) {
     if (!settingsObj || typeof settingsObj !== 'object') return;
     if (settingsObj.attendanceDeadlines && typeof settingsObj.attendanceDeadlines === 'object') {
@@ -1332,11 +1621,16 @@
     if (settingsObj.staffPermissionOverrides && typeof settingsObj.staffPermissionOverrides === 'object') {
       saveStaffPermissionOverridesLocal(settingsObj.staffPermissionOverrides);
     }
+    if (settingsObj.driveConfig && typeof settingsObj.driveConfig === 'object') {
+      saveDriveConfigLocal(settingsObj.driveConfig);
+      populateDriveSettingsForm();
+    }
     renderUnifiedPengurusTable();
   }
 
   function onAdminTabOpened() {
     populateDeadlineSettingsForm();
+    populateDriveSettingsForm();
     renderRolePermissionsUI();
     loadWaliSantriAccounts();
     renderUnifiedPengurusTable();
@@ -1356,9 +1650,14 @@
   global.AlRifaieAdminSettings = {
     loadDeadlines: loadDeadlines,
     evaluateDeadline: evaluateDeadline,
+    evaluateIzinDeadline: evaluateIzinDeadline,
     renderDeadlineBadges: renderDeadlineBadges,
     populateDeadlineSettingsForm: populateDeadlineSettingsForm,
     saveAttendanceDeadlines: saveAttendanceDeadlines,
+    loadDriveConfig: loadDriveConfig,
+    populateDriveSettingsForm: populateDriveSettingsForm,
+    refreshDriveBackupStatus: refreshDriveBackupStatus,
+    saveDriveConfigAction: saveDriveConfigAction,
     loadRolePermissions: loadRolePermissions,
     loadStaffPermissionOverrides: loadStaffPermissionOverrides,
     getEffectivePermissionsForSession: getEffectivePermissionsForSession,
@@ -1371,6 +1670,7 @@
     resetStaffPermToDefault: resetStaffPermToDefault,
     loadWaliSantriAccounts: loadWaliSantriAccounts,
     renderWaliSantriTable: renderWaliSantriTable,
+    saveSharedWaliAccount: saveSharedWaliAccount,
     openWaliModal: openWaliModal,
     saveWaliSantriAction: saveWaliSantriAction,
     deleteWaliSantri: deleteWaliSantri,
@@ -1392,6 +1692,7 @@
   setTimeout(() => {
     renderDeadlineBadges();
     populateDeadlineSettingsForm();
+    populateDriveSettingsForm();
     renderRolePermissionsUI();
     renderWaliSantriTable();
     renderUnifiedPengurusTable();
