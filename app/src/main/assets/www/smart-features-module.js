@@ -1108,8 +1108,30 @@
     </div>`;
   }
 
-  function buildOfficialTtdBlockHtml(todayIndo) {
+  function findMusyrifForTarget(targetName) {
+    if (!targetName) return '-';
+    const cd = global.coreData || {};
+    const md = global.masterData || {};
+    const musList = (cd.musyrifs || []).concat(md.musyrifs || []);
+    const matched = [];
+    const seen = new Set();
+    musList.forEach(m => {
+      if (!m || !m.nama) return;
+      const rooms = String(m.kamar || m.f2 || '').split(',').map(x => x.trim()).filter(Boolean);
+      if (rooms.length && targetMatchesAny(targetName, rooms)) {
+        const key = normText(m.nama);
+        if (!seen.has(key)) {
+          seen.add(key);
+          matched.push(String(m.nama).trim());
+        }
+      }
+    });
+    return matched.length ? matched.join(', ') : '-';
+  }
+
+  function buildOfficialTtdBlockHtml(todayIndo, opts) {
     const a = getOfficialSuratAssetsSafe();
+    const hideDate = Boolean(opts && opts.hideDate);
     const ttdKetuaImg = a.ttdKetua
       ? `<img src="${escHtml(a.ttdKetua)}" crossorigin="anonymous" style="max-width:160px;max-height:80px;object-fit:contain;display:block;margin:0 auto;">`
       : '';
@@ -1118,13 +1140,13 @@
       : '';
     return `<div style="display:flex;justify-content:space-between;font-size:12pt;font-family:'Times New Roman',Georgia,serif;color:#000000;text-align:center;margin-top:14px;">
       <div style="width:50%;display:flex;flex-direction:column;align-items:center;padding-top:10px;">
-        <div style="margin-bottom:4px;visibility:hidden;">Gondanglegi</div>
+        ${hideDate ? '' : '<div style="margin-bottom:4px;visibility:hidden;">Gondanglegi</div>'}
         <div style="height:80px;width:160px;display:flex;align-items:center;justify-content:center;margin-bottom:-6px;">${ttdKetuaImg}</div>
         <p style="margin:0;font-weight:700;text-decoration:underline;">${escHtml(a.namaKetua)}</p>
         <p style="margin:0;">${escHtml(a.jabatanKetua)}</p>
       </div>
       <div style="width:50%;display:flex;flex-direction:column;align-items:center;padding-top:10px;">
-        <div style="margin-bottom:4px;">Gondanglegi, ${escHtml(todayIndo)}</div>
+        ${hideDate ? '' : `<div style="margin-bottom:4px;">Gondanglegi, ${escHtml(todayIndo)}</div>`}
         <div style="height:80px;width:160px;display:flex;align-items:center;justify-content:center;margin-bottom:-6px;">${ttdSekImg}</div>
         <p style="margin:0;font-weight:700;text-decoration:underline;">${escHtml(a.namaSekretaris)}</p>
         <p style="margin:0;">${escHtml(a.jabatanSekretaris)}</p>
@@ -1150,9 +1172,11 @@
         ? 'Pembinaan khusus bersama Ketua Departemen Pendidikan dan evaluasi tanggung jawab kepengurusan kamar.'
         : 'Melaksanakan tugas ta\'zir kebersihan lingkungan pesantren serta menyetorkan hafalan tambahan kepada Musyrif.');
     const periodText = document.getElementById('roomRecapPeriodBadge')?.innerText || 'Periode Berjalan';
-    const todayIndo = formatIndoDate(getTodayWib());
+    const todayStr = getTodayWib();
+    const todayIndo = formatIndoDate(todayStr);
     const kopHtml = buildOfficialKopHtml();
     const ttdOfficialHtml = buildOfficialTtdBlockHtml(todayIndo);
+    const ttdOfficialNoDateHtml = buildOfficialTtdBlockHtml(todayIndo, { hideDate: true });
 
     if (typeof global.Swal !== 'undefined') {
       global.Swal.fire({
@@ -1167,47 +1191,109 @@
       if (typeof global.ensureHtml2Pdf === 'function') await global.ensureHtml2Pdf();
 
       const romanMonths = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-      const monthIdx = Math.max(0, Math.min(11, parseInt(getTodayWib().slice(5, 7), 10) - 1));
+      const monthIdx = Math.max(0, Math.min(11, parseInt(todayStr.slice(5, 7), 10) - 1));
       const romanMonth = romanMonths[monthIdx] || 'I';
-      const yearNow = getTodayWib().slice(0, 4);
+      const yearNow = todayStr.slice(0, 4);
+      const spArchivePayloads = [];
 
       const pagesHtml = selected.map((person, idx) => {
         const pageBreak = idx < selected.length - 1 ? 'page-break-after:always;break-after:page;' : '';
         const noSurat = `${String(idx + 1).padStart(2, '0')}/${isHukuman ? 'SH' : 'SP'}/MAA/DEPTPENDIK/${romanMonth}/${yearNow}`;
         const perihalText = isHukuman ? 'Surat Keputusan Hukuman (Ta\'zir)' : 'Surat Pernyataan Kedisiplinan';
+
+        const sumberLabelMap = { WB: 'Wajib Belajar', Takhassus: 'Takhassus', Musyrif: 'Pendampingan Musyrif' };
+        const uniqueSumber = Array.from(new Set(
+          (person.alpaDates || []).map(d => sumberLabelMap[d.sumber] || d.sumber).filter(Boolean)
+        ));
+        const kegiatanText = uniqueSumber.length
+          ? uniqueSumber.join(' & ')
+          : (isMusyrif ? 'Pendampingan Musyrif' : 'Wajib Belajar');
+
+        const tanggalListIndo = (person.alpaDates || []).map(d => formatIndoDate(d.tanggal));
+        const rincianTanggalText = tanggalListIndo.length
+          ? `${person.alpaCount} kali Alpa pada tanggal ${tanggalListIndo.slice(0, 8).join(', ')}${tanggalListIndo.length > 8 ? ` (+${tanggalListIndo.length - 8} hari lainnya)` : ''}`
+          : `${person.alpaCount} kali Alpa pada periode ${periodText}`;
+
         const rincianRows = person.alpaDates.slice(0, 8).map((d, i) => `<tr>
           <td style="border:1px solid #000000;padding:3px 6px;text-align:center;">${i + 1}</td>
           <td style="border:1px solid #000000;padding:3px 6px;">${escHtml(formatIndoDate(d.tanggal))}</td>
-          <td style="border:1px solid #000000;padding:3px 6px;">${escHtml(d.sumber || (isMusyrif ? 'Absensi Musyrif' : 'Kegiatan Pendidikan'))}</td>
+          <td style="border:1px solid #000000;padding:3px 6px;">${escHtml(sumberLabelMap[d.sumber] || d.sumber || kegiatanText)}</td>
           <td style="border:1px solid #000000;padding:3px 6px;font-weight:700;">Alpa (Tanpa Keterangan)</td>
         </tr>`).join('');
 
         const pelExtraHtml = person.pelList.length
-          ? `<div style="margin-top:6px;font-size:10.5pt;"><b>Catatan Pelanggaran / Keterlambatan:</b> ${escHtml(person.pelList.slice(0, 4).map(p => `${p.tanggal}: ${p.ket}`).join('; '))}</div>`
+          ? `<div style="margin-top:6px;font-size:10.5pt;"><b>Catatan Pelanggaran Lain:</b> ${escHtml(person.pelList.slice(0, 4).map(p => `${formatIndoDate(p.tanggal)}: ${p.ket}`).join('; '))}</div>`
           : '';
 
-        const bodyParagraphs = isHukuman
-          ? `<p style="margin:0 0 6px 0;text-indent:1.27cm;text-align:justify;">Alhamdulillahi rabbil 'alamin, segala puji bagi Allah SWT atas segala limpahan rahmat, taufiq, dan hidayah-Nya kepada kita semua.</p>
-             <p style="margin:0 0 8px 0;text-indent:1.27cm;text-align:justify;">Berdasarkan data rekapitulasi kehadiran Departemen Pendidikan pada periode <b>${escHtml(periodText)}</b>, yang bersangkutan di bawah ini tercatat melakukan ketidakhadiran tanpa keterangan (<b>Alpa</b>) sebanyak <b>${person.alpaCount} kali</b>:</p>`
-          : `<p style="margin:0 0 6px 0;text-indent:1.27cm;text-align:justify;">Alhamdulillahi rabbil 'alamin, segala puji bagi Allah SWT atas segala limpahan rahmat, taufiq, dan hidayah-Nya kepada kita semua.</p>
-             <p style="margin:0 0 8px 0;text-indent:1.27cm;text-align:justify;">Sehubungan dengan penegakan tata tertib kedisiplinan Departemen Pendidikan YPM Al-Rifa'ie 2 pada periode <b>${escHtml(periodText)}</b>, yang bertanda tangan di bawah ini:</p>`;
+        if (!isHukuman) {
+          // FORMAT KHUSUS SURAT PERNYATAAN (SP):
+          // Kop & Tanda Tangan sama dengan Surat Undangan; isi tanpa Nomor/Lampiran/Perihal, judul di tengah SURAT PERNYATAAN
+          const musyrifName = isMusyrif ? person.nama : findMusyrifForTarget(person.kamar);
+          const singleSpHtml = `<div style="width:210mm;min-height:296mm;box-sizing:border-box;background:#ffffff;color:#000000;padding:1.8cm 2.54cm 2.2cm 3cm;font-family:'Times New Roman',Georgia,serif;font-size:12pt;line-height:1.5;position:relative;${pageBreak}">
+            ${kopHtml}
+            <div style="text-align:center;margin:16px 0 20px 0;">
+              <h2 style="margin:0;font-size:14pt;font-weight:900;text-transform:uppercase;letter-spacing:0.06em;text-decoration:underline;color:#000000;">SURAT PERNYATAAN</h2>
+            </div>
 
-        const closingParagraphs = isHukuman
-          ? `<div style="border:1.5px solid #000000;padding:8px 12px;margin:8px 0;font-size:11pt;"><b>Keputusan Sanksi / Ta'zir:</b><br>${escHtml(hukumanText)}</div>
-             <p style="margin:6px 0;text-indent:1.27cm;text-align:justify;">Demikian surat keputusan hukuman (ta'zir) ini kami sampaikan untuk dilaksanakan dengan penuh tanggung jawab serta menjadi bahan evaluasi agar tidak mengulangi pelanggaran serupa di kemudian hari.</p>`
-          : `<p style="margin:6px 0;text-indent:1.27cm;text-align:justify;">Dengan ini menyatakan dengan sungguh-sungguh bahwa pada periode <b>${escHtml(periodText)}</b> saya benar telah melakukan ketidakhadiran tanpa keterangan (<b>Alpa</b>) sebanyak <b>${person.alpaCount} kali</b>, dan saya berjanji tidak akan mengulangi ketidakhadiran tanpa izin maupun pelanggaran disiplin lainnya. Apabila di kemudian hari saya kembali melanggar pernyataan ini, saya bersedia menerima sanksi / ta'zir dari Departemen Pendidikan.</p>
-             <p style="margin:6px 0;text-indent:1.27cm;text-align:justify;">Demikian surat pernyataan ini dibuat dengan penuh kesadaran. Atas perhatian dan pembinaannya kami ucapkan terima kasih.</p>`;
+            <p style="margin:0 0 10px 0;text-align:justify;">Saya yang bertanda tangan di bawah ini:</p>
+            <table style="font-size:12pt;font-family:'Times New Roman',Georgia,serif;margin:0 0 14px 1cm;width:calc(100% - 1cm);color:#000000;border-collapse:collapse;">
+              <tr><td style="width:22%;padding:3px 0;">Nama</td><td style="width:4%;">:</td><td style="font-weight:700;">${escHtml(person.nama)}</td></tr>
+              <tr><td style="padding:3px 0;">Musyrif</td><td>:</td><td>${escHtml(musyrifName)}</td></tr>
+              <tr><td style="padding:3px 0;">Kamar</td><td>:</td><td>${escHtml(person.kamar)}</td></tr>
+            </table>
 
-        const personalSignHtml = !isHukuman
-          ? `<div style="display:flex;justify-content:flex-end;margin-top:8px;margin-bottom:4px;font-size:11.5pt;font-family:'Times New Roman',Georgia,serif;color:#000000;">
+            <p style="margin:0 0 12px 0;text-indent:1cm;text-align:justify;">Telah melakukan pelanggaran pada kegiatan <b>${escHtml(kegiatanText)}</b> yaitu <b>Alpa</b> dengan rincian <b>${escHtml(rincianTanggalText)}</b>.</p>
+
+            ${rincianRows ? `<div style="margin:8px 0 14px 0;">
+              <table style="width:100%;border-collapse:collapse;font-size:10.5pt;">
+                <thead><tr style="background:#f1f5f9;">
+                  <th style="border:1px solid #000000;padding:3px 6px;width:30px;">No</th>
+                  <th style="border:1px solid #000000;padding:3px 6px;text-align:left;">Tanggal</th>
+                  <th style="border:1px solid #000000;padding:3px 6px;text-align:left;">Kegiatan</th>
+                  <th style="border:1px solid #000000;padding:3px 6px;text-align:left;">Keterangan</th>
+                </tr></thead>
+                <tbody>${rincianRows}</tbody>
+              </table>
+              ${pelExtraHtml}
+            </div>` : ''}
+
+            <p style="margin:0 0 18px 0;text-indent:1cm;text-align:justify;">Saya bersedia bertanggung jawab atas sikap saya sesuai dengan hukuman yang telah ditentukan.</p>
+
+            <div style="display:flex;justify-content:flex-end;margin-top:10px;margin-bottom:8px;font-size:12pt;font-family:'Times New Roman',Georgia,serif;color:#000000;">
               <div style="width:50%;text-align:center;">
+                <div style="margin-bottom:2px;">Gondanglegi, ${escHtml(todayIndo)}</div>
                 <div>Yang Membuat Pernyataan,</div>
-                <div style="height:48px;"></div>
+                <div style="height:56px;"></div>
                 <div style="font-weight:700;text-decoration:underline;">${escHtml(person.nama)}</div>
                 <div style="font-size:10.5pt;">${isMusyrif ? 'Musyrif Kamar' : 'Santri'} (${escHtml(person.kamar)})</div>
               </div>
-            </div>`
-          : '';
+            </div>
+
+            <div style="font-size:11.5pt;text-align:center;margin-top:10px;margin-bottom:-8px;color:#000000;">Mengetahui,</div>
+            ${ttdOfficialNoDateHtml}
+          </div>`;
+
+          spArchivePayloads.push({
+            id: 'local_sp_' + Date.now() + '_' + idx,
+            nomor: `SP-${todayStr.replace(/-/g, '')}-${String(idx + 1).padStart(2, '0')}`,
+            kategori: 'Surat SP',
+            sub: isMusyrif ? 'Musyrif' : (person.kamar || 'Santri'),
+            perihal: `Surat Pernyataan • ${kegiatanText} (${person.alpaCount}x Alpa)`,
+            tujuan: `${person.nama} (${person.kamar})`,
+            tanggal: todayStr,
+            driveHtmlSnapshot: singleSpHtml,
+            htmlSnapshot: singleSpHtml
+          });
+
+          return singleSpHtml;
+        }
+
+        // FORMAT SURAT HUKUMAN (TA'ZIR)
+        const bodyParagraphs = `<p style="margin:0 0 6px 0;text-indent:1.27cm;text-align:justify;">Alhamdulillahi rabbil 'alamin, segala puji bagi Allah SWT atas segala limpahan rahmat, taufiq, dan hidayah-Nya kepada kita semua.</p>
+             <p style="margin:0 0 8px 0;text-indent:1.27cm;text-align:justify;">Berdasarkan data rekapitulasi kehadiran Departemen Pendidikan pada periode <b>${escHtml(periodText)}</b>, yang bersangkutan di bawah ini tercatat melakukan ketidakhadiran tanpa keterangan (<b>Alpa</b>) sebanyak <b>${person.alpaCount} kali</b>:</p>`;
+
+        const closingParagraphs = `<div style="border:1.5px solid #000000;padding:8px 12px;margin:8px 0;font-size:11pt;"><b>Keputusan Sanksi / Ta'zir:</b><br>${escHtml(hukumanText)}</div>
+             <p style="margin:6px 0;text-indent:1.27cm;text-align:justify;">Demikian surat keputusan hukuman (ta'zir) ini kami sampaikan untuk dilaksanakan dengan penuh tanggung jawab serta menjadi bahan evaluasi agar tidak mengulangi pelanggaran serupa di kemudian hari.</p>`;
 
         return `<div style="width:210mm;min-height:296mm;box-sizing:border-box;background:#ffffff;color:#000000;padding:1.8cm 2.54cm 2.2cm 3cm;font-family:'Times New Roman',Georgia,serif;font-size:12pt;line-height:1.42;position:relative;${pageBreak}">
           ${kopHtml}
@@ -1247,13 +1333,12 @@
             ${closingParagraphs}
           </div>
           <div style="font-size:12pt;margin-top:6px;margin-bottom:4px;color:#000000;">Wassalamu'alaikum Warahmatullahi Wabarakatuh</div>
-          ${personalSignHtml}
           <div style="font-size:11pt;text-align:center;margin-top:6px;margin-bottom:-6px;color:#000000;">Mengetahui,</div>
           ${ttdOfficialHtml}
         </div>`;
       }).join('');
 
-      const filename = `${isHukuman ? 'Surat_Hukuman' : 'Surat_Pernyataan'}_${isMusyrif ? 'Musyrif' : 'Santri'}_${getTodayWib()}.pdf`;
+      const filename = `${isHukuman ? 'Surat_Hukuman' : 'Surat_Pernyataan_SP'}_${isMusyrif ? 'Musyrif' : 'Santri'}_${todayStr}.pdf`;
       await global.html2pdf().set({
         margin: 0,
         filename: filename,
@@ -1263,23 +1348,62 @@
         pagebreak: { mode: ['css', 'legacy'] }
       }).from(`<div>${pagesHtml}</div>`).save();
 
-      // Otomatis cadangkan salinan PDF surat pernyataan/hukuman ke Google Drive di latar belakang
-      try {
-        if (global.google && global.google.script && global.google.script.run && typeof global.google.script.run.backupSuratPdfToDrive === 'function') {
-          global.google.script.run
-            .withSuccessHandler(() => {})
-            .withFailureHandler(() => {})
-            .backupSuratPdfToDrive({
-              nomor: (isHukuman ? 'SH-' : 'SP-') + getTodayWib().replace(/-/g, ''),
-              perihal: `${isHukuman ? 'Surat Hukuman' : 'Surat Pernyataan'} ${isMusyrif ? 'Musyrif' : 'Santri'} (${selected.length} orang)`,
-              kategori: isHukuman ? 'Surat Hukuman' : 'Surat Pernyataan',
-              tujuan: selected.map(s => s.nama).slice(0, 5).join(', '),
-              html: `<div>${pagesHtml}</div>`
-            });
-        }
-      } catch (drvErr) {}
+      // Simpan otomatis riwayat Surat Pernyataan ke Arsip Surat kategori "Surat SP" (+ cadangan Google Drive)
+      if (!isHukuman && spArchivePayloads.length) {
+        spArchivePayloads.forEach(item => {
+          if (typeof global.saveLocalSpArchiveEntry === 'function') {
+            global.saveLocalSpArchiveEntry(item);
+          }
+          try {
+            if (global.google && global.google.script && global.google.script.run && typeof global.google.script.run.saveSuratData === 'function') {
+              global.google.script.run
+                .withSuccessHandler(() => {
+                  if (typeof global.loadSurat === 'function') global.loadSurat();
+                })
+                .withFailureHandler(() => {})
+                .saveSuratData({
+                  nomor: item.nomor,
+                  kategori: 'Surat SP',
+                  sub: item.sub,
+                  perihal: item.perihal,
+                  tujuan: item.tujuan,
+                  driveHtmlSnapshot: item.driveHtmlSnapshot
+                });
+            }
+          } catch (saveErr) {}
+        });
+        if (typeof global.loadSurat === 'function') global.loadSurat();
+      } else {
+        // Cadangkan salinan PDF Surat Hukuman ke Google Drive di latar belakang
+        try {
+          if (global.google && global.google.script && global.google.script.run && typeof global.google.script.run.backupSuratPdfToDrive === 'function') {
+            global.google.script.run
+              .withSuccessHandler(() => {})
+              .withFailureHandler(() => {})
+              .backupSuratPdfToDrive({
+                nomor: 'SH-' + todayStr.replace(/-/g, ''),
+                perihal: `Surat Hukuman ${isMusyrif ? 'Musyrif' : 'Santri'} (${selected.length} orang)`,
+                kategori: 'Surat Hukuman',
+                tujuan: selected.map(s => s.nama).slice(0, 5).join(', '),
+                html: `<div>${pagesHtml}</div>`
+              });
+          }
+        } catch (drvErr) {}
+      }
 
-      if (typeof global.Swal !== 'undefined') global.Swal.close();
+      if (typeof global.Swal !== 'undefined') {
+        if (!isHukuman) {
+          global.Swal.fire({
+            icon: 'success',
+            title: 'Surat Pernyataan Dicetak & Diarsipkan',
+            text: `${spArchivePayloads.length} Surat Pernyataan berhasil dibuat dan otomatis tersimpan ke Arsip Surat kategori Surat SP.`,
+            timer: 2600,
+            showConfirmButton: false
+          });
+        } else {
+          global.Swal.close();
+        }
+      }
     } catch (err) {
       if (typeof global.Swal !== 'undefined') {
         global.Swal.fire('Gagal Membuat PDF', 'Pastikan koneksi internet aktif saat pertama kali memuat generator PDF.', 'error');

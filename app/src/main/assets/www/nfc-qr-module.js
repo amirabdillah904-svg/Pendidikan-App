@@ -723,6 +723,83 @@
     return pel;
   }
 
+  function normalizeScopeToken(str) {
+    return normText(str).replace(/^(kamar|kmr\.?|kelas|kls\.?)\s+/i, '').trim();
+  }
+
+  function targetMatchesAssignedScope(rawTarget, allowedTargets) {
+    if (!rawTarget || !Array.isArray(allowedTargets) || !allowedTargets.length) return false;
+    const rtNorm = normText(rawTarget);
+    const rtTok = normalizeScopeToken(rawTarget);
+    return allowedTargets.some(a => {
+      const aNorm = normText(a);
+      const aTok = normalizeScopeToken(a);
+      if (!aNorm) return false;
+      return rtNorm === aNorm || (rtTok && aTok && rtTok === aTok);
+    });
+  }
+
+  function getLoggedInScanScope(scanType) {
+    const sess = global.session;
+    if (!sess || sess.role === 'admin') return null;
+
+    const cd = global.coreData || {};
+    const md = global.masterData || {};
+    const nameNorm = normText(sess.name);
+
+    if (sess.role === 'musyrif') {
+      const roomsMap = new Map();
+      const addRooms = (raw) => {
+        String(raw || '').split(/[,;\n]+/).forEach(part => {
+          const clean = part.trim();
+          if (!clean) return;
+          const tok = normalizeScopeToken(clean);
+          if (tok && !roomsMap.has(tok)) roomsMap.set(tok, clean);
+        });
+      };
+      if (sess.kamar) addRooms(sess.kamar);
+      (md.musyrifs || []).concat(cd.musyrifs || [])
+        .filter(m => m && normText(m.nama) === nameNorm)
+        .forEach(m => addRooms(m.kamar || m.f2));
+
+      const targets = Array.from(roomsMap.values());
+      return {
+        role: 'musyrif',
+        allowedType: 'wb',
+        targets: targets,
+        label: targets.length ? targets.join(', ') : 'Belum tertaut'
+      };
+    }
+
+    if (sess.role === 'pengajar' && scanType === 'takhassus') {
+      const clsMap = new Map();
+      const addClasses = (kRaw, qRaw) => {
+        const kArr = String(kRaw || '').split(/[,;\n]+/).map(x => x.trim()).filter(Boolean);
+        const qArr = String(qRaw || '').split(/[,;\n]+/).map(x => x.trim()).filter(Boolean);
+        kArr.forEach((k, i) => {
+          const q = qArr[i] || qArr[0] || '';
+          const full = q ? `${k} - ${q}` : k;
+          const tok = normalizeScopeToken(full);
+          if (tok && !clsMap.has(tok)) clsMap.set(tok, full);
+        });
+      };
+      if (sess.kelas) addClasses(sess.kelas, sess.qismu);
+      (md.pengajars || []).concat(cd.pengajars || [])
+        .filter(p => p && normText(p.nama) === nameNorm)
+        .forEach(p => addClasses(p.kelas || p.f2, p.qismu || p.f3));
+
+      const targets = Array.from(clsMap.values());
+      return {
+        role: 'pengajar',
+        allowedType: 'takhassus',
+        targets: targets,
+        label: targets.length ? targets.join(', ') : 'Belum tertaut'
+      };
+    }
+
+    return null;
+  }
+
   function updateScanConfirmButtonLabel() {
     if (!pendingScanConfirm) return;
     const btn = document.getElementById('scanConfirmSaveBtn');
@@ -730,15 +807,15 @@
     const pel = readSelectedScanConfirmPelanggaran(pendingScanConfirm.match.type);
     const isUpdate = Boolean(pendingScanConfirm.isUpdateExisting);
     if (pel.length > 0) {
-      btn.className = 'w-full py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-[0.98] text-white font-bold text-xs inline-flex items-center justify-center gap-2 shadow-md transition-all';
+      btn.className = 'flex-1 py-3 px-4 min-h-[46px] rounded-2xl bg-amber-600 hover:bg-amber-700 active:scale-[0.98] text-white font-bold text-xs inline-flex items-center justify-center gap-2 shadow-md transition-all';
       btn.innerHTML = isUpdate
-        ? '<i class="fa-solid fa-circle-check"></i><span>Perbarui Hadir + ' + pel.length + ' Pelanggaran</span>'
-        : '<i class="fa-solid fa-circle-check"></i><span>Simpan Hadir + ' + pel.length + ' Pelanggaran</span>';
+        ? '<i class="fa-solid fa-circle-check"></i><span>Perbarui + ' + pel.length + ' Pelanggaran</span>'
+        : '<i class="fa-solid fa-circle-check"></i><span>Simpan + ' + pel.length + ' Pelanggaran</span>';
     } else {
-      btn.className = 'w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-xs inline-flex items-center justify-center gap-2 shadow-md transition-all';
+      btn.className = 'flex-1 py-3 px-4 min-h-[46px] rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-xs inline-flex items-center justify-center gap-2 shadow-md transition-all';
       btn.innerHTML = isUpdate
         ? '<i class="fa-solid fa-circle-check"></i><span>Simpan Tanpa Pelanggaran</span>'
-        : '<i class="fa-solid fa-circle-check"></i><span>Hadir &amp; Simpan (Tanpa Pelanggaran)</span>';
+        : '<i class="fa-solid fa-circle-check"></i><span>Hadir &amp; Simpan</span>';
     }
   }
 
@@ -778,10 +855,19 @@
     const nameEl = document.getElementById('scanConfirmName');
     const subEl = document.getElementById('scanConfirmSub');
     const badgeEl = document.getElementById('scanConfirmMethodBadge');
+    const iconBoxEl = document.getElementById('scanConfirmIconBox');
     const lateBadgeEl = document.getElementById('scanConfirmLateBadge');
     const boxSantri = document.getElementById('scanConfirmPelSantri');
     const boxPetugas = document.getElementById('scanConfirmPelPetugas');
 
+    if (iconBoxEl) {
+      iconBoxEl.className = source === 'NFC'
+        ? 'w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm text-base'
+        : 'w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shrink-0 shadow-sm text-base';
+      iconBoxEl.innerHTML = source === 'NFC'
+        ? '<i class="fa-solid fa-wifi rotate-90"></i>'
+        : '<i class="fa-solid fa-qrcode"></i>';
+    }
     if (nameEl) nameEl.innerText = match.nama;
     if (subEl) {
       const waktuLabel = isUpdateExisting && existingRecord && existingRecord.waktuScan
@@ -791,7 +877,7 @@
     }
     if (badgeEl) {
       badgeEl.innerHTML = isUpdateExisting
-        ? `<i class="fa-solid ${source === 'NFC' ? 'fa-wifi rotate-90' : 'fa-qrcode'}"></i><span>${source} • Sudah Hadir (Edit Pelanggaran)</span>`
+        ? `<i class="fa-solid ${source === 'NFC' ? 'fa-wifi rotate-90' : 'fa-qrcode'}"></i><span>${source} • Edit Pelanggaran</span>`
         : `<i class="fa-solid ${source === 'NFC' ? 'fa-wifi rotate-90' : 'fa-qrcode'}"></i><span>${source} Terdeteksi</span>`;
     }
 
@@ -985,6 +1071,27 @@
       vibrateSafe(110);
       showScanBanner(preferredType, 'warn', match.nama + ' terdaftar di kategori ' + match.type.toUpperCase() + ', bukan ' + preferredType.toUpperCase() + '.');
       return false;
+    }
+
+    // Filter ketat sesuai kamar Musyrif (atau kelas Pengajar) yang sedang login:
+    // contoh: Musyrif kamar 106 & 102 tidak dapat memindai anggota kamar 103.
+    const scope = getLoggedInScanScope(preferredType || match.type);
+    if (scope) {
+      if (!scope.targets.length) {
+        vibrateSafe(130);
+        showScanBanner(preferredType, 'warn', 'Akun Anda belum ditautkan ke ' + (scope.role === 'musyrif' ? 'kamar binaan' : 'kelas binaan') + '. Hubungi Admin.');
+        return false;
+      }
+      if (match.type !== scope.allowedType || !targetMatchesAssignedScope(match.target, scope.targets)) {
+        vibrateSafe(130);
+        const unitLbl = scope.role === 'musyrif' ? 'kamar binaan' : 'kelas binaan';
+        showScanBanner(
+          preferredType,
+          'warn',
+          'Scan ditolak: ' + match.nama + ' (' + (match.target || '-') + ') bukan ' + unitLbl + ' Anda (' + scope.label + ').'
+        );
+        return false;
+      }
     }
 
     const personKey = match.type + '|' + normText(match.nama);

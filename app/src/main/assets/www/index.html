@@ -1969,10 +1969,6 @@ body { background: #ffffff !important; color: #000000 !important; }
 
 
 <div class="flex items-center gap-1.5 shrink-0">
-<button type="button" id="headerProfileBtn" onclick="openEditProfileModal()" aria-label="Edit Profil Pengguna" title="Profil Saya" class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200/80 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center hover:brightness-95 active:scale-95 transition-all overflow-hidden relative">
-<img id="headerProfileAvatarImg" src="" alt="Foto Profil" class="hidden w-full h-full object-cover">
-<span id="headerProfileInitials" class="text-[11px] font-extrabold">AP</span>
-</button>
 <button type="button" id="headerRefreshBtn" onclick="refreshAppData()" aria-label="Sinkronkan Data" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all">
 <i class="fa-solid fa-rotate-right text-xs"></i>
 </button>
@@ -2115,9 +2111,15 @@ body { background: #ffffff !important; color: #000000 !important; }
 <div id="tab-home" class="space-y-5 tab-content tab-enter">
 <div id="mainBanner" class="hero-banner p-5 md:p-6 text-white">
 <div class="relative z-10 flex items-center gap-4">
-<div class="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white/15 border border-white/25 flex items-center justify-center shrink-0 text-lg font-bold">
-<i class="fa-solid fa-user-check"></i>
-</div>
+<button type="button" id="bannerProfileBtn" onclick="openEditProfileModal()" aria-label="Edit Foto Profil" title="Ketuk untuk ubah foto profil" class="relative w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white/15 hover:bg-white/25 border-2 border-white/35 flex items-center justify-center shrink-0 text-lg font-bold active:scale-95 transition-all group shadow-md">
+<span class="w-full h-full rounded-[14px] overflow-hidden flex items-center justify-center">
+<img id="bannerProfileAvatarImg" src="" alt="Foto Profil" class="hidden w-full h-full object-cover">
+<span id="bannerProfileFallbackIcon" class="flex items-center justify-center"><i class="fa-solid fa-user-check"></i></span>
+</span>
+<span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white text-indigo-700 shadow flex items-center justify-center ring-2 ring-indigo-600/80 group-hover:scale-105 transition-transform">
+<i class="fa-solid fa-camera text-[9px]"></i>
+</span>
+</button>
 <div class="min-w-0 flex-1">
 <p class="text-xs text-blue-200 font-medium">Assalamu'alaikum,</p>
 <h1 id="welcomeUserName" class="text-lg md:text-xl font-bold truncate">Petugas</h1>
@@ -2709,6 +2711,7 @@ body { background: #ffffff !important; color: #000000 !important; }
 </div>
 <div class="flex gap-1.5 overflow-x-auto pb-1">
 <button onclick="switchSuratTab('Semua Kategori')" id="btnTabSemua" class="surat-tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-700 text-white whitespace-nowrap">Semua (<span id="countSuratSemua">0</span>)</button>
+<button onclick="switchSuratTab('Surat SP')" id="btnTabSuratSP" class="surat-tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 whitespace-nowrap inline-flex items-center gap-1.5"><i class="fa-solid fa-file-signature text-rose-500 text-[10px]"></i><span>Surat SP (<span id="countSuratSP">0</span>)</span></button>
 <button onclick="switchSuratTab('Kategori A')" id="btnTabKategoriA" class="surat-tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 whitespace-nowrap">Kat A (<span id="countSuratA">0</span>)</button>
 <button onclick="switchSuratTab('Kategori B')" id="btnTabKategoriB" class="surat-tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 whitespace-nowrap">Kat B (<span id="countSuratB">0</span>)</button>
 <button onclick="switchSuratTab('Kategori C')" id="btnTabKategoriC" class="surat-tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 whitespace-nowrap">Kat C (<span id="countSuratC">0</span>)</button>
@@ -3542,7 +3545,7 @@ Ya, Keluar
 <i class="fa-solid fa-envelope-open-text"></i><span>Identitas Surat</span>
 </div>
 <div class="grid grid-cols-2 gap-2.5">
-<div><label class="block text-[10.5px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Kategori</label><select id="sKat" class="clean-input w-full px-2.5 py-2 text-xs font-semibold" required><option value="Kategori A">Kategori A</option><option value="Kategori B">Kategori B</option><option value="Kategori C">Kategori C</option></select></div>
+<div><label class="block text-[10.5px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Kategori</label><select id="sKat" class="clean-input w-full px-2.5 py-2 text-xs font-semibold" required><option value="Kategori A">Kategori A</option><option value="Kategori B">Kategori B</option><option value="Kategori C">Kategori C</option><option value="Surat SP">Surat SP</option></select></div>
 <div><label class="block text-[10.5px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Sub Kategori</label><input type="text" id="sSub" placeholder="Undangan / Pemberitahuan" class="clean-input w-full px-2.5 py-2 text-xs font-semibold"></div>
 </div>
 <div><label class="block text-[10.5px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Nomor Surat</label><input type="text" id="sNo" oninput="syncToPaper('sNo','paperNo')" value="07/B/MAA/DEPTPENDIK/X/2026" class="clean-input w-full px-3 py-2 text-xs font-semibold font-mono" required></div>
@@ -3774,62 +3777,82 @@ Ya, Keluar
 </div>
 </div>
 
-<!-- PANEL KONFIRMASI SCAN NFC / QR RINGKAS DI BAWAH LAYAR (TIDAK MEMOTONG LAYAR SCAN!) -->
-<div id="scanConfirmModal" class="fixed inset-x-0 bottom-0 z-[140] flex items-end justify-center p-3 pb-5 hidden pointer-events-none">
-<div class="clean-card modal-sheet-enter pointer-events-auto w-full max-w-md p-4 space-y-3 shadow-2xl border-2 border-emerald-500/40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md">
-<div class="flex items-start justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-<div class="min-w-0 space-y-1">
+<!-- PANEL KONFIRMASI SCAN NFC / QR RAPI DI BAWAH LAYAR (TIDAK MEMOTONG LAYAR SCAN!) -->
+<div id="scanConfirmModal" class="fixed inset-x-0 bottom-0 z-[140] flex items-end justify-center p-3 pb-4 hidden pointer-events-none">
+<div class="modal-sheet-enter pointer-events-auto w-full max-w-md rounded-3xl p-4 space-y-3.5 shadow-[0_18px_50px_-12px_rgba(15,23,42,0.45)] border border-emerald-500/35 dark:border-emerald-400/30 bg-white/98 dark:bg-slate-900/98 backdrop-blur-lg">
+<div class="w-10 h-1 rounded-full bg-slate-200 dark:bg-slate-700 mx-auto -mt-1"></div>
+
+<div class="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+<div id="scanConfirmIconBox" class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shrink-0 shadow-sm text-base">
+<i class="fa-solid fa-wifi rotate-90"></i>
+</div>
+<div class="min-w-0 flex-1 space-y-0.5">
 <div class="flex flex-wrap items-center gap-1.5">
-<span id="scanConfirmMethodBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold"><i class="fa-solid fa-circle-check"></i><span>NFC Terdeteksi</span></span>
-<span id="scanConfirmLateBadge" class="hidden inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 text-[10px] font-bold"></span>
+<span id="scanConfirmMethodBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold"><i class="fa-solid fa-circle-check"></i><span>NFC Terdeteksi</span></span>
+<span id="scanConfirmLateBadge" class="hidden inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 text-[10px] font-bold"></span>
 </div>
 <h3 id="scanConfirmName" class="text-sm font-extrabold text-slate-900 dark:text-white leading-tight truncate">Nama Santri</h3>
-<p id="scanConfirmSub" class="text-[11px] font-semibold text-slate-500 truncate">Kamar / Kelas</p>
+<p id="scanConfirmSub" class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">Kamar / Kelas</p>
 </div>
-<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.cancelScanConfirm()" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0" title="Batal"><i class="fa-solid fa-xmark text-xs"></i></button>
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.cancelScanConfirm()" aria-label="Tutup Konfirmasi" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-300 flex items-center justify-center shrink-0 transition-colors" title="Tutup"><i class="fa-solid fa-xmark text-xs"></i></button>
 </div>
 
-<div class="space-y-2">
+<div class="rounded-2xl bg-slate-50/90 dark:bg-slate-800/45 border border-slate-200/80 dark:border-slate-700/70 p-3 space-y-2.5">
 <div class="flex items-center justify-between gap-2">
-<span class="text-[11px] font-bold text-slate-600 dark:text-slate-300 inline-flex items-center gap-1.5">
-<i class="fa-solid fa-triangle-exclamation text-amber-500 text-[10px]"></i>
-<span>Pilih Pelanggaran (Opsional)</span>
+<span class="text-[11px] font-extrabold text-slate-700 dark:text-slate-200 inline-flex items-center gap-1.5">
+<i class="fa-solid fa-clipboard-check text-amber-500 text-xs"></i>
+<span>Catat Pelanggaran</span>
 </span>
-<span class="text-[10px] font-medium text-slate-400">Boleh lewati jika tertib</span>
+<span class="text-[10px] font-semibold text-slate-400">Opsional • Ketuk kartu</span>
 </div>
 
 <div id="scanConfirmPelSantri" class="grid grid-cols-3 gap-2">
-<label class="flex items-center justify-center gap-1.5 px-2.5 py-2.5 min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 cursor-pointer hover:border-amber-400 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50 dark:has-[:checked]:bg-amber-950/50 has-[:checked]:text-amber-700 dark:has-[:checked]:text-amber-300 transition-colors text-[11px] font-bold text-slate-700 dark:text-slate-200">
-<input type="checkbox" name="scanConfirmPelSantri" value="Terlambat" onchange="window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel()" class="w-3.5 h-3.5 accent-amber-600 rounded">
-<i class="fa-solid fa-clock text-amber-500 text-[10px]"></i>
-<span>Terlambat</span>
+<label class="relative block cursor-pointer select-none">
+<input type="checkbox" name="scanConfirmPelSantri" value="Terlambat" onchange="window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel()" class="peer sr-only">
+<div class="flex flex-col items-center justify-center gap-1.5 py-2.5 px-2 min-h-[72px] rounded-2xl border-2 border-slate-200/90 dark:border-slate-700 bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 peer-checked:border-amber-500 peer-checked:bg-amber-50 dark:peer-checked:bg-amber-950/50 peer-checked:text-amber-800 dark:peer-checked:text-amber-200 peer-checked:shadow-sm transition-all">
+<span class="w-7 h-7 rounded-xl bg-amber-100 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs"><i class="fa-solid fa-clock"></i></span>
+<span class="text-[11px] font-bold leading-none">Terlambat</span>
+</div>
+<span class="pointer-events-none absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-amber-500 text-white text-[9px] flex items-center justify-center opacity-0 scale-75 peer-checked:opacity-100 peer-checked:scale-100 transition-all"><i class="fa-solid fa-check"></i></span>
 </label>
-<label class="flex items-center justify-center gap-1.5 px-2.5 py-2.5 min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 cursor-pointer hover:border-amber-400 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50 dark:has-[:checked]:bg-amber-950/50 has-[:checked]:text-amber-700 dark:has-[:checked]:text-amber-300 transition-colors text-[11px] font-bold text-slate-700 dark:text-slate-200">
-<input type="checkbox" name="scanConfirmPelSantri" value="Pakaian" onchange="window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel()" class="w-3.5 h-3.5 accent-amber-600 rounded">
-<i class="fa-solid fa-shirt text-indigo-500 text-[10px]"></i>
-<span>Pakaian</span>
+
+<label class="relative block cursor-pointer select-none">
+<input type="checkbox" name="scanConfirmPelSantri" value="Pakaian" onchange="window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel()" class="peer sr-only">
+<div class="flex flex-col items-center justify-center gap-1.5 py-2.5 px-2 min-h-[72px] rounded-2xl border-2 border-slate-200/90 dark:border-slate-700 bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 peer-checked:border-amber-500 peer-checked:bg-amber-50 dark:peer-checked:bg-amber-950/50 peer-checked:text-amber-800 dark:peer-checked:text-amber-200 peer-checked:shadow-sm transition-all">
+<span class="w-7 h-7 rounded-xl bg-indigo-100 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs"><i class="fa-solid fa-shirt"></i></span>
+<span class="text-[11px] font-bold leading-none">Pakaian</span>
+</div>
+<span class="pointer-events-none absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-amber-500 text-white text-[9px] flex items-center justify-center opacity-0 scale-75 peer-checked:opacity-100 peer-checked:scale-100 transition-all"><i class="fa-solid fa-check"></i></span>
 </label>
-<label class="flex items-center justify-center gap-1.5 px-2.5 py-2.5 min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 cursor-pointer hover:border-amber-400 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50 dark:has-[:checked]:bg-amber-950/50 has-[:checked]:text-amber-700 dark:has-[:checked]:text-amber-300 transition-colors text-[11px] font-bold text-slate-700 dark:text-slate-200">
-<input type="checkbox" name="scanConfirmPelSantri" value="Kitab" onchange="window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel()" class="w-3.5 h-3.5 accent-amber-600 rounded">
-<i class="fa-solid fa-book text-rose-500 text-[10px]"></i>
-<span>Kitab</span>
+
+<label class="relative block cursor-pointer select-none">
+<input type="checkbox" name="scanConfirmPelSantri" value="Kitab" onchange="window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel()" class="peer sr-only">
+<div class="flex flex-col items-center justify-center gap-1.5 py-2.5 px-2 min-h-[72px] rounded-2xl border-2 border-slate-200/90 dark:border-slate-700 bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 peer-checked:border-amber-500 peer-checked:bg-amber-50 dark:peer-checked:bg-amber-950/50 peer-checked:text-amber-800 dark:peer-checked:text-amber-200 peer-checked:shadow-sm transition-all">
+<span class="w-7 h-7 rounded-xl bg-rose-100 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xs"><i class="fa-solid fa-book"></i></span>
+<span class="text-[11px] font-bold leading-none">Kitab</span>
+</div>
+<span class="pointer-events-none absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-amber-500 text-white text-[9px] flex items-center justify-center opacity-0 scale-75 peer-checked:opacity-100 peer-checked:scale-100 transition-all"><i class="fa-solid fa-check"></i></span>
 </label>
 </div>
 
 <div id="scanConfirmPelPetugas" class="hidden space-y-2">
-<label class="flex items-center justify-between px-3 py-2.5 min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 cursor-pointer hover:border-amber-400 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50 dark:has-[:checked]:bg-amber-950/50 transition-colors">
-<span class="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200"><i class="fa-solid fa-clock text-amber-500"></i> Terlambat Hadir</span>
+<label class="flex items-center justify-between px-3.5 py-2.5 min-h-[48px] rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/80 cursor-pointer hover:border-amber-400 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50 dark:has-[:checked]:bg-amber-950/50 transition-all">
+<span class="flex items-center gap-2.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+<span class="w-7 h-7 rounded-xl bg-amber-100 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs"><i class="fa-solid fa-clock"></i></span>
+<span>Terlambat Hadir</span>
+</span>
 <input type="checkbox" id="scanConfirmCekTelat" onchange="document.getElementById('scanConfirmMenitWrap').classList.toggle('hidden', !this.checked); window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel();" class="w-4 h-4 accent-amber-600 rounded">
 </label>
 <div id="scanConfirmMenitWrap" class="hidden">
-<input type="number" id="scanConfirmMenitTelat" min="1" placeholder="Durasi keterlambatan (menit)" class="clean-input w-full px-3 py-2 text-xs font-semibold">
+<input type="number" id="scanConfirmMenitTelat" min="1" placeholder="Durasi keterlambatan (menit)" class="clean-input w-full px-3.5 py-2.5 text-xs font-semibold bg-white dark:bg-slate-900">
 </div>
 </div>
 </div>
 
-<div>
-<button type="button" id="scanConfirmSaveBtn" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.confirmScanSave()" class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs inline-flex items-center justify-center gap-2 shadow-md transition-all">
-<i class="fa-solid fa-circle-check"></i><span>Hadir &amp; Simpan (Tanpa Pelanggaran)</span>
+<div class="flex items-center gap-2">
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.cancelScanConfirm()" class="px-3.5 py-3 min-h-[46px] rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs transition-colors shrink-0">Batal</button>
+<button type="button" id="scanConfirmSaveBtn" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.confirmScanSave()" class="flex-1 py-3 px-4 min-h-[46px] rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-xs inline-flex items-center justify-center gap-2 shadow-md transition-all">
+<i class="fa-solid fa-circle-check"></i><span>Hadir &amp; Simpan</span>
 </button>
 </div>
 </div>
@@ -4988,7 +5011,6 @@ setTextSafe('sidebarUserName', displayName);
 setTextSafe('sidebarUserRole', roleLbl);
 const initials = displayName.trim().split(/\s+/).slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('') || 'AP';
 setTextSafe('sidebarUserInitials', initials);
-setTextSafe('headerProfileInitials', initials);
 if (typeof applyUserProfileAvatarUI === 'function') {
 applyUserProfileAvatarUI(true);
 }
@@ -6571,7 +6593,7 @@ const displayName = session.name || 'Petugas';
 const initials = displayName.trim().split(/\s+/).slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('') || 'AP';
 const localUrl = getLocalProfilePhoto(userKey) || session.photoUrl || '';
 
-setAvatarImageElements('headerProfileAvatarImg', 'headerProfileInitials', localUrl, initials);
+setAvatarImageElements('bannerProfileAvatarImg', 'bannerProfileFallbackIcon', localUrl, null);
 setAvatarImageElements('sidebarUserAvatarImg', 'sidebarUserInitials', localUrl, initials);
 
 if (fetchRemote && userKey && navigator.onLine && window.google && google.script && google.script.run && typeof google.script.run.getUserProfilePhoto === 'function') {
@@ -6580,7 +6602,7 @@ google.script.run
 .withSuccessHandler(res => {
 if (res && res.success && res.photoUrl) {
 saveLocalProfilePhoto(userKey, res.photoUrl);
-setAvatarImageElements('headerProfileAvatarImg', 'headerProfileInitials', res.photoUrl, initials);
+setAvatarImageElements('bannerProfileAvatarImg', 'bannerProfileFallbackIcon', res.photoUrl, null);
 setAvatarImageElements('sidebarUserAvatarImg', 'sidebarUserInitials', res.photoUrl, initials);
 }
 })
@@ -8289,23 +8311,77 @@ document.getElementById('saranAdminList').innerHTML = list.length ? list.map(s =
 }
 
 
+const LOCAL_SP_ARCHIVE_KEY = 'alrifaie_local_sp_archive_v1';
+
+function isSuratSpCategory(kat) {
+const k = String(kat || '').trim().toLowerCase();
+return k === 'surat sp' || k === 'surat pernyataan' || k === 'sp';
+}
+
+function getLocalSpArchiveList() {
+try {
+const raw = localStorage.getItem(LOCAL_SP_ARCHIVE_KEY);
+const arr = raw ? JSON.parse(raw) : [];
+return Array.isArray(arr) ? arr : [];
+} catch (e) { return []; }
+}
+
+function saveLocalSpArchiveEntry(entry) {
+try {
+const list = getLocalSpArchiveList();
+const key = `${String(entry.nomor || '').trim()}|${String(entry.tujuan || '').trim()}`.toLowerCase();
+const filtered = list.filter(item => `${String(item.nomor || '').trim()}|${String(item.tujuan || '').trim()}`.toLowerCase() !== key);
+filtered.unshift(entry);
+localStorage.setItem(LOCAL_SP_ARCHIVE_KEY, JSON.stringify(filtered.slice(0, 60)));
+} catch (e) {}
+}
+window.saveLocalSpArchiveEntry = saveLocalSpArchiveEntry;
+
+function mergeSuratWithLocalSp(serverList) {
+const srv = Array.isArray(serverList) ? serverList : [];
+const localSp = getLocalSpArchiveList();
+const merged = srv.map(r => {
+const k = `${String(r.nomor || '').trim()}|${String(r.tujuan || '').trim()}`.toLowerCase();
+const matchLocal = localSp.find(l => `${String(l.nomor || '').trim()}|${String(l.tujuan || '').trim()}`.toLowerCase() === k);
+return matchLocal && matchLocal.htmlSnapshot && !r.htmlSnapshot ? Object.assign({}, r, { htmlSnapshot: matchLocal.htmlSnapshot }) : r;
+});
+const seen = new Set(merged.map(r => `${String(r.nomor || '').trim()}|${String(r.tujuan || '').trim()}`.toLowerCase()));
+localSp.forEach(item => {
+const k = `${String(item.nomor || '').trim()}|${String(item.tujuan || '').trim()}`.toLowerCase();
+if (!seen.has(k)) {
+merged.unshift(item);
+seen.add(k);
+}
+});
+return merged;
+}
+
 function loadSurat() {
-google.script.run.withSuccessHandler(res => {
-allSuratData = res || [];
+google.script.run
+.withSuccessHandler(res => {
+allSuratData = mergeSuratWithLocalSp(res || []);
 updateSuratCounts();
 renderSuratTable();
-}).getSurat();
+})
+.withFailureHandler(() => {
+allSuratData = mergeSuratWithLocalSp(allSuratData || []);
+updateSuratCounts();
+renderSuratTable();
+})
+.getSurat();
 }
 
 
 function updateSuratCounts() {
 const cAll = allSuratData.length;
+const cSP = allSuratData.filter(r => isSuratSpCategory(r.kategori)).length;
 const cA = allSuratData.filter(r => r.kategori === 'Kategori A').length;
 const cB = allSuratData.filter(r => r.kategori === 'Kategori B').length;
 const cC = allSuratData.filter(r => r.kategori === 'Kategori C').length;
-const cL = allSuratData.filter(r => !['Kategori A','Kategori B','Kategori C'].includes(r.kategori)).length;
+const cL = allSuratData.filter(r => !['Kategori A','Kategori B','Kategori C'].includes(r.kategori) && !isSuratSpCategory(r.kategori)).length;
 const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
 setTxt('countSuratSemua', cAll);
+setTxt('countSuratSP', cSP);
 setTxt('countSuratA', cA);
 setTxt('countSuratB', cB);
 setTxt('countSuratC', cC);
@@ -8316,11 +8392,12 @@ setTxt('countSuratLainnya', cL);
 function switchSuratTab(tab) {
 activeSuratTab = tab;
 document.querySelectorAll('.surat-tab-btn').forEach(btn => {
-btn.classList.remove('bg-blue-700', 'text-white');
+btn.classList.remove('bg-blue-700', 'bg-rose-600', 'text-white');
 btn.classList.add('bg-slate-100', 'dark:bg-slate-800');
 });
 const map = {
 'Semua Kategori': 'btnTabSemua',
+'Surat SP': 'btnTabSuratSP',
 'Kategori A': 'btnTabKategoriA',
 'Kategori B': 'btnTabKategoriB',
 'Kategori C': 'btnTabKategoriC',
@@ -8329,7 +8406,7 @@ const map = {
 const activeBtn = document.getElementById(map[tab]);
 if (activeBtn) {
 activeBtn.classList.remove('bg-slate-100', 'dark:bg-slate-800');
-activeBtn.classList.add('bg-blue-700', 'text-white');
+activeBtn.classList.add(tab === 'Surat SP' ? 'bg-rose-600' : 'bg-blue-700', 'text-white');
 }
 renderSuratTable();
 }
@@ -8519,6 +8596,22 @@ confirmButtonText: 'Ya, Hapus',
 cancelButtonText: 'Batal'
 }).then(r => {
 if (r.isConfirmed) {
+try {
+const rec = (allSuratData || []).find(x => String(x.id) === String(id));
+const localList = getLocalSpArchiveList().filter(x => {
+if (String(x.id) === String(id)) return false;
+if (rec && String(x.nomor) === String(rec.nomor) && String(x.tujuan) === String(rec.tujuan)) return false;
+return true;
+});
+localStorage.setItem(LOCAL_SP_ARCHIVE_KEY, JSON.stringify(localList));
+} catch (e) {}
+if (String(id).startsWith('local_sp_')) {
+allSuratData = (allSuratData || []).filter(x => String(x.id) !== String(id));
+updateSuratCounts();
+renderSuratTable();
+Swal.fire('Terhapus', 'Riwayat Surat SP berhasil dihapus.', 'success');
+return;
+}
 google.script.run.withSuccessHandler(() => {
 loadSurat();
 Swal.fire('Terhapus', 'Arsip surat berhasil dihapus.', 'success');
@@ -8527,15 +8620,49 @@ Swal.fire('Terhapus', 'Arsip surat berhasil dihapus.', 'success');
 });
 }
 
+async function reprintArchivedSpSurat(id) {
+const rec = (allSuratData || []).find(x => String(x.id) === String(id));
+if (!rec || !rec.htmlSnapshot) {
+Swal.fire('Info', 'Pratinjau lokal tidak tersedia untuk surat ini. Buka salinan PDF di Google Drive jika tersedia.', 'info');
+return;
+}
+Swal.fire({ title: 'Menyiapkan PDF Surat SP...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+try {
+await window.ensureHtml2Pdf();
+const safeFile = `Surat_SP_${String(rec.tujuan || rec.nomor || 'Arsip').replace(/[^a-zA-Z0-9_-]+/g, '_')}.pdf`;
+await html2pdf().set({
+margin: 0,
+filename: safeFile,
+image: { type: 'jpeg', quality: 0.98 },
+html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true, scrollY: 0 },
+jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+}).from(`<div>${rec.htmlSnapshot}</div>`).save();
+Swal.close();
+} catch (err) {
+Swal.fire('Gagal', 'Tidak dapat mencetak ulang PDF saat ini.', 'error');
+}
+}
 
 function renderSuratTable() {
-const f = allSuratData.filter(r => activeSuratTab==='Semua Kategori' ? true : activeSuratTab==='Lainnya' ? !['Kategori A','Kategori B','Kategori C'].includes(r.kategori) : r.kategori===activeSuratTab);
+const f = allSuratData.filter(r => {
+if (activeSuratTab === 'Semua Kategori') return true;
+if (activeSuratTab === 'Surat SP') return isSuratSpCategory(r.kategori);
+if (activeSuratTab === 'Lainnya') return !['Kategori A','Kategori B','Kategori C'].includes(r.kategori) && !isSuratSpCategory(r.kategori);
+return r.kategori === activeSuratTab;
+});
 document.getElementById('suratTableBody').innerHTML = f.length ? f.map(r => {
+const isSp = isSuratSpCategory(r.kategori);
+const katBadge = isSp
+  ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/60 text-rose-700 dark:text-rose-300 text-[10.5px] font-bold"><i class="fa-solid fa-file-signature text-[9px]"></i>Surat SP</span>${r.sub ? `<span class="block text-[10px] text-slate-500 mt-0.5">${r.sub}</span>` : ''}`
+  : `<span class="font-semibold">${r.kategori} ${r.sub||''}</span>`;
+const pdfReplayBtn = r.htmlSnapshot
+  ? `<button type="button" onclick="reprintArchivedSpSurat('${r.id}')" title="Cetak Ulang PDF Surat SP" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/60 text-rose-700 dark:text-rose-300 text-[10.5px] font-bold hover:brightness-95"><i class="fa-solid fa-file-pdf"></i><span>PDF</span></button>`
+  : '';
 const driveBtn = r.driveUrl
   ? `<a href="${r.driveUrl}" target="_blank" rel="noopener noreferrer" title="Buka file PDF di Google Drive" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 text-[10.5px] font-bold hover:brightness-95"><i class="fa-brands fa-google-drive"></i><span>Drive</span></a>`
-  : `<span class="text-[10px] text-slate-400">Sheet</span>`;
-return `<tr><td class="p-3 font-mono text-[11px]">${r.nomor}</td><td class="p-3 font-semibold">${r.kategori} ${r.sub||''}</td><td class="p-3">${r.perihal}</td><td class="p-3">${r.tujuan}</td><td class="p-3 text-center"><div class="inline-flex items-center justify-center gap-2">${driveBtn}<button onclick="delSurat('${r.id}')" title="Hapus Surat" class="text-red-600 p-1 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg"><i class="fa-solid fa-trash"></i></button></div></td></tr>`;
-}).join('') : '<tr><td colspan="5" class="p-5 text-center text-slate-400">Kosong.</td></tr>';
+  : (!pdfReplayBtn ? `<span class="text-[10px] text-slate-400">Sheet</span>` : '');
+return `<tr><td class="p-3 font-mono text-[11px]">${r.nomor || '-'}</td><td class="p-3">${katBadge}</td><td class="p-3">${r.perihal || '-'}</td><td class="p-3 font-semibold">${r.tujuan || '-'}</td><td class="p-3 text-center"><div class="inline-flex items-center justify-center gap-1.5">${pdfReplayBtn}${driveBtn}<button onclick="delSurat('${r.id}')" title="Hapus Surat" class="text-red-600 p-1 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg"><i class="fa-solid fa-trash"></i></button></div></td></tr>`;
+}).join('') : `<tr><td colspan="5" class="p-6 text-center text-slate-400">${activeSuratTab === 'Surat SP' ? 'Belum ada riwayat Surat SP tersimpan.' : 'Kosong.'}</td></tr>`;
 }
 
 
