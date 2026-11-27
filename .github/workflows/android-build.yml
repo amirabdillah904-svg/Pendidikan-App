@@ -180,8 +180,8 @@ jobs:
           export KEY_PASSWORD="$(printf '%s' "$RAW_KEY_PASSWORD" | tr -d '\r\n')"
           gradle :app:assembleRelease :app:bundleRelease --no-configuration-cache --stacktrace
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk dist/DeptPendidikan-release.apk
-          cp app/build/outputs/bundle/release/app-release.aab dist/DeptPendidikan-release.aab
+          cp app/build/outputs/apk/release/app-release.apk dist/DeptPendidikan.apk
+          cp app/build/outputs/bundle/release/app-release.aab dist/DeptPendidikan.aab
           ls -lh dist/
 
       - name: Clean up Release Keystore
@@ -192,10 +192,10 @@ jobs:
         if: steps.check_signing.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: DeptPendidikan-release-artifacts
+          name: DeptPendidikan-artifacts
           path: |
-            dist/DeptPendidikan-release.apk
-            dist/DeptPendidikan-release.aab
+            dist/DeptPendidikan.apk
+            dist/DeptPendidikan.aab
           retention-days: 90
 
       - name: Prepare GitHub Release Metadata
@@ -224,8 +224,8 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: false
           files: |
-            dist/DeptPendidikan-release.apk
-            dist/DeptPendidikan-release.aab
+            dist/DeptPendidikan.apk
+            dist/DeptPendidikan.aab
             dist/DeptPendidikan-debug.apk
 
       - name: Write Build Summary
@@ -236,9 +236,9 @@ jobs:
           echo "- **Secrets**: \`KEYSTORE_BASE64=${{ steps.check_signing.outputs.has_ks }}\`, \`STORE_PASSWORD=${{ steps.check_signing.outputs.has_sp }}\`, \`KEY_PASSWORD=${{ steps.check_signing.outputs.has_kp }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Debug APK**: \`DeptPendidikan-debug.apk\`" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ steps.check_signing.outputs.ready }}" = "true" ]; then
-            echo "- **Signed Release APK & AAB**: Berhasil dibuat (\`DeptPendidikan-release.apk\` & \`DeptPendidikan-release.aab\`)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Signed APK & AAB**: Berhasil dibuat (\`DeptPendidikan.apk\` & \`DeptPendidikan.aab\`)" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "- **Signed Release APK & AAB**: Dilewati — pastikan ketiga **Repository Secrets** (\`KEYSTORE_BASE64\`, \`STORE_PASSWORD\`, \`KEY_PASSWORD\`) sudah terisi di **Settings → Secrets and variables → Actions**." >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Signed APK & AAB**: Dilewati — pastikan ketiga **Repository Secrets** (\`KEYSTORE_BASE64\`, \`STORE_PASSWORD\`, \`KEY_PASSWORD\`) sudah terisi di **Settings → Secrets and variables → Actions**." >> "$GITHUB_STEP_SUMMARY"
           fi
           if [ -n "${{ steps.release_meta.outputs.tag }}" ]; then
             echo "- **GitHub Release**: \`${{ steps.release_meta.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"

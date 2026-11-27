@@ -4,6 +4,8 @@ Aplikasi Android untuk PWA **Departemen Pendidikan - YPM Al-Rifa'ie 2** yang dib
 
 Kode backend Google Apps Script untuk sinkronisasi offline batch & anti-duplikat (`SyncLog`) tersedia di `backend/appscript_offline_sync.gs`.
 
+Versi **PWA mandiri siap hosting** (Netlify, Vercel, GitHub Pages, Cloudflare Pages) tersedia di folder khusus **`pwa/`** (bisa disinkronkan kapan saja dengan `bash scripts/sync-pwa.sh`).
+
 ## GitHub Actions Workflow
 
 File workflow berada di `.github/workflows/android-build.yml` dan otomatis berjalan pada:
@@ -29,4 +31,4 @@ File workflow berada di `.github/workflows/android-build.yml` dan otomatis berja
    - `KEYSTORE_BASE64` → tempel seluruh isi `keystore.base64.txt`
    - `STORE_PASSWORD` → kata sandi keystore `.jks` Anda
    - `KEY_PASSWORD` → kata sandi key untuk alias `upload`
-4. Setelah ke-3 secret ditambahkan, setiap `push` ke `main`/`master` atau `Run workflow` akan otomatis memvalidasi keystore dan menghasilkan artefak **`DeptPendidikan-release-artifacts`** (`DeptPendidikan-release.apk` dan `DeptPendidikan-release.aab`).
+4. Setelah ke-3 secret ditambahkan, setiap `push` ke `main`/`master` atau `Run workflow` akan otomatis memvalidasi keystore dan menghasilkan artefak **`DeptPendidikan-artifacts`** (`DeptPendidikan.apk` dan `DeptPendidikan.aab`).
