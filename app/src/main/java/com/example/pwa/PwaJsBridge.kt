@@ -25,6 +25,11 @@ class PwaJsBridge(
   private val onOnlineWriteSucceeded: (summaryLabel: String) -> Unit,
   private val onRealtimeNotification: (title: String, body: String) -> Unit,
   private val onManualSyncRequested: () -> Unit,
+  private val onSetNfcLockMode: (locked: Boolean, mode: String) -> Unit = { _, _ -> },
+  private val onGetNfcStatus: () -> String = { "{\"supported\":false,\"enabled\":false,\"locked\":false,\"mode\":\"idle\"}" },
+  private val onOpenNfcSettings: () -> Unit = {},
+  private val onRequestCameraPermission: () -> Unit = {},
+  private val onVibrateFeedback: (durationMs: Long) -> Unit = {},
 ) {
 
   @JavascriptInterface
@@ -98,6 +103,31 @@ class PwaJsBridge(
   @JavascriptInterface
   fun requestManualSync() {
     onManualSyncRequested()
+  }
+
+  @JavascriptInterface
+  fun setNfcLockMode(locked: Boolean, mode: String) {
+    onSetNfcLockMode(locked, mode)
+  }
+
+  @JavascriptInterface
+  fun getNfcStatus(): String {
+    return onGetNfcStatus()
+  }
+
+  @JavascriptInterface
+  fun openNfcSettings() {
+    onOpenNfcSettings()
+  }
+
+  @JavascriptInterface
+  fun requestCameraPermission() {
+    onRequestCameraPermission()
+  }
+
+  @JavascriptInterface
+  fun vibrateFeedback(durationMs: Long) {
+    onVibrateFeedback(durationMs)
   }
 
   companion object {
@@ -384,12 +414,27 @@ class PwaJsBridge(
                   if (isWrite) {
                     var opId = genClientOpId();
                     var label = describeWrite(fnName, args);
+                    var firstArg = (args && args.length > 0 && args[0] && typeof args[0] === 'object') ? args[0] : null;
+                    var isSilentSingleScan = (fnName === 'submitAbsensi' && firstArg && firstArg.isSingleScanUpdate === true);
                     var queueLocally = function() {
                       try {
                         if (window.AndroidBridge && typeof window.AndroidBridge.enqueueOfflineWrite === 'function') {
                           window.AndroidBridge.enqueueOfflineWrite(opId, fnName, JSON.stringify(args), label);
                         }
                       } catch (e) {}
+                      if (isSilentSingleScan) {
+                        if (typeof onSuccess === 'function') {
+                          setTimeout(function() {
+                            onSuccess({
+                              success: true,
+                              offlineQueued: true,
+                              clientOpId: opId,
+                              message: 'Scan tersimpan lokal (Offline). Akan disinkronkan otomatis saat online.'
+                            });
+                          }, 20);
+                        }
+                        return;
+                      }
                       // Jalankan asinkron agar Swal.showLoading() dari dialog sebelumnya tidak menimpa tombol OK!
                       setTimeout(function() {
                         try {
@@ -427,7 +472,7 @@ class PwaJsBridge(
                               var galBody = (galObj.tag ? '[' + galObj.tag + '] ' : '') + (galObj.caption || 'Foto kegiatan santri baru telah diunggah.');
                               window.AndroidBridge.notifyRealtimeEvent('Galeri Santri Baru Diunggah', galBody);
                             } else if (typeof window.AndroidBridge.notifyOnlineWriteSuccess === 'function') {
-                              if (fnName === 'submitAbsensi' || fnName === 'saveFinancialData' || fnName === 'saveSuratData') {
+                              if (!isSilentSingleScan && (fnName === 'submitAbsensi' || fnName === 'saveFinancialData' || fnName === 'saveSuratData')) {
                                 window.AndroidBridge.notifyOnlineWriteSuccess(label);
                               }
                             }

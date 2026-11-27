@@ -1520,12 +1520,26 @@ body { background: #ffffff !important; color: #000000 !important; }
 <div><label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Tanggal Sesi</label><input type="date" id="wbDate" readonly class="clean-input w-full px-3 py-2.5 text-xs font-semibold opacity-75"></div>
 <div><label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Cari Santri</label><input type="text" id="wbSearch" oninput="debounceFilterTable('wb')" placeholder="Ketik nama..." class="clean-input w-full px-3 py-2.5 text-xs font-semibold"></div>
 </div>
-<div class="clean-card overflow-hidden">
-<div class="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-<h3 class="font-bold text-sm">Daftar Santri Wajib Belajar</h3>
-<button id="btnSubmitWb" onclick="submitAbsensiAction('wb', this)" class="px-4 py-2 bg-brand-700 hover:bg-brand-600 text-white font-semibold text-xs rounded-xl transition-colors">Simpan Absensi</button>
+<div class="clean-card p-3.5 space-y-2.5 border border-indigo-200/70 dark:border-indigo-900/60">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<div class="flex flex-wrap items-center gap-2">
+<span id="wbNfcStatusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>NFC Siap Tap Kartu</span></span>
+<button type="button" id="wbBtnNfcSettings" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.openAndroidNfcSettings()" class="hidden px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500 text-white">Aktifkan NFC</button>
 </div>
-<div class="overflow-x-auto"><table class="w-full text-left text-xs"><tbody id="wbTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"><tr><td class="p-6 text-center text-slate-400">Silakan pilih kamar terlebih dahulu.</td></tr></tbody></table></div>
+<div class="flex items-center gap-2">
+<span id="wbScanCounter" class="text-xs font-semibold text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800">0 / 0 Hadir</span>
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.openQrScanner('attendance','wb')" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm transition-all"><i class="fa-solid fa-qrcode"></i><span>Scan QR</span></button>
+</div>
+</div>
+<p class="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">Tempel kartu NFC atau scan QR -> pilih pelanggaran (jika ada) -> otomatis tercentang <b>Hadir</b> &amp; langsung masuk database. Untuk yang tidak hadir, klik tombol <b>Input Izin / Alpa</b>.</p>
+<div id="wbScanFeedback" class="hidden"></div>
+</div>
+<div class="clean-card overflow-hidden">
+<div class="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center gap-2">
+<h3 class="font-bold text-sm">Daftar Santri Wajib Belajar</h3>
+<button id="btnSubmitWb" onclick="submitAbsensiAction('wb', this)" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition-colors whitespace-nowrap inline-flex items-center gap-1.5"><i class="fa-solid fa-user-clock"></i><span>Input Izin / Alpa</span></button>
+</div>
+<div class="overflow-x-auto"><table class="w-full text-left text-xs"><tbody id="wbTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"><tr><td colspan="2" class="p-6 text-center text-slate-400">Silakan pilih kamar terlebih dahulu.</td></tr></tbody></table></div>
 </div>
 </div>
 
@@ -1533,16 +1547,30 @@ body { background: #ffffff !important; color: #000000 !important; }
 <!-- TAB ABSENSI TAKHASSUS -->
 <div id="tab-takhassus" class="space-y-4 tab-content hidden">
 <div class="clean-card p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-<div><label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Kelas & Qismu</label><select id="takhClassSelect" onchange="loadMembers('takhassus')" class="clean-input w-full px-3 py-2.5 text-xs font-semibold"><option value="">-- Memuat Kelas... --</option></select></div>
+<div><label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Kelas &amp; Qismu</label><select id="takhClassSelect" onchange="loadMembers('takhassus')" class="clean-input w-full px-3 py-2.5 text-xs font-semibold"><option value="">-- Memuat Kelas... --</option></select></div>
 <div><label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Tanggal Sesi</label><input type="date" id="takhDate" readonly class="clean-input w-full px-3 py-2.5 text-xs font-semibold opacity-75"></div>
 <div><label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Cari Santri</label><input type="text" id="takhassusSearch" oninput="debounceFilterTable('takhassus')" placeholder="Ketik nama..." class="clean-input w-full px-3 py-2.5 text-xs font-semibold"></div>
 </div>
-<div class="clean-card overflow-hidden">
-<div class="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-<h3 class="font-bold text-sm">Daftar Santri Takhassus</h3>
-<button id="btnSubmitTakh" onclick="submitAbsensiAction('takhassus', this)" class="px-4 py-2 bg-brand-700 hover:bg-brand-600 text-white font-semibold text-xs rounded-xl transition-colors">Simpan Absensi</button>
+<div class="clean-card p-3.5 space-y-2.5 border border-indigo-200/70 dark:border-indigo-900/60">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<div class="flex flex-wrap items-center gap-2">
+<span id="takhassusNfcStatusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>NFC Siap Tap Kartu</span></span>
+<button type="button" id="takhassusBtnNfcSettings" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.openAndroidNfcSettings()" class="hidden px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500 text-white">Aktifkan NFC</button>
 </div>
-<div class="overflow-x-auto"><table class="w-full text-left text-xs"><tbody id="takhassusTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"><tr><td class="p-6 text-center text-slate-400">Silakan pilih kelas & qismu terlebih dahulu.</td></tr></tbody></table></div>
+<div class="flex items-center gap-2">
+<span id="takhassusScanCounter" class="text-xs font-semibold text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800">0 / 0 Hadir</span>
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.openQrScanner('attendance','takhassus')" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm transition-all"><i class="fa-solid fa-qrcode"></i><span>Scan QR</span></button>
+</div>
+</div>
+<p class="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">Tempel kartu NFC atau scan QR -> pilih pelanggaran (jika ada) -> otomatis tercentang <b>Hadir</b> &amp; langsung masuk database. Untuk yang tidak hadir, klik tombol <b>Input Izin / Alpa</b>.</p>
+<div id="takhassusScanFeedback" class="hidden"></div>
+</div>
+<div class="clean-card overflow-hidden">
+<div class="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center gap-2">
+<h3 class="font-bold text-sm">Daftar Santri Takhassus</h3>
+<button id="btnSubmitTakh" onclick="submitAbsensiAction('takhassus', this)" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition-colors whitespace-nowrap inline-flex items-center gap-1.5"><i class="fa-solid fa-user-clock"></i><span>Input Izin / Alpa</span></button>
+</div>
+<div class="overflow-x-auto"><table class="w-full text-left text-xs"><tbody id="takhassusTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"><tr><td colspan="2" class="p-6 text-center text-slate-400">Silakan pilih kelas &amp; qismu terlebih dahulu.</td></tr></tbody></table></div>
 </div>
 </div>
 
@@ -1554,12 +1582,22 @@ body { background: #ffffff !important; color: #000000 !important; }
 <div><label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Tanggal Sesi</label><input type="date" id="musyrifDate" readonly class="clean-input w-full px-3 py-2.5 text-xs font-semibold opacity-75"></div>
 <div><label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Cari Musyrif</label><input type="text" id="musyrifSearch" oninput="debounceFilterTable('musyrif')" placeholder="Ketik nama..." class="clean-input w-full px-3 py-2.5 text-xs font-semibold"></div>
 </div>
-<div class="clean-card overflow-hidden">
-<div class="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-<h3 class="font-bold text-sm">Daftar Musyrif</h3>
-<button id="btnSubmitMus" onclick="submitAbsensiAction('musyrif', this)" class="px-4 py-2 bg-brand-700 hover:bg-brand-600 text-white font-semibold text-xs rounded-xl transition-colors">Simpan Absensi</button>
+<div class="clean-card p-3.5 space-y-2.5 border border-emerald-200/70 dark:border-emerald-900/60">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<div class="text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2"><i class="fa-solid fa-qrcode text-emerald-600"></i><span>Scan QR Musyrif (Otomatis Masuk Database)</span></div>
+<div class="flex items-center gap-2">
+<span id="musyrifScanCounter" class="text-xs font-semibold text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800">0 / 0 Hadir</span>
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.openQrScanner('attendance','musyrif')" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm transition-all"><i class="fa-solid fa-qrcode"></i><span>Scan QR Musyrif</span></button>
 </div>
-<div class="overflow-x-auto"><table class="w-full text-left text-xs"><tbody id="musyrifTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"><tr><td class="p-6 text-center text-slate-400">Memuat daftar musyrif...</td></tr></tbody></table></div>
+</div>
+<div id="musyrifScanFeedback" class="hidden"></div>
+</div>
+<div class="clean-card overflow-hidden">
+<div class="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center gap-2">
+<h3 class="font-bold text-sm">Daftar Musyrif</h3>
+<button id="btnSubmitMus" onclick="submitAbsensiAction('musyrif', this)" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition-colors whitespace-nowrap inline-flex items-center gap-1.5"><i class="fa-solid fa-user-clock"></i><span>Input Izin / Alpa</span></button>
+</div>
+<div class="overflow-x-auto"><table class="w-full text-left text-xs"><tbody id="musyrifTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"><tr><td colspan="2" class="p-6 text-center text-slate-400">Memuat daftar musyrif...</td></tr></tbody></table></div>
 </div>
 </div>
 
@@ -1571,12 +1609,22 @@ body { background: #ffffff !important; color: #000000 !important; }
 <div><label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Tanggal Sesi</label><input type="date" id="pengajarDate" readonly class="clean-input w-full px-3 py-2.5 text-xs font-semibold opacity-75"></div>
 <div><label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Cari Pengajar</label><input type="text" id="pengajarSearch" oninput="debounceFilterTable('pengajar')" placeholder="Ketik nama..." class="clean-input w-full px-3 py-2.5 text-xs font-semibold"></div>
 </div>
-<div class="clean-card overflow-hidden">
-<div class="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-<h3 class="font-bold text-sm">Daftar Pengajar</h3>
-<button id="btnSubmitPen" onclick="submitAbsensiAction('pengajar', this)" class="px-4 py-2 bg-brand-700 hover:bg-brand-600 text-white font-semibold text-xs rounded-xl transition-colors">Simpan Absensi</button>
+<div class="clean-card p-3.5 space-y-2.5 border border-emerald-200/70 dark:border-emerald-900/60">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<div class="text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2"><i class="fa-solid fa-qrcode text-emerald-600"></i><span>Scan QR Pengajar (Otomatis Masuk Database)</span></div>
+<div class="flex items-center gap-2">
+<span id="pengajarScanCounter" class="text-xs font-semibold text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800">0 / 0 Hadir</span>
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.openQrScanner('attendance','pengajar')" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm transition-all"><i class="fa-solid fa-qrcode"></i><span>Scan QR Pengajar</span></button>
 </div>
-<div class="overflow-x-auto"><table class="w-full text-left text-xs"><tbody id="pengajarTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"><tr><td class="p-6 text-center text-slate-400">Memuat daftar pengajar...</td></tr></tbody></table></div>
+</div>
+<div id="pengajarScanFeedback" class="hidden"></div>
+</div>
+<div class="clean-card overflow-hidden">
+<div class="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center gap-2">
+<h3 class="font-bold text-sm">Daftar Pengajar</h3>
+<button id="btnSubmitPen" onclick="submitAbsensiAction('pengajar', this)" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition-colors whitespace-nowrap inline-flex items-center gap-1.5"><i class="fa-solid fa-user-clock"></i><span>Input Izin / Alpa</span></button>
+</div>
+<div class="overflow-x-auto"><table class="w-full text-left text-xs"><tbody id="pengajarTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"><tr><td colspan="2" class="p-6 text-center text-slate-400">Memuat daftar pengajar...</td></tr></tbody></table></div>
 </div>
 </div>
 
@@ -1728,13 +1776,21 @@ body { background: #ffffff !important; color: #000000 !important; }
 
 <!-- TAB DATABASE -->
 <div id="tab-database" class="space-y-4 tab-content hidden">
-<div class="clean-card p-4 flex flex-col md:flex-row gap-3 items-end">
-<div class="w-full md:flex-1"><label class="block text-[11px] font-semibold text-slate-500 mb-1">Tabel Data</label><select id="dbTypeSelect" onchange="loadDbData()" class="clean-input w-full px-3 py-2.5 text-xs font-semibold"><option value="musyrif">Data Musyrif & PIN</option><option value="pengajar">Data Pengajar & PIN</option><option value="wb">Data Santri Wajib Belajar</option><option value="takhassus">Data Santri Takhassus</option></select></div>
+<div class="clean-card p-4 space-y-3">
+<div class="flex flex-col md:flex-row gap-3 items-end">
+<div class="w-full md:flex-1"><label class="block text-[11px] font-semibold text-slate-500 mb-1">Tabel Data</label><select id="dbTypeSelect" onchange="loadDbData()" class="clean-input w-full px-3 py-2.5 text-xs font-semibold"><option value="musyrif">Data Musyrif &amp; PIN</option><option value="pengajar">Data Pengajar &amp; PIN</option><option value="wb">Data Santri Wajib Belajar</option><option value="takhassus">Data Santri Takhassus</option></select></div>
 <div class="w-full md:flex-1"><label class="block text-[11px] font-semibold text-slate-500 mb-1">Filter Kamar/Kelas</label><select id="dbFilterRoom" onchange="filterDbTable()" class="clean-input w-full px-3 py-2.5 text-xs font-semibold"><option value="">Semua</option></select></div>
 <div class="w-full md:flex-1"><label class="block text-[11px] font-semibold text-slate-500 mb-1">Cari Nama</label><input type="text" id="dbSearchName" oninput="filterDbTable()" placeholder="Ketik nama..." class="clean-input w-full px-3 py-2.5 text-xs font-semibold"></div>
 <button onclick="openDbModal()" class="w-full md:w-auto px-4 py-2.5 bg-brand-700 text-white font-semibold text-xs rounded-xl whitespace-nowrap">+ Tambah</button>
 </div>
-<div class="clean-card overflow-hidden"><div class="overflow-x-auto max-h-[500px]"><table class="w-full text-left text-xs"><thead class="bg-slate-50 dark:bg-slate-800/60 sticky top-0" id="dbThead"></thead><tbody id="dbTbody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody></table></div></div>
+<div class="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.generateAllQrForCurrentDb()" class="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 inline-flex items-center gap-1.5"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Auto Buat Semua QR</span></button>
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.downloadAllQrPdf()" class="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 hover:bg-red-100 inline-flex items-center gap-1.5"><i class="fa-solid fa-file-pdf"></i><span>Unduh Semua QR (PDF)</span></button>
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.downloadAllQrPng()" class="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 inline-flex items-center gap-1.5"><i class="fa-solid fa-image"></i><span>Unduh Semua QR (PNG)</span></button>
+</div>
+<div id="dbScanFeedback" class="hidden"></div>
+</div>
+<div class="clean-card overflow-hidden"><div class="overflow-x-auto max-h-[520px]"><table class="w-full text-left text-xs"><thead class="bg-slate-50 dark:bg-slate-800/60 sticky top-0" id="dbThead"></thead><tbody id="dbTbody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody></table></div></div>
 </div>
 
 
@@ -2116,7 +2172,182 @@ OK
 <div id="saranModal" class="fixed inset-0 z-[110] flex modal-backdrop-clean p-4 hidden"><div class="clean-card modal-sheet-enter w-full max-w-sm p-6 m-auto"><h3 class="text-base font-bold mb-3">Kotak Saran</h3><form onsubmit="postSaran(event)" class="space-y-3"><textarea id="saranIsi" rows="4" class="clean-input w-full p-3 text-xs" required placeholder="Tulis masukan Anda..."></textarea><div class="flex justify-end gap-2"><button type="button" onclick="closeModal('saranModal')" class="px-4 py-2 rounded-xl text-xs bg-slate-100 dark:bg-slate-800">Batal</button><button type="submit" class="px-4 py-2 bg-brand-700 text-white rounded-xl text-xs font-semibold">Kirim</button></div></form></div></div>
 
 
-<div id="dbModal" class="fixed inset-0 z-[110] flex modal-backdrop-clean p-4 hidden"><div class="clean-card modal-sheet-enter w-full max-w-sm p-6 m-auto"><h3 class="text-base font-bold mb-3" id="dbModalTitle">Input Data</h3><form onsubmit="saveDbDataAction(event)" class="space-y-3"><input type="hidden" id="dbRowIdx"><div id="dbField1C"><label class="block text-xs font-semibold text-slate-600 mb-1" id="dbLbl1">Nama</label><input type="text" id="dbF1" class="clean-input w-full px-3 py-2 text-xs"></div><div id="dbField2C"><label class="block text-xs font-semibold text-slate-600 mb-1" id="dbLbl2">Kamar/Kelas</label><input type="text" id="dbF2" class="clean-input w-full px-3 py-2 text-xs"></div><div id="dbField3C"><label class="block text-xs font-semibold text-slate-600 mb-1" id="dbLbl3">Info / Qismu</label><input type="text" id="dbF3" class="clean-input w-full px-3 py-2 text-xs"></div><div id="dbField4C"><label class="block text-xs font-semibold text-slate-600 mb-1" id="dbLbl4">PIN</label><input type="text" id="dbF4" class="clean-input w-full px-3 py-2 text-xs"></div><div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal('dbModal')" class="px-4 py-2 rounded-xl text-xs bg-slate-100 dark:bg-slate-800">Batal</button><button type="submit" class="px-4 py-2 bg-brand-700 text-white rounded-xl text-xs font-semibold">Simpan</button></div></form></div></div>
+<div id="dbModal" class="fixed inset-0 z-[110] flex modal-backdrop-clean p-4 hidden overflow-y-auto">
+<div class="clean-card modal-sheet-enter w-full max-w-md p-6 m-auto">
+<div class="flex justify-between items-center mb-3">
+<h3 class="text-base font-bold" id="dbModalTitle">Input Data</h3>
+<button type="button" onclick="closeModal('dbModal')" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center"><i class="fa-solid fa-xmark text-xs"></i></button>
+</div>
+<form onsubmit="saveDbDataAction(event)" class="space-y-3">
+<input type="hidden" id="dbRowIdx">
+<div id="dbField1C"><label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1" id="dbLbl1">Nama</label><input type="text" id="dbF1" required class="clean-input w-full px-3 py-2 text-xs"></div>
+<div id="dbField2C"><label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1" id="dbLbl2">Kamar/Kelas</label><input type="text" id="dbF2" class="clean-input w-full px-3 py-2 text-xs"></div>
+<div id="dbField3C"><label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1" id="dbLbl3">Info / Qismu</label><input type="text" id="dbF3" class="clean-input w-full px-3 py-2 text-xs"></div>
+<div id="dbField4C"><label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1" id="dbLbl4">PIN</label><input type="text" id="dbF4" class="clean-input w-full px-3 py-2 text-xs"></div>
+
+<!-- Tautkan Kartu NFC (Santri WB & Takhassus) -->
+<div id="dbNfcSection" class="p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/35 border border-indigo-200/70 dark:border-indigo-800/60 space-y-2">
+<div class="flex items-center justify-between gap-2">
+<label class="text-xs font-bold text-indigo-800 dark:text-indigo-300 flex items-center gap-1.5"><i class="fa-solid fa-wifi rotate-90"></i><span>Kartu NFC Santri</span></label>
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.startNfcBindMode()" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-rss"></i><span>Tautkan NFC</span></button>
+</div>
+<div id="dbNfcListenBanner" class="hidden px-2.5 py-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 text-[11px] font-bold flex items-center justify-between gap-2">
+<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>Tempelkan kartu NFC ke belakang HP sekarang...</span>
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.stopNfcBindMode()" class="text-[10px] underline">Batal</button>
+</div>
+<div class="flex gap-1.5">
+<input type="text" id="dbNfcCode" placeholder="UID Kartu NFC (tap kartu atau ketik)" class="clean-input flex-1 px-3 py-2 text-xs font-mono uppercase">
+<button type="button" onclick="document.getElementById('dbNfcCode').value=''" title="Kosongkan NFC" class="px-2.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 text-xs"><i class="fa-solid fa-eraser"></i></button>
+</div>
+</div>
+
+<!-- Kode QR Code -->
+<div id="dbQrSection" class="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/35 border border-emerald-200/70 dark:border-emerald-800/60 space-y-2">
+<div class="flex items-center justify-between gap-2 flex-wrap">
+<label class="text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5"><i class="fa-solid fa-qrcode"></i><span>Kode QR Absensi</span></label>
+<div class="flex items-center gap-1.5">
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.autoGenerateQrInDbModal()" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Auto Buat</span></button>
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.openQrScanner('bind_db', currentDbType)" class="px-2.5 py-1 rounded-lg bg-slate-800 dark:bg-slate-700 text-white text-[11px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-camera"></i><span>Scan QR</span></button>
+</div>
+</div>
+<input type="text" id="dbQrCode" oninput="window.AlRifaieAttendance && window.AlRifaieAttendance.updateDbModalQrPreview()" placeholder="Kode QR unik (otomatis / scan)" class="clean-input w-full px-3 py-2 text-xs font-mono uppercase">
+<div id="dbQrMiniPreviewWrap" class="hidden pt-1 flex justify-center">
+<canvas id="dbQrMiniCanvas" class="rounded-lg border border-slate-200 bg-white p-1"></canvas>
+</div>
+</div>
+
+<div class="flex justify-end gap-2 pt-2">
+<button type="button" onclick="closeModal('dbModal')" class="px-4 py-2 rounded-xl text-xs bg-slate-100 dark:bg-slate-800">Batal</button>
+<button type="submit" class="px-4 py-2 bg-brand-700 text-white rounded-xl text-xs font-semibold">Simpan</button>
+</div>
+</form>
+</div>
+</div>
+
+<!-- MODAL SCANNER QR CODE LIVE (KAMERA BELAKANG + TORCH + FALLBACK MANUAL) -->
+<div id="qrScannerModal" class="fixed inset-0 z-[125] flex modal-backdrop-clean p-4 hidden overflow-y-auto">
+<div class="clean-card modal-sheet-enter w-full max-w-md p-5 m-auto space-y-3">
+<div class="flex items-center justify-between gap-2">
+<div>
+<h3 id="qrScannerTitle" class="text-sm font-bold text-slate-900 dark:text-white">Scan QR Code</h3>
+<p id="qrScannerSubtitle" class="text-[11px] text-slate-500">Arahkan kamera ke kartu QR Code</p>
+</div>
+<div class="flex items-center gap-1.5">
+<button type="button" id="qrTorchBtn" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.toggleQrTorch()" class="hidden w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center" title="Senter"><i class="fa-solid fa-bolt text-xs"></i></button>
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.closeQrScanner()" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center" title="Tutup"><i class="fa-solid fa-xmark text-xs"></i></button>
+</div>
+</div>
+<div class="relative rounded-2xl overflow-hidden bg-slate-950 aspect-[4/3] flex items-center justify-center border border-slate-800">
+<video id="qrVideoPreview" autoplay playsinline muted class="w-full h-full object-cover"></video>
+<div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+<div class="w-48 h-48 rounded-2xl border-2 border-emerald-400 shadow-[0_0_0_9999px_rgba(15,23,42,0.45)]"></div>
+</div>
+<div id="qrModalFeedback" class="hidden absolute bottom-3 left-3 right-3"></div>
+</div>
+<p id="qrCameraStatusText" class="text-[11px] text-center text-slate-500 dark:text-slate-400">Menyiapkan kamera...</p>
+<div class="flex gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+<input type="text" id="qrManualCodeInput" onkeydown="if(event.key==='Enter'){event.preventDefault();window.AlRifaieAttendance && window.AlRifaieAttendance.submitManualQrCode();}" placeholder="Atau ketik kode QR manual..." class="clean-input flex-1 px-3 py-2 text-xs font-mono uppercase">
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.submitManualQrCode()" class="px-3.5 py-2 bg-indigo-600 text-white font-bold text-xs rounded-xl">Proses</button>
+</div>
+</div>
+</div>
+
+<!-- MODAL PRATINJAU & UNDUH KARTU QR PER ORANG (PNG / PDF) -->
+<div id="qrCardPreviewModal" class="fixed inset-0 z-[120] flex modal-backdrop-clean p-4 hidden overflow-y-auto">
+<div class="clean-card modal-sheet-enter w-full max-w-sm p-6 m-auto text-center space-y-4">
+<div class="flex justify-between items-center">
+<h3 class="text-sm font-bold text-slate-900 dark:text-white">Kartu QR Code Absensi</h3>
+<button type="button" onclick="closeModal('qrCardPreviewModal')" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center"><i class="fa-solid fa-xmark text-xs"></i></button>
+</div>
+<div class="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm inline-flex flex-col items-center gap-2">
+<canvas id="qrPreviewCanvas" class="rounded-lg"></canvas>
+<div id="qrPreviewName" class="text-sm font-extrabold text-slate-900 mt-1">Nama Anggota</div>
+<div id="qrPreviewSub" class="text-[11px] font-semibold text-slate-500">Kamar / Kelas</div>
+<div id="qrPreviewCode" class="px-3 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-mono font-bold text-xs">MUS-XXXXXX</div>
+</div>
+<div class="grid grid-cols-2 gap-2.5">
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.downloadSingleQrPng()" class="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl inline-flex items-center justify-center gap-1.5"><i class="fa-solid fa-image"></i><span>Unduh PNG</span></button>
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.downloadSingleQrPdf()" class="px-3.5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl inline-flex items-center justify-center gap-1.5"><i class="fa-solid fa-file-pdf"></i><span>Unduh PDF</span></button>
+</div>
+</div>
+</div>
+
+<!-- MODAL KONFIRMASI SCAN NFC / QR + PILIH PELANGGARAN (AUTO MASUK DATABASE) -->
+<div id="scanConfirmModal" class="fixed inset-0 z-[135] flex modal-backdrop-clean p-4 hidden overflow-y-auto">
+<div class="clean-card modal-sheet-enter w-full max-w-sm p-5 m-auto space-y-4">
+<div class="flex items-start justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+<div class="min-w-0 space-y-1">
+<span id="scanConfirmMethodBadge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold"><i class="fa-solid fa-circle-check"></i><span>NFC Terdeteksi</span></span>
+<h3 id="scanConfirmName" class="text-base font-extrabold text-slate-900 dark:text-white leading-tight truncate">Nama Santri</h3>
+<p id="scanConfirmSub" class="text-[11px] font-semibold text-slate-500 truncate">Kamar / Kelas</p>
+</div>
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.cancelScanConfirm()" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0" title="Batal"><i class="fa-solid fa-xmark text-xs"></i></button>
+</div>
+
+<div class="space-y-2">
+<p class="text-[11px] font-bold text-slate-600 dark:text-slate-300">Pilih Pelanggaran (Opsional — lewati jika tertib):</p>
+<div id="scanConfirmPelSantri" class="space-y-2">
+<label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 cursor-pointer hover:border-amber-400 transition-colors">
+<span class="flex items-center gap-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200"><i class="fa-solid fa-clock text-amber-500 w-4 text-center"></i> Terlambat</span>
+<input type="checkbox" name="scanConfirmPelSantri" value="Terlambat" onchange="window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel()" class="w-4 h-4 accent-amber-600 rounded">
+</label>
+<label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 cursor-pointer hover:border-amber-400 transition-colors">
+<span class="flex items-center gap-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200"><i class="fa-solid fa-shirt text-indigo-500 w-4 text-center"></i> Pakaian</span>
+<input type="checkbox" name="scanConfirmPelSantri" value="Pakaian" onchange="window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel()" class="w-4 h-4 accent-amber-600 rounded">
+</label>
+<label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 cursor-pointer hover:border-amber-400 transition-colors">
+<span class="flex items-center gap-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200"><i class="fa-solid fa-book text-rose-500 w-4 text-center"></i> Kitab</span>
+<input type="checkbox" name="scanConfirmPelSantri" value="Kitab" onchange="window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel()" class="w-4 h-4 accent-amber-600 rounded">
+</label>
+</div>
+
+<div id="scanConfirmPelPetugas" class="hidden space-y-2.5">
+<label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 cursor-pointer">
+<span class="flex items-center gap-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200"><i class="fa-solid fa-clock text-amber-500 w-4 text-center"></i> Terlambat Hadir</span>
+<input type="checkbox" id="scanConfirmCekTelat" onchange="document.getElementById('scanConfirmMenitWrap').classList.toggle('hidden', !this.checked); window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel();" class="w-4 h-4 accent-amber-600 rounded">
+</label>
+<div id="scanConfirmMenitWrap" class="hidden">
+<label class="block text-[11px] font-semibold text-slate-500 mb-1">Durasi Keterlambatan (Menit)</label>
+<input type="number" id="scanConfirmMenitTelat" min="1" placeholder="Contoh: 15" class="clean-input w-full px-3 py-2 text-xs font-semibold">
+</div>
+</div>
+</div>
+
+<div class="pt-1 space-y-2">
+<button type="button" id="scanConfirmSaveBtn" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.confirmScanSave()" class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs inline-flex items-center justify-center gap-2 shadow-md transition-all">
+<i class="fa-solid fa-circle-check"></i><span>Hadir &amp; Simpan (Tanpa Pelanggaran)</span>
+</button>
+</div>
+</div>
+</div>
+
+<!-- MODAL INPUT IZIN & ALPA (HANYA MENAMPILKAN NAMA YANG BELUM TERVERIFIKASI) -->
+<div id="izinAlpaModal" class="fixed inset-0 z-[122] flex modal-backdrop-clean p-4 hidden overflow-y-auto">
+<div class="clean-card modal-sheet-enter w-full max-w-md m-auto overflow-hidden flex flex-col max-h-[86vh]">
+<div class="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 shrink-0">
+<div class="min-w-0">
+<h3 id="izinAlpaModalTitle" class="text-sm font-bold text-slate-900 dark:text-white truncate">Input Izin &amp; Alpa</h3>
+<p id="izinAlpaModalSubtitle" class="text-[11px] text-slate-500 truncate">Hanya menampilkan nama yang belum terverifikasi</p>
+</div>
+<button type="button" onclick="closeModal('izinAlpaModal')" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark text-xs"></i></button>
+</div>
+
+<div class="px-4 py-2.5 bg-slate-50/80 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 shrink-0">
+<span class="text-[11px] font-semibold text-slate-500">Atur cepat:</span>
+<div class="flex items-center gap-1.5">
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.setAllIzinAlpaChoice('Alpa')" class="px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 text-[10px] font-bold">Semua Alpa</button>
+<button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.setAllIzinAlpaChoice('Lewati')" class="px-2.5 py-1 rounded-lg bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold">Tunda Semua</button>
+</div>
+</div>
+
+<div id="izinAlpaListContainer" class="p-4 space-y-2 overflow-y-auto flex-1"></div>
+
+<div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-3 shrink-0">
+<div id="izinAlpaSummaryText" class="text-xs font-semibold text-slate-600 dark:text-slate-300">0 Izin • 0 Alpa</div>
+<button type="button" id="btnSendIzinAlpa" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.submitIzinAlpaModal()" class="px-4 py-2.5 bg-brand-700 hover:bg-brand-600 text-white font-bold text-xs rounded-xl shadow-sm transition-all">Kirim ke Database</button>
+</div>
+</div>
+</div>
 
 
 <div id="pengumumanModal" class="fixed inset-0 z-[110] flex modal-backdrop-clean p-4 hidden"><div class="clean-card modal-sheet-enter w-full max-w-sm p-6 m-auto"><h3 class="text-base font-bold mb-3">Buat Pengumuman</h3><form onsubmit="postPengumuman(event)" class="space-y-3"><textarea id="pIsi" rows="4" class="clean-input w-full p-3 text-xs" required placeholder="Isi pengumuman..."></textarea><div class="flex justify-end gap-2"><button type="button" onclick="closeModal('pengumumanModal')" class="px-4 py-2 rounded-xl text-xs bg-slate-100 dark:bg-slate-800">Batal</button><button type="submit" class="px-4 py-2 bg-brand-700 text-white rounded-xl text-xs font-semibold">Posting</button></div></form></div></div>
@@ -2356,9 +2587,9 @@ window.google = { script: { run: createRunner(null, null) } };
 }
 
 
-let appSettings = {}, masterData = {}, coreData = {}, session = null, rekData = [];
-let rekCache = {}, missingCache = null, isCoreLoaded = false, pengumumanCache = [];
-let currentDbData = [], currentDbType = '', allSuratData = [], activeSuratTab = 'Semua Kategori';
+var appSettings = {}, masterData = {}, coreData = {}, session = null, rekData = [];
+var rekCache = {}, missingCache = null, isCoreLoaded = false, pengumumanCache = [];
+var currentDbData = [], currentDbType = '', allSuratData = [], activeSuratTab = 'Semua Kategori';
 let usersCache = [], finCache = { simpanan: [], operasional: [] };
 let rekapChartInst = null, searchDebounceTimeout = null, tableSearchTimeout = null;
 let currentDetailRoomName = '';
@@ -2378,6 +2609,15 @@ document.body.style.overflow = 'hidden';
 
 
 function closeModal(id) {
+if (id === 'dbModal' && window.AlRifaieAttendance && typeof window.AlRifaieAttendance.stopNfcBindMode === 'function') {
+window.AlRifaieAttendance.stopNfcBindMode();
+}
+if (id === 'qrScannerModal' && window.AlRifaieAttendance && typeof window.AlRifaieAttendance.stopQrCameraOnly === 'function') {
+window.AlRifaieAttendance.stopQrCameraOnly();
+}
+if (id === 'scanConfirmModal' && window.AlRifaieAttendance && typeof window.AlRifaieAttendance.onScanConfirmClosedExternally === 'function') {
+window.AlRifaieAttendance.onScanConfirmClosedExternally();
+}
 const el = document.getElementById(id);
 if (!el) return;
 el.classList.remove('modal-is-open');
@@ -2551,6 +2791,10 @@ else if (tabId === 'surat') loadSurat();
 else if (tabId === 'saranAdmin') loadSaranList();
 else if (tabId === 'database') loadDbData();
 else if (tabId === 'admin') loadUsers();
+
+if (window.AlRifaieAttendance && typeof window.AlRifaieAttendance.onTabChanged === 'function') {
+window.AlRifaieAttendance.onTabChanged(tabId);
+}
 }
 
 
@@ -3442,7 +3686,9 @@ applyBannerImage(appSettings.bannerUrl, false);
 if (b.loginData) masterData = b.loginData;
 if (b.coreData && Object.keys(b.coreData).length > 0) {
 coreData = b.coreData;
-
+if (window.AlRifaieAttendance && typeof window.AlRifaieAttendance.onBundleApplied === 'function') {
+window.AlRifaieAttendance.onBundleApplied();
+}
 
 if (session) {
 populateSessionDropdowns();
@@ -4713,6 +4959,10 @@ tr.style.display = tr.dataset.nama && tr.dataset.nama.toLowerCase().includes(q) 
 
 
 function loadMembers(type) {
+if (window.AlRifaieAttendance && typeof window.AlRifaieAttendance.loadMembers === 'function') {
+window.AlRifaieAttendance.loadMembers(type);
+return;
+}
 let target, tbody, arr = [];
 if (type === 'wb') {
 target = document.getElementById('wbRoomSelect').value.trim();
@@ -4846,6 +5096,9 @@ pel.push(mnt ? `Terlambat ${mnt} Menit` : 'Terlambat');
 }
 }
 updatePelBtnVisual(activePelRow, pel);
+if (window.AlRifaieAttendance && typeof window.AlRifaieAttendance.onPelanggaranUpdated === 'function') {
+window.AlRifaieAttendance.onPelanggaranUpdated(activePelRow, activePelType, pel);
+}
 closeModal('pelanggaranModal');
 }
 
@@ -4858,12 +5111,21 @@ const inpEl = document.getElementById('modalMenitTelatInput');
 if (cekEl) cekEl.checked = false;
 if (wrapEl) wrapEl.classList.add('hidden');
 if (inpEl) inpEl.value = '';
-if (activePelRow) updatePelBtnVisual(activePelRow, []);
+if (activePelRow) {
+updatePelBtnVisual(activePelRow, []);
+if (window.AlRifaieAttendance && typeof window.AlRifaieAttendance.onPelanggaranUpdated === 'function') {
+window.AlRifaieAttendance.onPelanggaranUpdated(activePelRow, activePelType, []);
+}
+}
 closeModal('pelanggaranModal');
 }
 
 
 function submitAbsensiAction(type, btn) {
+if (window.AlRifaieAttendance && typeof window.AlRifaieAttendance.submitRemainingAbsensi === 'function') {
+window.AlRifaieAttendance.submitRemainingAbsensi(type, btn);
+return;
+}
 const target = type==='wb' ? document.getElementById('wbRoomSelect').value : type==='takhassus' ? document.getElementById('takhClassSelect').value : document.getElementById(type+'Target').value;
 const tglSesi = document.getElementById(type==='takhassus'?'takhDate':type+'Date').value;
 const rows = document.querySelectorAll(`#${type}TableBody tr[data-nama]`);
@@ -5236,6 +5498,10 @@ Swal.fire('Terhapus', 'Data database berhasil dihapus.', 'success');
 
 
 function filterDbTable() {
+if (window.AlRifaieAttendance && typeof window.AlRifaieAttendance.filterDbTable === 'function') {
+window.AlRifaieAttendance.filterDbTable();
+return;
+}
 const q = document.getElementById('dbSearchName').value.toLowerCase();
 const rm = document.getElementById('dbFilterRoom').value;
 const f = currentDbData.filter(r => {
@@ -5247,7 +5513,11 @@ document.getElementById('dbTbody').innerHTML = f.map(r => `<tr><td class="p-3 fo
 }
 
 
-function openDbModal() {
+function openDbModal(editIdx) {
+if (window.AlRifaieAttendance && typeof window.AlRifaieAttendance.openDbEdit === 'function') {
+window.AlRifaieAttendance.openDbEdit(editIdx);
+return;
+}
 document.getElementById('dbRowIdx').value = '';
 ['dbF1','dbF2','dbF3','dbF4'].forEach(id => document.getElementById(id).value = '');
 openModal('dbModal');
@@ -5255,6 +5525,10 @@ openModal('dbModal');
 
 
 function saveDbDataAction(e) {
+if (window.AlRifaieAttendance && typeof window.AlRifaieAttendance.saveDbData === 'function') {
+window.AlRifaieAttendance.saveDbData(e);
+return;
+}
 e.preventDefault();
 google.script.run.withSuccessHandler(() => {
 closeModal('dbModal');
@@ -5793,5 +6067,7 @@ a.download = fn;
 a.click();
 }
 </script>
+<script defer src="./qr-lib.js"></script>
+<script defer src="./nfc-qr-module.js"></script>
 </body>
 </html>

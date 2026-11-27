@@ -1,5 +1,6 @@
 package com.example
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -10,19 +11,36 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.pwa.NfcController
 import com.example.pwa.PwaViewModel
 import com.example.pwa.PwaWebViewScreen
 import com.example.ui.theme.DeptPendidikanTheme
 import java.io.File
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class MainActivity : ComponentActivity() {
 
   private val viewModel: PwaViewModel by viewModels()
+  private val _nfcTagEvents = MutableSharedFlow<String>(extraBufferCapacity = 8)
+  private val _nfcStatusState = MutableStateFlow("{\"supported\":false,\"enabled\":false,\"locked\":false,\"mode\":\"idle\"}")
+  private lateinit var nfcController: NfcController
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     ensureWebViewCacheDirectories()
     enableEdgeToEdge()
+
+    nfcController =
+      NfcController(
+        activity = this,
+        onTagScanned = { payloadJson -> _nfcTagEvents.tryEmit(payloadJson) },
+        onStatusChanged = { statusJson -> _nfcStatusState.value = statusJson },
+      )
+    _nfcStatusState.value = nfcController.getStatusJson()
+    nfcController.handleIntent(intent)
 
     setContent {
       val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -41,8 +59,36 @@ class MainActivity : ComponentActivity() {
         PwaWebViewScreen(
           viewModel = viewModel,
           onExitApp = { finish() },
+          nfcTagEvents = _nfcTagEvents.asSharedFlow(),
+          nfcStatusEvents = _nfcStatusState.asStateFlow(),
+          onSetNfcLockMode = { locked, mode -> nfcController.setLockMode(locked, mode) },
+          onGetNfcStatus = { nfcController.getStatusJson() },
+          onOpenNfcSettings = { nfcController.openNfcSettings() },
+          onVibrateFeedback = { ms -> nfcController.vibrateFeedback(ms) },
         )
       }
+    }
+  }
+
+  override fun onResume() {
+    super.onResume()
+    if (::nfcController.isInitialized) {
+      nfcController.onResume()
+    }
+  }
+
+  override fun onPause() {
+    if (::nfcController.isInitialized) {
+      nfcController.onPause()
+    }
+    super.onPause()
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    setIntent(intent)
+    if (::nfcController.isInitialized) {
+      nfcController.handleIntent(intent)
     }
   }
 

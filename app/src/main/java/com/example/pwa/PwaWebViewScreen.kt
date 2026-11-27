@@ -12,6 +12,7 @@ import android.print.PrintAttributes
 import android.print.PrintManager
 import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.PermissionRequest
 import android.webkit.URLUtil
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -102,6 +103,8 @@ import com.example.offline.SyncStatus
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -111,6 +114,12 @@ fun PwaWebViewScreen(
   viewModel: PwaViewModel,
   onExitApp: () -> Unit,
   modifier: Modifier = Modifier,
+  nfcTagEvents: Flow<String> = emptyFlow(),
+  nfcStatusEvents: Flow<String> = emptyFlow(),
+  onSetNfcLockMode: (Boolean, String) -> Unit = { _, _ -> },
+  onGetNfcStatus: () -> String = { "{\"supported\":false,\"enabled\":false,\"locked\":false,\"mode\":\"idle\"}" },
+  onOpenNfcSettings: () -> Unit = {},
+  onVibrateFeedback: (Long) -> Unit = {},
 ) {
   val context = LocalContext.current
   val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -119,6 +128,7 @@ fun PwaWebViewScreen(
 
   var webViewRef by remember { mutableStateOf<WebView?>(null) }
   var pendingFileCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
+  var pendingWebPermissionRequest by remember { mutableStateOf<PermissionRequest?>(null) }
   var lastBackPressMs by remember { mutableLongStateOf(0L) }
   var showQueueSheet by remember { mutableStateOf(false) }
 
@@ -143,6 +153,44 @@ fun PwaWebViewScreen(
       pendingFileCallback?.onReceiveValue(if (uri != null) arrayOf(uri) else null)
       pendingFileCallback = null
     }
+
+  // Runtime camera permission for live QR code scanning inside WebView
+  val cameraPermissionLauncher =
+    rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+      val req = pendingWebPermissionRequest
+      pendingWebPermissionRequest = null
+      if (req != null) {
+        if (granted) {
+          runCatching { req.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE)) }
+        } else {
+          runCatching { req.deny() }
+        }
+      }
+      webViewRef?.evaluateJavascript(
+        "if(window.__androidOnCameraPermissionResult){window.__androidOnCameraPermissionResult($granted);}",
+        null,
+      )
+    }
+
+  LaunchedEffect(nfcTagEvents, webViewRef) {
+    nfcTagEvents.collect { payloadJson ->
+      val safeJson = payloadJson.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "")
+      webViewRef?.evaluateJavascript(
+        "if(window.__androidOnNfcScanned){window.__androidOnNfcScanned('$safeJson');}",
+        null,
+      )
+    }
+  }
+
+  LaunchedEffect(nfcStatusEvents, webViewRef) {
+    nfcStatusEvents.collect { statusJson ->
+      val safeJson = statusJson.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "")
+      webViewRef?.evaluateJavascript(
+        "if(window.__androidOnNfcStatusChanged){window.__androidOnNfcStatusChanged('$safeJson');}",
+        null,
+      )
+    }
+  }
 
   // Fallback document picker for non-image file inputs
   val genericFileLauncher =
@@ -235,6 +283,8 @@ fun PwaWebViewScreen(
     onDispose {
       pendingFileCallback?.onReceiveValue(null)
       pendingFileCallback = null
+      pendingWebPermissionRequest?.deny()
+      pendingWebPermissionRequest = null
     }
   }
 
@@ -348,6 +398,33 @@ fun PwaWebViewScreen(
                   onManualSyncRequested = {
                     viewModel.syncPendingNow()
                   },
+                  onSetNfcLockMode = { locked, mode ->
+                    onSetNfcLockMode(locked, mode)
+                  },
+                  onGetNfcStatus = {
+                    onGetNfcStatus()
+                  },
+                  onOpenNfcSettings = {
+                    post { onOpenNfcSettings() }
+                  },
+                  onRequestCameraPermission = {
+                    post {
+                      val granted =
+                        ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) ==
+                          PackageManager.PERMISSION_GRANTED
+                      if (granted) {
+                        webViewRef?.evaluateJavascript(
+                          "if(window.__androidOnCameraPermissionResult){window.__androidOnCameraPermissionResult(true);}",
+                          null,
+                        )
+                      } else {
+                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                      }
+                    }
+                  },
+                  onVibrateFeedback = { ms ->
+                    onVibrateFeedback(ms)
+                  },
                 )
               addJavascriptInterface(jsBridge, PwaJsBridge.BRIDGE_NAME)
 
@@ -413,6 +490,26 @@ fun PwaWebViewScreen(
                   override fun onProgressChanged(view: WebView?, newProgress: Int) {
                     if (newProgress >= 100) {
                       viewModel.onProgressChanged(100)
+                    }
+                  }
+
+                  override fun onPermissionRequest(request: PermissionRequest?) {
+                    if (request == null) return
+                    val originHost = request.origin?.host?.lowercase().orEmpty()
+                    val wantsVideo = request.resources.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE)
+                    if (!wantsVideo || originHost != PwaAssetInterceptor.APP_HOST) {
+                      request.deny()
+                      return
+                    }
+                    val granted =
+                      ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) ==
+                        PackageManager.PERMISSION_GRANTED
+                    if (granted) {
+                      request.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE))
+                    } else {
+                      pendingWebPermissionRequest?.deny()
+                      pendingWebPermissionRequest = request
+                      cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                     }
                   }
 

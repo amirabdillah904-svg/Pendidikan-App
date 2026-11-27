@@ -269,7 +269,145 @@ function dispatchExistingFunction_(fnName, args) {
   if (!targetFn) {
     throw new Error('Fungsi tidak dikenali atau belum tersedia di Apps Script: ' + fnName);
   }
-  return targetFn.apply(null, safeArgs);
+  const result = targetFn.apply(null, safeArgs);
+
+  // Otomatis tambahkan header "NFC Code" & "QR Code" pada sheet absensi / database setelah data masuk
+  try {
+    if (fnName === 'submitAbsensi' && safeArgs[0] && typeof safeArgs[0] === 'object') {
+      syncAttendanceNfcQrColumns_(safeArgs[0]);
+    } else if (fnName === 'saveDbData' && safeArgs[2] && typeof safeArgs[2] === 'object') {
+      syncDatabaseNfcQrColumns_(safeArgs[0], safeArgs[1], safeArgs[2]);
+    }
+  } catch (extraErr) {
+    Logger.log('Info sync kolom NFC/QR: ' + extraErr);
+  }
+  return result;
+}
+
+/**
+ * Memastikan baris header (baris 1) pada sheet memiliki kolom tambahan (NFC Code, QR Code, Metode).
+ * Mengembalikan map 1-based column index untuk setiap nama header yang diminta.
+ */
+function ensureExtraHeaders_(sheet, headerNames) {
+  const lastCol = Math.max(1, sheet.getLastColumn());
+  const existing = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) {
+    return String(h || '').trim();
+  });
+  const colMap = {};
+  let nextCol = lastCol;
+
+  headerNames.forEach(function (name) {
+    const idx = existing.findIndex(function (h) {
+      return h.toLowerCase() === name.toLowerCase();
+    });
+    if (idx !== -1) {
+      colMap[name] = idx + 1;
+    } else {
+      nextCol++;
+      sheet.getRange(1, nextCol).setValue(name);
+      colMap[name] = nextCol;
+    }
+  });
+  return colMap;
+}
+
+/**
+ * Menulis otomatis kolom "NFC Code", "QR Code", dan "Metode" pada sheet penyimpanan absensi
+ * tanpa merusak struktur kolom absensi existing.
+ */
+function syncAttendanceNfcQrColumns_(payload) {
+  const items = Array.isArray(payload.items) ? payload.items : [];
+  if (!items.length) return;
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const type = String(payload.type || '').toLowerCase();
+  const candidateNames = {
+    wb: ['Absensi WB', 'Absensi Wajib Belajar', 'Rekap WB', 'Log Absensi WB'],
+    takhassus: ['Absensi Takhassus', 'Rekap Takhassus', 'Log Absensi Takhassus'],
+    musyrif: ['Absensi Musyrif', 'Rekap Musyrif', 'Log Absensi Musyrif'],
+    pengajar: ['Absensi Pengajar', 'Rekap Pengajar', 'Log Absensi Pengajar']
+  }[type] || [];
+
+  let sheet = null;
+  for (let i = 0; i < candidateNames.length; i++) {
+    sheet = ss.getSheetByName(candidateNames[i]);
+    if (sheet) break;
+  }
+  if (!sheet) {
+    // Cari sheet yang namanya mengandung "absen" dan kata tipe
+    const allSheets = ss.getSheets();
+    sheet = allSheets.find(function (sh) {
+      const n = sh.getName().toLowerCase();
+      return n.indexOf('absen') !== -1 && n.indexOf(type) !== -1;
+    }) || null;
+  }
+  if (!sheet || sheet.getLastRow() <= 1) return;
+
+  const colMap = ensureExtraHeaders_(sheet, ['NFC Code', 'QR Code', 'Metode']);
+  const lastRow = sheet.getLastRow();
+  const scanWindow = Math.min(lastRow - 1, Math.max(items.length * 3, 60));
+  const startRow = Math.max(2, lastRow - scanWindow + 1);
+  const rowsData = sheet.getRange(startRow, 1, lastRow - startRow + 1, Math.min(8, sheet.getLastColumn())).getValues();
+
+  items.forEach(function (it) {
+    const namaLower = String(it.nama || '').trim().toLowerCase();
+    if (!namaLower) return;
+    for (let r = rowsData.length - 1; r >= 0; r--) {
+      const rowMatched = rowsData[r].some(function (cell) {
+        return String(cell || '').trim().toLowerCase() === namaLower;
+      });
+      if (rowMatched) {
+        const sheetRow = startRow + r;
+        if (it.nfcCode) sheet.getRange(sheetRow, colMap['NFC Code']).setValue(String(it.nfcCode));
+        if (it.qrCode) sheet.getRange(sheetRow, colMap['QR Code']).setValue(String(it.qrCode));
+        if (it.metodeAbsen) sheet.getRange(sheetRow, colMap['Metode']).setValue(String(it.metodeAbsen));
+        break;
+      }
+    }
+  });
+}
+
+/**
+ * Menulis otomatis kolom "NFC Code" dan "QR Code" pada sheet database master (Santri/Musyrif/Pengajar).
+ */
+function syncDatabaseNfcQrColumns_(dbType, rowIdx, data) {
+  const nfcCode = String(data.nfcCode || '').trim();
+  const qrCode = String(data.qrCode || '').trim();
+  if (!nfcCode && !qrCode) return;
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const type = String(dbType || '').toLowerCase();
+  const candidateNames = {
+    wb: ['Data Santri WB', 'Santri WB', 'Wajib Belajar', 'DB_WB'],
+    takhassus: ['Data Santri Takhassus', 'Santri Takhassus', 'Takhassus', 'DB_Takhassus'],
+    musyrif: ['Data Musyrif', 'Musyrif', 'DB_Musyrif'],
+    pengajar: ['Data Pengajar', 'Pengajar', 'DB_Pengajar']
+  }[type] || [];
+
+  let sheet = null;
+  for (let i = 0; i < candidateNames.length; i++) {
+    sheet = ss.getSheetByName(candidateNames[i]);
+    if (sheet) break;
+  }
+  if (!sheet || sheet.getLastRow() <= 1) return;
+
+  const colMap = ensureExtraHeaders_(sheet, ['NFC Code', 'QR Code']);
+  const targetName = String(data.f1 || '').trim().toLowerCase();
+  let targetRow = Number(rowIdx);
+  if (!targetRow || targetRow < 2 || targetRow > sheet.getLastRow()) {
+    const lastRow = sheet.getLastRow();
+    const names = sheet.getRange(2, 1, lastRow - 1, Math.min(3, sheet.getLastColumn())).getValues();
+    for (let i = names.length - 1; i >= 0; i--) {
+      if (names[i].some(function (c) { return String(c || '').trim().toLowerCase() === targetName; })) {
+        targetRow = i + 2;
+        break;
+      }
+    }
+  }
+  if (targetRow >= 2 && targetRow <= sheet.getLastRow()) {
+    if (nfcCode) sheet.getRange(targetRow, colMap['NFC Code']).setValue(nfcCode);
+    if (qrCode) sheet.getRange(targetRow, colMap['QR Code']).setValue(qrCode);
+  }
 }
 
 /**
