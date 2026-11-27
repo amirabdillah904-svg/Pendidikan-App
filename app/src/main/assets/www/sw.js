@@ -1,9 +1,11 @@
-const CACHE_NAME = 'alrifaie-pwa-v9';
+const CACHE_NAME = 'alrifaie-pwa-v15';
 const CORE_ASSETS = [
   './',
   './index.html',
   './qr-lib.js',
+  './admin-settings-module.js',
   './nfc-qr-module.js',
+  './smart-features-module.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'

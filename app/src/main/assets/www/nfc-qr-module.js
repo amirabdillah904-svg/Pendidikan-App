@@ -546,12 +546,27 @@
       </span>`;
     }
 
-    return `<tr data-nama="${safeNama}" data-nfc="${safeNfc}" data-qr="${safeQr}" data-verified="${isDone ? '1' : '0'}" data-status="${escAttr(status || 'Belum Verifikasi')}" data-method="${escAttr(isDone ? (verifiedRec.method || 'QR') : '')}" data-pelanggaran="${pelJsonAttr}" class="${rowBg} transition-colors">
+    const approvedIzin = (!isDone && (type === 'musyrif' || type === 'pengajar') && global.AlRifaieSmart && typeof global.AlRifaieSmart.getApprovedIzinForStaff === 'function')
+      ? global.AlRifaieSmart.getApprovedIzinForStaff(nama, getActiveDateForType(type))
+      : null;
+
+    if (!isDone && approvedIzin) {
+      rowBg = 'bg-amber-50/70 dark:bg-amber-950/25';
+      statusCellHtml = `<div class="inline-flex flex-col items-end gap-0.5">
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 dark:bg-amber-900/70 text-amber-800 dark:text-amber-200 border border-amber-300/70">
+          <i class="fa-solid fa-file-circle-check text-[10px]"></i>
+          <span>Izin Digital • ${escAttr(approvedIzin.jenis || 'Izin')}</span>
+        </span>
+        <span class="text-[9px] font-semibold text-amber-700 dark:text-amber-400">Disetujui Admin • Otomatis Izin</span>
+      </div>`;
+    }
+
+    return `<tr data-nama="${safeNama}" data-nfc="${safeNfc}" data-qr="${safeQr}" data-verified="${isDone ? '1' : '0'}" data-status="${escAttr(status || (approvedIzin ? 'Izin Digital' : 'Belum Verifikasi'))}" data-izin-digital="${approvedIzin ? '1' : '0'}" data-izin-jenis="${approvedIzin ? escAttr(approvedIzin.jenis || 'Izin') : ''}" data-method="${escAttr(isDone ? (verifiedRec.method || 'QR') : '')}" data-pelanggaran="${pelJsonAttr}" class="${rowBg} transition-colors">
       <td class="p-3 align-middle">
         <div class="flex items-center gap-2">
           ${isHadir
             ? '<span class="w-5 h-5 rounded-full bg-emerald-500 text-white inline-flex items-center justify-center shrink-0 text-[10px]"><i class="fa-solid fa-check"></i></span>'
-            : (isIzin
+            : (isIzin || approvedIzin
               ? '<span class="w-5 h-5 rounded-full bg-amber-500 text-white inline-flex items-center justify-center shrink-0 text-[10px]"><i class="fa-solid fa-i"></i></span>'
               : (isAlpa
                 ? '<span class="w-5 h-5 rounded-full bg-red-500 text-white inline-flex items-center justify-center shrink-0 text-[10px]"><i class="fa-solid fa-xmark"></i></span>'
@@ -648,31 +663,44 @@
   }
 
   function showScanBanner(scopeType, variant, message) {
-    const el = document.getElementById(scopeType + 'ScanFeedback');
-    if (el) {
-      const styles = {
-        success: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
-        info: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
-        warn: 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-      };
-      el.className = 'px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all ' + (styles[variant] || styles.info);
-      el.innerHTML = `<i class="fa-solid ${variant === 'success' ? 'fa-circle-check' : (variant === 'warn' ? 'fa-triangle-exclamation' : 'fa-circle-info')}"></i><span>${escAttr(message)}</span>`;
-      el.classList.remove('hidden');
-      clearTimeout(el._hideTimer);
-      el._hideTimer = setTimeout(() => el.classList.add('hidden'), 4800);
+    // Tampilkan notifikasi melayang (floating pill) di tepi atas layar dengan pointer-events-none
+    // agar TIDAK memotong / menutupi layar scan kamera maupun menyulitkan petugas saat antre scan!
+    let toast = document.getElementById('scanFloatingToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'scanFloatingToast';
+      toast.className = 'fixed top-3 left-1/2 -translate-x-1/2 z-[165] pointer-events-none w-[calc(100%-24px)] max-w-sm transition-all duration-200 opacity-0 -translate-y-2';
+      document.body.appendChild(toast);
     }
 
+    const pillStyles = {
+      success: 'bg-emerald-600/95 text-white border-emerald-400/60',
+      info: 'bg-indigo-600/95 text-white border-indigo-400/60',
+      warn: 'bg-amber-600/95 text-white border-amber-400/60'
+    };
+    const iconCls = variant === 'success'
+      ? 'fa-circle-check'
+      : (variant === 'warn' ? 'fa-triangle-exclamation' : 'fa-circle-info');
+
+    toast.innerHTML = `<div class="px-3.5 py-2.5 rounded-2xl border shadow-xl backdrop-blur-md text-xs font-bold flex items-center gap-2 ${pillStyles[variant] || pillStyles.info}">
+      <i class="fa-solid ${iconCls} shrink-0 text-sm"></i>
+      <span class="leading-snug">${escAttr(message)}</span>
+    </div>`;
+
+    toast.classList.remove('opacity-0', '-translate-y-2');
+    toast.classList.add('opacity-100', 'translate-y-0');
+
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => {
+      toast.classList.remove('opacity-100', 'translate-y-0');
+      toast.classList.add('opacity-0', '-translate-y-2');
+    }, 2400);
+
+    // Pastikan banner lama di dalam kartu & layar kamera tetap tersembunyi agar tidak menggeser/memotong tampilan scan
+    const inlineEl = document.getElementById(scopeType + 'ScanFeedback');
+    if (inlineEl) inlineEl.classList.add('hidden');
     const modalFeedback = document.getElementById('qrModalFeedback');
-    if (modalFeedback && qrScanActive) {
-      const cls = variant === 'success'
-        ? 'bg-emerald-500/90 text-white'
-        : (variant === 'warn' ? 'bg-amber-500/95 text-white' : 'bg-indigo-500/90 text-white');
-      modalFeedback.className = 'px-3 py-2 rounded-xl text-xs font-bold text-center shadow-lg ' + cls;
-      modalFeedback.innerText = message;
-      modalFeedback.classList.remove('hidden');
-      clearTimeout(modalFeedback._hideTimer);
-      modalFeedback._hideTimer = setTimeout(() => modalFeedback.classList.add('hidden'), 3200);
-    }
+    if (modalFeedback) modalFeedback.classList.add('hidden');
   }
 
   // ===================== 5. POPUP SCAN NFC/QR -> PILIH PELANGGARAN -> AUTO SIMPAN =====================
@@ -707,25 +735,33 @@
   }
 
   function openScanConfirmPopup(match, source, preferredType, rawCode) {
-    // Jika masih ada popup sebelumnya yang belum sempat diklik (antrean tap kartu NFC beruntun),
-    // otomatis langsung simpan yang sebelumnya agar tidak ada data terlewat!
+    // Jika masih ada kartu sebelumnya yang belum sempat diklik (antrean scan QR/NFC beruntun),
+    // otomatis langsung simpan yang sebelumnya agar antrean lancar tanpa hambatan!
     if (pendingScanConfirm) {
       commitScanConfirmToDatabase(true);
     }
+
+    // Evaluasi batas waktu absen dari Setelan Admin (otomatis tercatat Terlambat jika melewati jam batas)
+    const lateInfo = (global.AlRifaieAdminSettings && typeof global.AlRifaieAdminSettings.evaluateDeadline === 'function')
+      ? global.AlRifaieAdminSettings.evaluateDeadline(match.type)
+      : { enabled: false, isLate: false, diffMinutes: 0, deadlineTime: '' };
 
     pendingScanConfirm = {
       match: match,
       source: source,
       preferredType: preferredType,
-      rawCode: rawCode
+      rawCode: rawCode,
+      lateInfo: lateInfo
     };
 
-    // Jeda pembacaan frame QR sementara popup pelanggaran tampil
+    // Biarkan kamera QR tetap aktif dengan jeda singkat 900ms agar scan berikutnya langsung auto-simpan santri ini
     qrScanPausedForConfirm = true;
+    setTimeout(() => { qrScanPausedForConfirm = false; }, 900);
 
     const nameEl = document.getElementById('scanConfirmName');
     const subEl = document.getElementById('scanConfirmSub');
     const badgeEl = document.getElementById('scanConfirmMethodBadge');
+    const lateBadgeEl = document.getElementById('scanConfirmLateBadge');
     const boxSantri = document.getElementById('scanConfirmPelSantri');
     const boxPetugas = document.getElementById('scanConfirmPelPetugas');
 
@@ -733,25 +769,37 @@
     if (subEl) subEl.innerText = (match.target || match.type.toUpperCase()) + ' • ' + getWibTimeStr();
     if (badgeEl) badgeEl.innerHTML = `<i class="fa-solid ${source === 'NFC' ? 'fa-wifi rotate-90' : 'fa-qrcode'}"></i><span>${source} Terdeteksi</span>`;
 
+    if (lateBadgeEl) {
+      if (lateInfo && lateInfo.isLate) {
+        lateBadgeEl.classList.remove('hidden');
+        lateBadgeEl.innerHTML = `<i class="fa-solid fa-clock"></i><span>Terlambat +${lateInfo.diffMinutes}m (Batas ${escAttr(lateInfo.deadlineTime)})</span>`;
+      } else {
+        lateBadgeEl.classList.add('hidden');
+      }
+    }
+
     const isSantri = match.type === 'wb' || match.type === 'takhassus';
     if (boxSantri) boxSantri.classList.toggle('hidden', !isSantri);
     if (boxPetugas) boxPetugas.classList.toggle('hidden', isSantri);
 
-    // Reset seluruh pilihan pelanggaran
-    document.querySelectorAll('input[name="scanConfirmPelSantri"]').forEach(chk => { chk.checked = false; });
+    // Reset seluruh pilihan pelanggaran lalu auto-centang Terlambat jika melewati batas waktu
+    document.querySelectorAll('input[name="scanConfirmPelSantri"]').forEach(chk => {
+      chk.checked = Boolean(isSantri && lateInfo && lateInfo.isLate && chk.value === 'Terlambat');
+    });
     const cekTelat = document.getElementById('scanConfirmCekTelat');
     const wrapTelat = document.getElementById('scanConfirmMenitWrap');
     const inpTelat = document.getElementById('scanConfirmMenitTelat');
-    if (cekTelat) cekTelat.checked = false;
-    if (wrapTelat) wrapTelat.classList.add('hidden');
-    if (inpTelat) inpTelat.value = '';
+    const autoLatePetugas = Boolean(!isSantri && lateInfo && lateInfo.isLate);
+    if (cekTelat) cekTelat.checked = autoLatePetugas;
+    if (wrapTelat) wrapTelat.classList.toggle('hidden', !autoLatePetugas);
+    if (inpTelat) inpTelat.value = autoLatePetugas ? String(lateInfo.diffMinutes || 1) : '';
 
     updateScanConfirmButtonLabel();
 
-    if (typeof global.openModal === 'function') {
-      global.openModal('scanConfirmModal');
-    } else {
-      document.getElementById('scanConfirmModal')?.classList.remove('hidden');
+    const modalEl = document.getElementById('scanConfirmModal');
+    if (modalEl) {
+      modalEl.classList.remove('hidden');
+      modalEl.classList.add('modal-is-open');
     }
   }
 
@@ -762,10 +810,10 @@
     pendingScanConfirm = null;
 
     if (!silentReopenNext) {
-      if (typeof global.closeModal === 'function') {
-        global.closeModal('scanConfirmModal');
-      } else {
-        document.getElementById('scanConfirmModal')?.classList.add('hidden');
+      const modalEl = document.getElementById('scanConfirmModal');
+      if (modalEl) {
+        modalEl.classList.add('hidden');
+        modalEl.classList.remove('modal-is-open');
       }
       qrScanPausedForConfirm = false;
     }
@@ -840,20 +888,20 @@
 
     vibrateSafe(45);
     const sameRoom = activeTargetNow === match.target;
-    const pelText = selectedPel.length ? (' • Pelanggaran: ' + selectedPel.join(', ')) : '';
+    const pelText = selectedPel.length ? (' • ' + selectedPel.join(', ')) : '';
     const msg = sameRoom
-      ? '✓ ' + match.nama + ' Hadir (' + source + ')' + pelText + ' — Otomatis masuk database!'
-      : '✓ ' + match.nama + ' otomatis masuk Hadir ke ' + match.target + ' (' + source + ')' + pelText + '!';
+      ? match.nama + ' Hadir (' + source + ')' + pelText
+      : match.nama + ' Hadir → ' + match.target + ' (' + source + ')' + pelText;
     showScanBanner(preferredType, 'success', msg);
   }
 
   function cancelScanConfirmPopup() {
     pendingScanConfirm = null;
     qrScanPausedForConfirm = false;
-    if (typeof global.closeModal === 'function') {
-      global.closeModal('scanConfirmModal');
-    } else {
-      document.getElementById('scanConfirmModal')?.classList.add('hidden');
+    const modalEl = document.getElementById('scanConfirmModal');
+    if (modalEl) {
+      modalEl.classList.add('hidden');
+      modalEl.classList.remove('modal-is-open');
     }
   }
 
@@ -964,12 +1012,16 @@
       type: type,
       target: target,
       tglSesi: tglSesi,
-      items: unverifiedRows.map(tr => ({
-        nama: tr.dataset.nama,
-        nfcCode: tr.dataset.nfc || '',
-        qrCode: tr.dataset.qr || '',
-        choice: 'Alpa' // default Alpa agar sekali klik langsung siap kirim di akhir sesi
-      }))
+      items: unverifiedRows.map(tr => {
+        const hasIzinDigital = tr.dataset.izinDigital === '1';
+        return {
+          nama: tr.dataset.nama,
+          nfcCode: tr.dataset.nfc || '',
+          qrCode: tr.dataset.qr || '',
+          izinDigitalJenis: tr.dataset.izinJenis || '',
+          choice: hasIzinDigital ? 'Izin' : 'Alpa'
+        };
+      })
     };
 
     const titleEl = document.getElementById('izinAlpaModalTitle');
@@ -1003,10 +1055,14 @@
         return 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50';
       };
 
-      return `<div class="p-3 rounded-xl border border-slate-200/90 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-900/40 flex items-center justify-between gap-2">
+      const subNote = it.izinDigitalJenis
+        ? `<div class="text-[10px] font-bold text-amber-600 dark:text-amber-400"><i class="fa-solid fa-file-circle-check mr-1"></i>Izin Digital Disetujui (${escAttr(it.izinDigitalJenis)})</div>`
+        : '<div class="text-[10px] text-slate-400">Belum terverifikasi</div>';
+
+      return `<div class="p-3 rounded-xl border ${it.izinDigitalJenis ? 'border-amber-300/80 dark:border-amber-800/70 bg-amber-50/50 dark:bg-amber-950/20' : 'border-slate-200/90 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-900/40'} flex items-center justify-between gap-2">
         <div class="min-w-0">
           <div class="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">${idx + 1}. ${escAttr(it.nama)}</div>
-          <div class="text-[10px] text-slate-400">Belum terverifikasi</div>
+          ${subNote}
         </div>
         <div class="flex items-center gap-1 shrink-0">
           <button type="button" onclick="window.AlRifaieAttendance.setIzinAlpaChoice(${idx},'Izin')" class="px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all ${btnStyle('Izin')}">Izin</button>
@@ -1935,6 +1991,12 @@
       syncNfcLockForCurrentContext();
       if (tabId === 'wb' || tabId === 'takhassus' || tabId === 'musyrif' || tabId === 'pengajar') {
         refreshNfcStatusFromNative();
+        if (global.AlRifaieAdminSettings && typeof global.AlRifaieAdminSettings.renderDeadlineBadges === 'function') {
+          global.AlRifaieAdminSettings.renderDeadlineBadges();
+        }
+      }
+      if (tabId === 'admin' && global.AlRifaieAdminSettings && typeof global.AlRifaieAdminSettings.onAdminTabOpened === 'function') {
+        global.AlRifaieAdminSettings.onAdminTabOpened();
       }
     },
     onBundleApplied: function () {

@@ -1,5 +1,6 @@
 package com.example.offline
 
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -85,6 +86,59 @@ class OfflineSyncRepository(
   suspend fun getCachedResponse(cacheKey: String): String? =
     withContext(Dispatchers.IO) {
       dao.getCachedResponse(cacheKey)?.responseJson
+    }
+
+  suspend fun getAllPendingOperationsOnce(): List<PendingSyncEntity> =
+    withContext(Dispatchers.IO) {
+      dao.getAllPendingOperations()
+    }
+
+  suspend fun syncSingleOperationById(clientOpId: String): SyncRunResult =
+    syncMutex.withLock {
+      withContext(Dispatchers.IO) {
+        val item = dao.getOperationById(clientOpId) ?: return@withContext SyncRunResult(0, 0, 0)
+        dao.updateOperationStatus(item.clientOpId, SyncStatus.SYNCING)
+        val batchOutcome = tryBatchSync(listOf(item))
+        if (batchOutcome != null) {
+          return@withContext batchOutcome
+        }
+        val err = sendSingleOperation(item)
+        if (err == null) {
+          dao.deleteOperation(item.clientOpId)
+          SyncRunResult(attemptedCount = 1, syncedCount = 1, failedCount = 0)
+        } else {
+          dao.markOperationFailed(item.clientOpId, SyncStatus.FAILED, err)
+          SyncRunResult(attemptedCount = 1, syncedCount = 0, failedCount = 1, lastError = err)
+        }
+      }
+    }
+
+  /**
+   * Executes a read-only GAS function directly over HTTP so background WorkManager
+   * can detect new Pengumuman, Galeri, or Kotak Saran even when the app is closed.
+   */
+  suspend fun fetchGasReadOnce(fnName: String, args: JSONArray = JSONArray()): String? =
+    withContext(Dispatchers.IO) {
+      runCatching {
+        val payloadObj =
+          JSONObject().apply {
+            put("fn", fnName)
+            put("action", fnName)
+            put("args", args)
+          }
+        val encoded = URLEncoder.encode(payloadObj.toString(), "UTF-8")
+        val url = "$gasEndpoint?payload=$encoded"
+        val request =
+          Request.Builder()
+            .url(url)
+            .get()
+            .header("Accept", "application/json, text/plain, */*")
+            .build()
+        httpClient.newCall(request).execute().use { response ->
+          if (!response.isSuccessful) return@use null
+          response.body?.string()?.trim()
+        }
+      }.getOrNull()
     }
 
   suspend fun syncAllPending(): SyncRunResult =

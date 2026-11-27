@@ -1,15 +1,14 @@
 package com.example
 
 import android.content.Intent
-import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.pwa.NfcController
 import com.example.pwa.PwaViewModel
@@ -46,13 +45,9 @@ class MainActivity : ComponentActivity() {
       val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
       LaunchedEffect(uiState.isDarkTheme) {
-        val barStyle =
-          if (uiState.isDarkTheme) {
-            SystemBarStyle.dark(Color.TRANSPARENT)
-          } else {
-            SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
-          }
-        enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        controller.isAppearanceLightStatusBars = !uiState.isDarkTheme
+        controller.isAppearanceLightNavigationBars = !uiState.isDarkTheme
       }
 
       DeptPendidikanTheme(darkTheme = uiState.isDarkTheme) {

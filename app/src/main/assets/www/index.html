@@ -69,7 +69,7 @@
   }
 
   function invokeGas(fnName, args, onSuccess, onFailure) {
-    const readOnlyFns = ['getFastLoginData', 'getInitialBundle', 'getRekapData', 'getMissingAttendance', 'getFinancialData', 'getUsersData', 'getPengumuman', 'getGaleriData', 'getSaran', 'getSurat', 'getDbData'];
+    const readOnlyFns = ['getFastLoginData', 'getInitialBundle', 'getRekapData', 'getMissingAttendance', 'getFinancialData', 'getUsersData', 'getWaliSantriUsers', 'getPengumuman', 'getGaleriData', 'getSaran', 'getSurat', 'getDbData', 'getIzinDigital', 'getSantriTindakan'];
     const runner = readOnlyFns.includes(fnName)
       ? callGasViaJsonp(fnName, args).catch(() => callGasViaFetch(fnName, args))
       : callGasViaFetch(fnName, args).catch(() => callGasViaJsonp(fnName, args));
@@ -149,6 +149,17 @@ brand: {
 }
 }
 </script>
+<script>
+(function applyInitialThemeSync() {
+  try {
+    var saved = localStorage.getItem('alrifaie_theme_v2') || localStorage.getItem('alrifaie_theme');
+    var isDark = saved === 'dark';
+    document.documentElement.classList.toggle('dark', isDark);
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+  } catch (e) {}
+})();
+</script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
 
@@ -161,14 +172,14 @@ font-family: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text", "Segoe U
 
 
 :root {
---bg-page: #F8FAFC;
+--bg-page: #F6F7F4;
 --bg-surface: #FFFFFF;
---border-subtle: #CBD5E1;
+--border-subtle: #D6DCD6;
 --text-main: #0F172A;
 --text-muted: #475569;
---accent-indigo: #4F46E5;
---accent-indigo-light: #6366F1;
---accent-mint: #10B981;
+--accent-indigo: #3730A3;
+--accent-indigo-light: #4F46E5;
+--accent-mint: #059669;
 --accent-mint-glow: #34D399;
 --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
 --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
@@ -177,30 +188,60 @@ font-family: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text", "Segoe U
 
 html.dark {
 --bg-page: #0B1120;
---bg-surface: #1E293B;
+--bg-surface: #172135;
 --border-subtle: #334155;
 --text-main: #FFFFFF;
 --text-muted: #CBD5E1;
+color-scheme: dark;
 }
 
 
+html {
+overflow-x: clip;
+}
 body {
 background-color: var(--bg-page);
 background-image:
-radial-gradient(circle at 12% 6%, rgba(79, 70, 229, 0.08) 0%, transparent 42%),
-radial-gradient(circle at 88% 82%, rgba(16, 185, 129, 0.08) 0%, transparent 44%);
+radial-gradient(circle at 10% 4%, rgba(5, 150, 105, 0.08) 0%, transparent 42%),
+radial-gradient(circle at 90% 82%, rgba(55, 48, 163, 0.07) 0%, transparent 44%);
 background-repeat: no-repeat;
 color: var(--text-main);
 -webkit-font-smoothing: antialiased;
 text-rendering: optimizeLegibility;
-overflow-x: hidden;
+overflow-x: clip;
 transition: background-color 0.25s var(--ease-smooth), color 0.25s var(--ease-smooth);
 }
 html.dark body {
+background-color: #0B1120 !important;
+color: #F8FAFC !important;
 background-image:
-radial-gradient(circle at 14% 8%, rgba(99, 102, 241, 0.20) 0%, transparent 40%),
-radial-gradient(circle at 86% 84%, rgba(52, 211, 153, 0.14) 0%, transparent 44%);
+radial-gradient(circle at 14% 8%, rgba(16, 185, 129, 0.14) 0%, transparent 40%),
+radial-gradient(circle at 86% 84%, rgba(79, 70, 229, 0.18) 0%, transparent 44%);
 background-repeat: no-repeat;
+}
+html.dark .bg-white {
+background-color: #172135 !important;
+}
+html.dark .bg-slate-50,
+html.dark .bg-slate-50\/70,
+html.dark .bg-slate-50\/80,
+html.dark .bg-slate-50\/90 {
+background-color: #111A2E !important;
+}
+html.dark .bg-slate-100 {
+background-color: #1E293B !important;
+}
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark .border-slate-200\/80 {
+border-color: rgba(148, 163, 184, 0.24) !important;
+}
+html.dark .text-slate-900,
+html.dark .text-slate-800 {
+color: #F8FAFC !important;
+}
+html.dark .text-slate-700 {
+color: #E2E8F0 !important;
 }
 html.dark .text-slate-400,
 html.dark .text-slate-500 {
@@ -209,20 +250,70 @@ color: #CBD5E1 !important;
 html.dark .text-slate-600 {
 color: #E2E8F0 !important;
 }
+#themeFeedbackToast {
+position: fixed;
+left: 50%;
+bottom: 92px;
+transform: translate3d(-50%, 14px, 0);
+opacity: 0;
+pointer-events: none;
+z-index: 175;
+transition: opacity 0.22s ease, transform 0.24s var(--ease-spring);
+}
+#themeFeedbackToast.toast-visible {
+opacity: 1;
+transform: translate3d(-50%, 0, 0);
+}
 
 
-/* Clean UI Cards & Surfaces (Crisp Light Default + Obsidian Dark, Electric Indigo + Luminous Mint) */
-.clean-card {
+/* Clean UI Cards, Soft Bento & Bottom Sheet Surfaces (Modern Islamic Minimalist) */
+.clean-card, .bento-card {
 background-color: var(--bg-surface);
-border: 1px solid #E2E8F0;
-border-radius: 18px;
-box-shadow: 0 4px 16px -6px rgba(79, 70, 229, 0.10), 0 1px 3px rgba(15, 23, 42, 0.05);
+border: 1px solid #E3E7E2;
+border-radius: 20px;
+box-shadow: 0 6px 18px -8px rgba(15, 23, 42, 0.09), 0 1px 2px rgba(15, 23, 42, 0.04);
 transition: border-color 0.2s ease, transform 0.24s var(--ease-spring), box-shadow 0.24s ease;
 }
-html.dark .clean-card {
-background: linear-gradient(165deg, #1E293B 0%, #162033 100%);
-border-color: rgba(148, 163, 184, 0.26);
-box-shadow: 0 10px 24px -10px rgba(2, 6, 23, 0.65), 0 1px 0 0 rgba(255, 255, 255, 0.07) inset;
+html.dark .clean-card, html.dark .bento-card {
+background: linear-gradient(165deg, #1B273D 0%, #141E30 100%);
+border-color: rgba(148, 163, 184, 0.22);
+box-shadow: 0 10px 24px -10px rgba(2, 6, 23, 0.65), 0 1px 0 0 rgba(255, 255, 255, 0.06) inset;
+}
+.clean-bottom-sheet {
+position: fixed;
+left: 0;
+right: 0;
+bottom: 0;
+z-index: 140;
+max-height: 86vh;
+background-color: var(--bg-surface);
+border-top-left-radius: 28px;
+border-top-right-radius: 28px;
+border-top: 1px solid rgba(203, 213, 225, 0.85);
+box-shadow: 0 -18px 46px -12px rgba(15, 23, 42, 0.26);
+transform: translate3d(0, 100%, 0);
+transition: transform 0.28s var(--ease-spring);
+padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+html.dark .clean-bottom-sheet {
+background: linear-gradient(180deg, #1A263C 0%, #0F172A 100%);
+border-top-color: rgba(148, 163, 184, 0.28);
+box-shadow: 0 -22px 52px -12px rgba(2, 6, 23, 0.85);
+}
+.clean-bottom-sheet.sheet-open {
+transform: translate3d(0, 0, 0);
+}
+@media (min-width: 768px) {
+.clean-bottom-sheet {
+left: 50%;
+right: auto;
+width: 100%;
+max-width: 520px;
+transform: translate3d(-50%, 100%, 0);
+}
+.clean-bottom-sheet.sheet-open {
+transform: translate3d(-50%, 0, 0);
+}
 }
 
 
@@ -295,32 +386,45 @@ box-shadow: 0 4px 18px rgba(2, 6, 23, 0.45);
 
 
 .clean-sidebar {
-background-color: var(--bg-surface);
-border-right: 1px solid #E2E8F0;
-box-shadow: 8px 0 28px rgba(15, 23, 42, 0.18);
+background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%);
+border: 1px solid rgba(226, 232, 240, 0.9);
+box-shadow: 0 20px 44px -14px rgba(15, 23, 42, 0.22), 0 4px 14px -4px rgba(79, 70, 229, 0.12);
 overscroll-behavior: contain;
 backface-visibility: hidden;
 -webkit-backface-visibility: hidden;
-transition: transform 0.3s var(--ease-spring), background-color 0.22s ease;
+transition: transform 0.32s var(--ease-spring), background-color 0.22s ease, border-color 0.22s ease;
 }
 html.dark .clean-sidebar {
-background-color: #0F172A;
-border-right-color: rgba(148, 163, 184, 0.22);
+background: linear-gradient(180deg, rgba(15, 23, 42, 0.97) 0%, rgba(11, 17, 32, 0.98) 100%);
+border-color: rgba(99, 102, 241, 0.28);
+box-shadow: 0 24px 48px -12px rgba(2, 6, 23, 0.85), 0 0 24px -10px rgba(79, 70, 229, 0.24);
 }
 
 
 @media (max-width: 767px) {
 #appSidebar {
 position: fixed !important;
-top: 0 !important;
-bottom: 0 !important;
-left: 0 !important;
-height: 100vh;
-height: 100dvh !important;
-max-height: 100dvh !important;
+top: 10px !important;
+bottom: 10px !important;
+left: 10px !important;
+width: min(82vw, 292px) !important;
+height: auto !important;
+max-height: calc(100% - 20px) !important;
 z-index: 80 !important;
-border-top-right-radius: 22px;
-border-bottom-right-radius: 22px;
+border-radius: 26px !important;
+overflow: hidden;
+}
+#appSidebar.-translate-x-full {
+transform: translate3d(calc(-100% - 24px), 0, 0) !important;
+}
+}
+@media (min-width: 768px) {
+#appSidebar {
+margin: 12px 0 12px 12px;
+border-radius: 24px;
+height: calc(100vh - 5rem) !important;
+top: 4.25rem !important;
+overflow: hidden;
 }
 }
 
@@ -337,68 +441,203 @@ opacity: 1;
 }
 
 
-/* Floating Tab Bar Terpisah Jelas dari Latar Belakang */
+/* Floating Capsule Dock Tab Bar Estetik */
 .clean-bottom-bar {
 position: fixed !important;
-bottom: max(12px, env(safe-area-inset-bottom, 12px)) !important;
-left: 12px !important;
-right: 12px !important;
-max-width: 540px !important;
+bottom: max(14px, env(safe-area-inset-bottom, 14px)) !important;
+left: 14px !important;
+right: 14px !important;
+max-width: 460px !important;
 margin: 0 auto !important;
 z-index: 45 !important;
-background-color: rgba(255, 255, 255, 0.98);
-border: 1px solid #E2E8F0;
-border-radius: 22px;
-box-shadow: 0 12px 28px -8px rgba(79, 70, 229, 0.22), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
+background: linear-gradient(135deg, rgba(255, 255, 255, 0.90) 0%, rgba(248, 250, 252, 0.94) 100%);
+backdrop-filter: blur(20px) saturate(170%);
+-webkit-backdrop-filter: blur(20px) saturate(170%);
+border: 1px solid rgba(255, 255, 255, 0.92);
+border-radius: 9999px;
+box-shadow:
+  0 14px 34px -10px rgba(79, 70, 229, 0.28),
+  0 6px 14px -4px rgba(15, 23, 42, 0.10),
+  inset 0 1px 0 rgba(255, 255, 255, 0.85);
 transform: translateZ(0);
 transition: transform 0.28s var(--ease-spring), opacity 0.24s ease, background-color 0.22s ease, border-color 0.22s ease;
 }
 html.dark .clean-bottom-bar {
-background-color: rgba(15, 23, 42, 0.96);
-border-color: rgba(99, 102, 241, 0.42);
-box-shadow: 0 14px 32px -6px rgba(2, 6, 23, 0.78), 0 0 20px -10px rgba(52, 211, 153, 0.30);
+background: linear-gradient(135deg, rgba(15, 23, 42, 0.88) 0%, rgba(17, 24, 39, 0.93) 100%);
+border-color: rgba(129, 140, 248, 0.34);
+box-shadow:
+  0 16px 36px -8px rgba(2, 6, 23, 0.86),
+  0 0 24px -10px rgba(52, 211, 153, 0.28),
+  inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 
 .bottom-nav-item {
+position: relative;
 color: #64748B;
-border-radius: 15px;
-margin: 5px 2px;
-padding: 6px 4px;
-transition: color 0.2s ease, background-color 0.2s ease, transform 0.18s var(--ease-spring);
+border-radius: 9999px;
+min-height: 48px;
+padding: 5px 4px;
+transition: color 0.22s ease, transform 0.2s var(--ease-spring);
 }
 html.dark .bottom-nav-item {
 color: #94A3B8;
 }
-.bottom-nav-item:hover {
-color: #0F172A;
-background-color: rgba(238, 242, 255, 0.9);
-}
-html.dark .bottom-nav-item:hover {
-color: #FFFFFF;
-background-color: rgba(51, 65, 85, 0.65);
-}
 .bottom-nav-item:active {
-transform: scale3d(0.92, 0.92, 1);
+transform: scale3d(0.91, 0.91, 1);
+}
+.bottom-nav-item .bnav-icon-pill {
+width: 38px;
+height: 28px;
+border-radius: 9999px;
+display: flex;
+align-items: center;
+justify-content: center;
+transition: background 0.24s ease, color 0.22s ease, transform 0.24s var(--ease-spring), box-shadow 0.24s ease;
+}
+.bottom-nav-item:hover .bnav-icon-pill {
+background-color: rgba(79, 70, 229, 0.10);
+color: #4F46E5;
+}
+html.dark .bottom-nav-item:hover .bnav-icon-pill {
+background-color: rgba(129, 140, 248, 0.16);
+color: #E2E8F0;
+}
+.bottom-nav-item .bnav-label {
+font-size: 9.5px;
+line-height: 1.1;
+letter-spacing: 0.01em;
+transition: color 0.2s ease, font-weight 0.2s ease;
+}
+.bottom-nav-item .bnav-dot {
+width: 4px;
+height: 4px;
+border-radius: 9999px;
+background: transparent;
+margin-top: 1px;
+transition: width 0.24s var(--ease-spring), background-color 0.22s ease;
 }
 .bottom-nav-item.is-active {
-color: #FFFFFF;
-background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
-font-weight: 700;
-box-shadow: 0 4px 14px -2px rgba(79, 70, 229, 0.42);
+color: #4F46E5;
 }
 html.dark .bottom-nav-item.is-active {
+color: #34D399;
+}
+.bottom-nav-item.is-active .bnav-icon-pill {
+width: 46px;
+color: #FFFFFF;
+background: linear-gradient(135deg, #4F46E5 0%, #6366F1 55%, #10B981 100%);
+transform: translateY(-2px);
+box-shadow: 0 6px 16px -3px rgba(79, 70, 229, 0.50);
+}
+html.dark .bottom-nav-item.is-active .bnav-icon-pill {
 color: #0B1120;
-background: linear-gradient(135deg, #34D399 0%, #6EE7B7 100%);
-box-shadow: 0 4px 16px -2px rgba(52, 211, 153, 0.42);
+background: linear-gradient(135deg, #34D399 0%, #2DD4BF 55%, #818CF8 100%);
+box-shadow: 0 6px 18px -3px rgba(52, 211, 153, 0.48);
+}
+.bottom-nav-item.is-active .bnav-label {
+font-weight: 800;
+}
+.bottom-nav-item.is-active .bnav-dot {
+width: 14px;
+background: linear-gradient(90deg, #4F46E5, #10B981);
+}
+html.dark .bottom-nav-item.is-active .bnav-dot {
+background: linear-gradient(90deg, #34D399, #818CF8);
+}
+.bnav-menu-orb {
+width: 44px;
+height: 44px;
+border-radius: 9999px;
+background: linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(16, 185, 129, 0.14) 100%);
+border: 1px solid rgba(99, 102, 241, 0.22);
+color: #4F46E5;
+display: flex;
+align-items: center;
+justify-content: center;
+flex-shrink: 0;
+transition: transform 0.2s var(--ease-spring), background 0.2s ease;
+}
+html.dark .bnav-menu-orb {
+background: linear-gradient(135deg, rgba(99, 102, 241, 0.24) 0%, rgba(52, 211, 153, 0.18) 100%);
+border-color: rgba(129, 140, 248, 0.35);
+color: #34D399;
+}
+.bnav-menu-orb:active {
+transform: scale3d(0.90, 0.90, 1);
 }
 
 
+/* Sidebar Item Modern dengan Icon Badge & Active Accent Bar */
 .nav-btn {
-transition: background-color 0.18s ease, color 0.18s ease, transform 0.16s var(--ease-spring);
+position: relative;
+border-radius: 15px;
+padding: 8px 11px;
+color: #475569;
+font-weight: 600;
+transition: background 0.2s ease, color 0.18s ease, transform 0.18s var(--ease-spring), box-shadow 0.2s ease;
+}
+html.dark .nav-btn {
+color: #CBD5E1;
+}
+.nav-btn:hover {
+background: rgba(241, 245, 249, 0.9);
+transform: translateX(2px);
+}
+html.dark .nav-btn:hover {
+background: rgba(30, 41, 59, 0.72);
 }
 .nav-btn:active {
 transform: scale3d(0.98, 0.98, 1);
+}
+.nav-btn .nav-icon-box {
+width: 32px;
+height: 32px;
+border-radius: 11px;
+display: inline-flex;
+align-items: center;
+justify-content: center;
+flex-shrink: 0;
+font-size: 12px;
+transition: background 0.22s ease, color 0.2s ease, transform 0.22s var(--ease-spring), box-shadow 0.22s ease;
+}
+.nav-btn.nav-btn-active {
+color: #3730A3;
+font-weight: 700;
+background: linear-gradient(90deg, rgba(79, 70, 229, 0.14) 0%, rgba(16, 185, 129, 0.08) 100%);
+box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.20);
+}
+html.dark .nav-btn.nav-btn-active {
+color: #6EE7B7;
+background: linear-gradient(90deg, rgba(99, 102, 241, 0.28) 0%, rgba(16, 185, 129, 0.16) 100%);
+box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.34);
+}
+.nav-btn.nav-btn-active::before {
+content: '';
+position: absolute;
+left: 0;
+top: 50%;
+transform: translateY(-50%);
+width: 4px;
+height: 22px;
+border-radius: 0 9999px 9999px 0;
+background: linear-gradient(180deg, #4F46E5 0%, #10B981 100%);
+}
+.nav-btn.nav-btn-active .nav-icon-box {
+background: linear-gradient(135deg, #4F46E5 0%, #10B981 100%) !important;
+color: #FFFFFF !important;
+box-shadow: 0 5px 12px -2px rgba(79, 70, 229, 0.45);
+}
+.nav-group-header {
+display: flex;
+align-items: center;
+gap: 6px;
+}
+.nav-group-header::after {
+content: '';
+flex: 1;
+height: 1px;
+background: linear-gradient(90deg, rgba(148, 163, 184, 0.35), transparent);
 }
 
 
@@ -1282,11 +1521,56 @@ body { background: #ffffff !important; color: #000000 !important; }
 <img src="https://lh3.googleusercontent.com/d/1cVVxzS5pcO35NXDLh_W2YXUiSYuS3zg5" alt="Logo" class="logo-img w-7 h-7 object-contain">
 <h1 id="loginAppTitle" class="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Departemen Pendidikan</h1>
 </div>
-<p class="text-xs text-slate-500 dark:text-slate-400">Silakan masuk untuk melanjutkan ke aplikasi</p>
+<p id="loginSubtitleText" class="text-xs text-slate-500 dark:text-slate-400">Pilih jalur masuk untuk melanjutkan ke aplikasi</p>
 </div>
 
 
-<div class="clean-card p-6 relative z-20 transition-shadow duration-300 hover:shadow-lg">
+<!-- PILIHAN JALUR MASUK (PENGURUS ATAU WALI SANTRI) -->
+<div id="loginChooserWrap" class="space-y-3 relative z-20">
+<button type="button" onclick="selectLoginPortal('pengurus')" class="clean-card w-full p-4 text-left flex items-center gap-3.5 hover:shadow-lg hover:border-indigo-400/80 active:scale-[0.99] transition-all group">
+<div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-600 text-white flex items-center justify-center shadow-md shrink-0 group-hover:scale-105 transition-transform">
+<i class="fa-solid fa-user-shield text-lg"></i>
+</div>
+<div class="min-w-0 flex-1">
+<div class="flex items-center gap-2">
+<h2 class="text-sm font-bold text-slate-900 dark:text-white">Masuk sebagai Pengurus</h2>
+</div>
+<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">Administrator, Musyrif Kamar, Pengajar Takhassus &amp; Pengurus lainnya</p>
+</div>
+<div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 flex items-center justify-center shrink-0">
+<i class="fa-solid fa-chevron-right text-xs"></i>
+</div>
+</button>
+
+<button type="button" onclick="selectLoginPortal('walisantri')" class="clean-card w-full p-4 text-left flex items-center gap-3.5 hover:shadow-lg hover:border-emerald-400/80 active:scale-[0.99] transition-all group">
+<div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md shrink-0 group-hover:scale-105 transition-transform">
+<i class="fa-solid fa-people-roof text-lg"></i>
+</div>
+<div class="min-w-0 flex-1">
+<div class="flex items-center gap-2">
+<h2 class="text-sm font-bold text-slate-900 dark:text-white">Masuk sebagai Wali Santri</h2>
+</div>
+<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">Login menggunakan username &amp; password akun Wali Santri dari Admin</p>
+</div>
+<div class="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center shrink-0">
+<i class="fa-solid fa-chevron-right text-xs"></i>
+</div>
+</button>
+</div>
+
+
+<!-- FORM LOGIN PENGURUS (TAMPILAN EXISTING) -->
+<div id="pengurusLoginWrap" class="hidden clean-card p-6 relative z-20 transition-shadow duration-300 hover:shadow-lg space-y-4">
+<div class="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+<button type="button" onclick="showLoginChooser()" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-semibold inline-flex items-center gap-1.5 transition-colors">
+<i class="fa-solid fa-arrow-left text-[10px]"></i>
+<span>Ganti</span>
+</button>
+<span class="px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold inline-flex items-center gap-1">
+<i class="fa-solid fa-user-shield text-[9px]"></i>
+<span>Login Pengurus</span>
+</span>
+</div>
 <form onsubmit="handleLogin(event)" class="space-y-4">
 <div>
 <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Peran</label>
@@ -1328,6 +1612,42 @@ body { background: #ffffff !important; color: #000000 !important; }
 </div>
 
 
+<!-- FORM LOGIN WALI SANTRI -->
+<div id="walisantriLoginWrap" class="hidden clean-card p-6 relative z-20 transition-shadow duration-300 hover:shadow-lg space-y-4">
+<div class="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+<button type="button" onclick="showLoginChooser()" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-semibold inline-flex items-center gap-1.5 transition-colors">
+<i class="fa-solid fa-arrow-left text-[10px]"></i>
+<span>Ganti</span>
+</button>
+<span class="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold inline-flex items-center gap-1">
+<i class="fa-solid fa-people-roof text-[9px]"></i>
+<span>Login Wali Santri</span>
+</span>
+</div>
+<form onsubmit="handleWaliLogin(event)" class="space-y-4">
+<div>
+<label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Username Wali Santri</label>
+<input type="text" id="waliLoginUsername" value="" autocomplete="username" placeholder="Masukkan username dari Admin..." class="clean-input w-full px-3.5 py-3 text-xs font-semibold" required>
+</div>
+
+<div>
+<label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Password</label>
+<div class="relative">
+<input type="password" id="waliLoginPassword" autocomplete="current-password" placeholder="Masukkan password Wali Santri" class="clean-input w-full pl-3.5 pr-12 py-3 text-xs font-semibold" required>
+<button type="button" id="toggleWaliPinBtn" onclick="togglePasswordVisibility('waliLoginPassword', 'toggleWaliPinBtn')" aria-label="Tampilkan sandi Wali Santri" title="Tampilkan / Sembunyikan Sandi" class="absolute right-1.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-lg text-slate-400 hover:text-emerald-500 flex items-center justify-center transition-colors">
+<i class="fa-regular fa-eye text-sm"></i>
+</button>
+</div>
+</div>
+
+<button type="submit" class="w-full py-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:brightness-110 active:scale-[0.99] text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg border border-emerald-300/40">
+<span>Masuk sebagai Wali Santri</span>
+<i class="fa-solid fa-arrow-right text-xs text-white"></i>
+</button>
+</form>
+</div>
+
+
 <p class="text-center text-[11px] text-slate-400">YPM Al-Rifa'ie 2 &bull; Sistem Informasi Pendidikan</p>
 </div>
 </section>
@@ -1349,13 +1669,13 @@ body { background: #ffffff !important; color: #000000 !important; }
 
 
 <div class="flex items-center gap-1.5 shrink-0">
-<button onclick="refreshAppData()" title="Sinkronkan Data" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+<button type="button" id="headerRefreshBtn" onclick="refreshAppData()" aria-label="Sinkronkan Data" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all">
 <i class="fa-solid fa-rotate-right text-xs"></i>
 </button>
-<button onclick="toggleDarkMode()" title="Ubah Tema" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+<button type="button" id="headerThemeBtn" onclick="toggleDarkMode(event)" aria-label="Ubah Tema Gelap atau Terang" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all">
 <i id="themeIcon" class="fa-solid fa-moon text-xs"></i>
 </button>
-<button onclick="logout()" title="Keluar" class="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center hover:bg-red-100 transition-colors">
+<button type="button" id="headerLogoutBtn" onclick="logout(event)" aria-label="Keluar dari Akun" class="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center hover:bg-red-100 active:scale-95 transition-all">
 <i class="fa-solid fa-right-from-bracket text-xs"></i>
 </button>
 </div>
@@ -1366,61 +1686,113 @@ body { background: #ffffff !important; color: #000000 !important; }
 <div id="sidebarBackdrop" onclick="closeSidebar()" class="fixed inset-0 z-[70] modal-backdrop-clean hidden md:hidden"></div>
 
 
-<aside id="appSidebar" class="clean-sidebar fixed md:sticky inset-y-0 md:top-14 left-0 z-[80] md:z-30 w-72 md:w-64 h-[100dvh] md:h-[calc(100vh-3.5rem)] flex flex-col transform -translate-x-full md:translate-x-0 shrink-0">
-<div class="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between md:hidden shrink-0">
-<span class="font-bold text-sm text-slate-900 dark:text-white">Menu Aplikasi</span>
-<button onclick="closeSidebar()" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center"><i class="fa-solid fa-xmark text-sm"></i></button>
+<aside id="appSidebar" class="clean-sidebar fixed md:sticky inset-y-0 md:top-16 left-0 z-[80] md:z-30 w-72 md:w-64 flex flex-col transform -translate-x-full md:translate-x-0 shrink-0">
+<!-- Header Profil & Identitas Estetik Sidebar -->
+<div class="relative overflow-hidden p-4 bg-gradient-to-br from-[#312E81] via-[#4F46E5] to-[#059669] text-white shrink-0">
+<div class="pointer-events-none absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/10"></div>
+<div class="pointer-events-none absolute -left-4 -bottom-8 w-20 h-20 rounded-full bg-emerald-300/15"></div>
+<div class="relative z-10 flex items-center justify-between gap-2 mb-3">
+<div class="flex items-center gap-2 min-w-0">
+<div class="w-8 h-8 rounded-xl bg-white/15 border border-white/25 flex items-center justify-center shrink-0 p-1">
+<img src="https://lh3.googleusercontent.com/d/1cVVxzS5pcO35NXDLh_W2YXUiSYuS3zg5" alt="Logo" class="logo-img w-full h-full object-contain">
+</div>
+<div class="min-w-0">
+<div class="text-[11px] font-extrabold tracking-tight leading-tight truncate">Menu Navigasi</div>
+<div class="text-[9.5px] text-indigo-100/80 truncate">YPM Al-Rifa'ie 2</div>
+</div>
+</div>
+<button onclick="closeSidebar()" aria-label="Tutup Menu" class="md:hidden w-8 h-8 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 text-white flex items-center justify-center shrink-0 transition-colors">
+<i class="fa-solid fa-xmark text-xs"></i>
+</button>
+</div>
+<div class="relative z-10 p-2.5 rounded-2xl bg-white/12 border border-white/20 flex items-center gap-2.5">
+<div id="sidebarUserInitials" class="w-9 h-9 rounded-xl bg-white/20 border border-white/25 flex items-center justify-center font-extrabold text-xs text-white shrink-0">AD</div>
+<div class="min-w-0 flex-1">
+<div id="sidebarUserName" class="text-xs font-bold text-white truncate">Petugas</div>
+<span id="sidebarUserRole" class="inline-block mt-0.5 px-2 py-0.5 rounded-full bg-emerald-400/25 border border-emerald-200/35 text-[9px] font-bold uppercase tracking-wider text-emerald-100 truncate max-w-full">ADMIN</span>
+</div>
+</div>
 </div>
 
 
-<div class="flex-1 overflow-y-auto overscroll-contain p-3.5 space-y-1 pb-28 md:pb-10" id="navContainer">
-<button onclick="switchTab('home')" id="tabBtnHome" class="nav-btn w-full px-3.5 py-2.5 rounded-xl font-semibold text-xs text-left bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 flex items-center gap-3">
-<i class="fa-solid fa-house w-4 text-center"></i><span>Beranda</span>
+<div class="flex-1 overflow-y-auto overscroll-contain p-3 space-y-1" id="navContainer">
+<button onclick="switchTab('home')" id="tabBtnHome" class="nav-btn nav-btn-active w-full text-xs text-left flex items-center gap-2.5">
+<span class="nav-icon-box bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-300"><i class="fa-solid fa-house"></i></span>
+<span class="truncate">Beranda</span>
 </button>
 
 
-<div class="nav-group-header hidden pt-3 pb-1 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400" data-group-perms="wb,takhassus,musyrif,pengajar,rekap,tunggakan">Akademik & Absensi</div>
-<button onclick="switchTab('wb')" id="tabBtnWb" data-perm="wb" class="nav-btn hidden w-full px-3.5 py-2.5 rounded-xl font-medium text-xs text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 flex items-center gap-3">
-<i class="fa-solid fa-book-open w-4 text-center text-blue-600"></i><span>Absensi Wajib Belajar</span>
+<div class="nav-group-header hidden pt-3 pb-1 px-2 text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400" data-group-perms="wb,takhassus,musyrif,pengajar,izin,rekap,tunggakan"><span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span><span>Akademik &amp; Absensi</span></div>
+<button onclick="switchTab('wb')" id="tabBtnWb" data-perm="wb" class="nav-btn hidden w-full text-xs text-left flex items-center gap-2.5">
+<span class="nav-icon-box bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400"><i class="fa-solid fa-book-open"></i></span>
+<span class="truncate">Absensi Wajib Belajar</span>
 </button>
-<button onclick="switchTab('takhassus')" id="tabBtnTakhassus" data-perm="takhassus" class="nav-btn hidden w-full px-3.5 py-2.5 rounded-xl font-medium text-xs text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 flex items-center gap-3">
-<i class="fa-solid fa-graduation-cap w-4 text-center text-indigo-600"></i><span>Absensi Takhassus</span>
+<button onclick="switchTab('takhassus')" id="tabBtnTakhassus" data-perm="takhassus" class="nav-btn hidden w-full text-xs text-left flex items-center gap-2.5">
+<span class="nav-icon-box bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400"><i class="fa-solid fa-graduation-cap"></i></span>
+<span class="truncate">Absensi Takhassus</span>
 </button>
-<button onclick="switchTab('musyrif')" id="tabBtnMusyrif" data-perm="musyrif" class="nav-btn hidden w-full px-3.5 py-2.5 rounded-xl font-medium text-xs text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 flex items-center gap-3">
-<i class="fa-solid fa-user-tie w-4 text-center text-sky-600"></i><span>Absensi Musyrif</span>
+<button onclick="switchTab('musyrif')" id="tabBtnMusyrif" data-perm="musyrif" class="nav-btn hidden w-full text-xs text-left flex items-center gap-2.5">
+<span class="nav-icon-box bg-sky-50 dark:bg-sky-950/70 text-sky-600 dark:text-sky-400"><i class="fa-solid fa-user-tie"></i></span>
+<span class="truncate">Absensi Musyrif</span>
 </button>
-<button onclick="switchTab('pengajar')" id="tabBtnPengajar" data-perm="pengajar" class="nav-btn hidden w-full px-3.5 py-2.5 rounded-xl font-medium text-xs text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 flex items-center gap-3">
-<i class="fa-solid fa-chalkboard-user w-4 text-center text-teal-600"></i><span>Absensi Pengajar</span>
+<button onclick="switchTab('pengajar')" id="tabBtnPengajar" data-perm="pengajar" class="nav-btn hidden w-full text-xs text-left flex items-center gap-2.5">
+<span class="nav-icon-box bg-teal-50 dark:bg-teal-950/70 text-teal-600 dark:text-teal-400"><i class="fa-solid fa-chalkboard-user"></i></span>
+<span class="truncate">Absensi Pengajar</span>
 </button>
-<button onclick="switchTab('rekap')" id="tabBtnRekap" data-perm="rekap" class="nav-btn hidden w-full px-3.5 py-2.5 rounded-xl font-medium text-xs text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 flex items-center gap-3">
-<i class="fa-solid fa-chart-column w-4 text-center text-blue-700"></i><span>Statistik & Rekap</span>
+<button onclick="switchTab('izin')" id="tabBtnIzin" data-perm="izin" class="nav-btn hidden w-full text-xs text-left flex items-center gap-2.5">
+<span class="nav-icon-box bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400"><i class="fa-solid fa-file-circle-check"></i></span>
+<span class="truncate flex-1">Izin Digital</span>
+<span id="izinPendingCountBadge" class="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300">0</span>
 </button>
-<button onclick="switchTab('tunggakan')" id="tabBtnTunggakan" data-perm="tunggakan" class="nav-btn hidden w-full px-3.5 py-2.5 rounded-xl font-medium text-xs text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 flex items-center gap-3">
-<i class="fa-solid fa-list-check w-4 text-center text-amber-600"></i><span>Pantauan Tunggakan</span>
+<button onclick="switchTab('rekap')" id="tabBtnRekap" data-perm="rekap" class="nav-btn hidden w-full text-xs text-left flex items-center gap-2.5">
+<span class="nav-icon-box bg-violet-50 dark:bg-violet-950/70 text-violet-600 dark:text-violet-400"><i class="fa-solid fa-chart-column"></i></span>
+<span class="truncate">Statistik &amp; Rekap</span>
+</button>
+<button onclick="switchTab('tunggakan')" id="tabBtnTunggakan" data-perm="tunggakan" class="nav-btn hidden w-full text-xs text-left flex items-center gap-2.5">
+<span class="nav-icon-box bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400"><i class="fa-solid fa-list-check"></i></span>
+<span class="truncate">Pantauan Tunggakan</span>
 </button>
 
 
-<div class="nav-group-header hidden pt-3 pb-1 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400" data-group-perms="simpanan,operasional">Keuangan</div>
-<button onclick="switchTab('simpanan')" id="tabBtnSimpanan" data-perm="simpanan" class="nav-btn hidden w-full px-3.5 py-2.5 rounded-xl font-medium text-xs text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 flex items-center gap-3">
-<i class="fa-solid fa-piggy-bank w-4 text-center text-emerald-600"></i><span>Dana Simpanan</span>
+<div class="nav-group-header hidden pt-3 pb-1 px-2 text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400" data-group-perms="simpanan,operasional"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span>Keuangan</span></div>
+<button onclick="switchTab('simpanan')" id="tabBtnSimpanan" data-perm="simpanan" class="nav-btn hidden w-full text-xs text-left flex items-center gap-2.5">
+<span class="nav-icon-box bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400"><i class="fa-solid fa-piggy-bank"></i></span>
+<span class="truncate">Dana Simpanan</span>
 </button>
-<button onclick="switchTab('operasional')" id="tabBtnOperasional" data-perm="operasional" class="nav-btn hidden w-full px-3.5 py-2.5 rounded-xl font-medium text-xs text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 flex items-center gap-3">
-<i class="fa-solid fa-wallet w-4 text-center text-cyan-600"></i><span>Dana Operasional</span>
+<button onclick="switchTab('operasional')" id="tabBtnOperasional" data-perm="operasional" class="nav-btn hidden w-full text-xs text-left flex items-center gap-2.5">
+<span class="nav-icon-box bg-cyan-50 dark:bg-cyan-950/70 text-cyan-600 dark:text-cyan-400"><i class="fa-solid fa-wallet"></i></span>
+<span class="truncate">Dana Operasional</span>
 </button>
 
 
-<div class="nav-group-header hidden pt-3 pb-1 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400" data-group-perms="surat,saranAdmin,database,admin">Administrasi</div>
-<button onclick="switchTab('surat')" id="tabBtnSurat" data-perm="surat" class="nav-btn hidden w-full px-3.5 py-2.5 rounded-xl font-medium text-xs text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 flex items-center gap-3">
-<i class="fa-solid fa-envelope-open-text w-4 text-center text-indigo-600"></i><span>Arsip Surat</span>
+<div class="nav-group-header hidden pt-3 pb-1 px-2 text-[9.5px] font-extrabold uppercase tracking-wider text-slate-400" data-group-perms="surat,saranAdmin,database,admin"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span><span>Administrasi</span></div>
+<button onclick="switchTab('surat')" id="tabBtnSurat" data-perm="surat" class="nav-btn hidden w-full text-xs text-left flex items-center gap-2.5">
+<span class="nav-icon-box bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400"><i class="fa-solid fa-envelope-open-text"></i></span>
+<span class="truncate">Arsip Surat</span>
 </button>
-<button onclick="switchTab('saranAdmin')" id="tabBtnSaranAdmin" data-perm="saranAdmin" class="nav-btn hidden w-full px-3.5 py-2.5 rounded-xl font-medium text-xs text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 flex items-center gap-3">
-<i class="fa-solid fa-inbox w-4 text-center text-slate-600"></i><span>Kotak Saran</span>
+<button onclick="switchTab('saranAdmin')" id="tabBtnSaranAdmin" data-perm="saranAdmin" class="nav-btn hidden w-full text-xs text-left flex items-center gap-2.5">
+<span class="nav-icon-box bg-rose-50 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400"><i class="fa-solid fa-inbox"></i></span>
+<span class="truncate">Kotak Saran</span>
 </button>
-<button onclick="switchTab('database')" id="tabBtnDatabase" data-perm="database" class="nav-btn hidden w-full px-3.5 py-2.5 rounded-xl font-medium text-xs text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 flex items-center gap-3">
-<i class="fa-solid fa-database w-4 text-center text-slate-600"></i><span>Manajemen Database</span>
+<button onclick="switchTab('database')" id="tabBtnDatabase" data-perm="database" class="nav-btn hidden w-full text-xs text-left flex items-center gap-2.5">
+<span class="nav-icon-box bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"><i class="fa-solid fa-database"></i></span>
+<span class="truncate">Manajemen Database</span>
 </button>
-<button onclick="switchTab('admin')" id="tabBtnAdmin" data-perm="admin" class="nav-btn hidden w-full px-3.5 py-2.5 rounded-xl font-medium text-xs text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 flex items-center gap-3">
-<i class="fa-solid fa-gear w-4 text-center text-slate-600"></i><span>Setelan & User</span>
+<button onclick="switchTab('admin')" id="tabBtnAdmin" data-perm="admin" class="nav-btn hidden w-full text-xs text-left flex items-center gap-2.5">
+<span class="nav-icon-box bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"><i class="fa-solid fa-gear"></i></span>
+<span class="truncate">Setelan &amp; User</span>
+</button>
+</div>
+
+<!-- Footer Aksi Cepat Sidebar -->
+<div class="p-3 border-t border-slate-200/80 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-900/50 grid grid-cols-2 gap-2 shrink-0">
+<button type="button" id="sidebarThemeBtn" onclick="toggleDarkMode(event)" aria-label="Ubah Tema Gelap atau Terang" class="min-h-[42px] px-2.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-bold inline-flex items-center justify-center gap-1.5 hover:border-indigo-400 active:scale-95 transition-all">
+<i id="sidebarThemeIcon" class="fa-solid fa-moon text-indigo-500 text-xs"></i>
+<span id="sidebarThemeLabel">Gelap</span>
+</button>
+<button type="button" id="sidebarLogoutBtn" onclick="logout(event)" aria-label="Keluar dari Akun" class="min-h-[42px] px-2.5 py-2 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200/70 dark:border-red-900/60 text-red-600 dark:text-red-400 text-[11px] font-bold inline-flex items-center justify-center gap-1.5 hover:bg-red-100 active:scale-95 transition-all">
+<i class="fa-solid fa-right-from-bracket text-xs"></i>
+<span>Keluar</span>
 </button>
 </div>
 </aside>
@@ -1448,6 +1820,10 @@ body { background: #ffffff !important; color: #000000 !important; }
 <span id="serverTimeBanner" class="font-bold text-white">--:--:-- WIB</span>
 </div>
 </div>
+
+
+<!-- SOFT BENTO DASHBOARD ADAPTIF PERAN (WALI SANTRI / MUSYRIF & PENGAJAR / ADMIN) -->
+<div id="roleBentoRoot" class="space-y-3"></div>
 
 
 <div>
@@ -1524,6 +1900,7 @@ body { background: #ffffff !important; color: #000000 !important; }
 <div class="flex flex-wrap items-center justify-between gap-2">
 <div class="flex flex-wrap items-center gap-2">
 <span id="wbNfcStatusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>NFC Siap Tap Kartu</span></span>
+<span id="wbDeadlineBadge" class="hidden"></span>
 <button type="button" id="wbBtnNfcSettings" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.openAndroidNfcSettings()" class="hidden px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500 text-white">Aktifkan NFC</button>
 </div>
 <div class="flex items-center gap-2">
@@ -1555,6 +1932,7 @@ body { background: #ffffff !important; color: #000000 !important; }
 <div class="flex flex-wrap items-center justify-between gap-2">
 <div class="flex flex-wrap items-center gap-2">
 <span id="takhassusNfcStatusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>NFC Siap Tap Kartu</span></span>
+<span id="takhassusDeadlineBadge" class="hidden"></span>
 <button type="button" id="takhassusBtnNfcSettings" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.openAndroidNfcSettings()" class="hidden px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500 text-white">Aktifkan NFC</button>
 </div>
 <div class="flex items-center gap-2">
@@ -1584,7 +1962,10 @@ body { background: #ffffff !important; color: #000000 !important; }
 </div>
 <div class="clean-card p-3.5 space-y-2.5 border border-emerald-200/70 dark:border-emerald-900/60">
 <div class="flex flex-wrap items-center justify-between gap-2">
+<div class="flex flex-wrap items-center gap-2">
 <div class="text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2"><i class="fa-solid fa-qrcode text-emerald-600"></i><span>Scan QR Musyrif (Otomatis Masuk Database)</span></div>
+<span id="musyrifDeadlineBadge" class="hidden"></span>
+</div>
 <div class="flex items-center gap-2">
 <span id="musyrifScanCounter" class="text-xs font-semibold text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800">0 / 0 Hadir</span>
 <button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.openQrScanner('attendance','musyrif')" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm transition-all"><i class="fa-solid fa-qrcode"></i><span>Scan QR Musyrif</span></button>
@@ -1611,7 +1992,10 @@ body { background: #ffffff !important; color: #000000 !important; }
 </div>
 <div class="clean-card p-3.5 space-y-2.5 border border-emerald-200/70 dark:border-emerald-900/60">
 <div class="flex flex-wrap items-center justify-between gap-2">
+<div class="flex flex-wrap items-center gap-2">
 <div class="text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2"><i class="fa-solid fa-qrcode text-emerald-600"></i><span>Scan QR Pengajar (Otomatis Masuk Database)</span></div>
+<span id="pengajarDeadlineBadge" class="hidden"></span>
+</div>
 <div class="flex items-center gap-2">
 <span id="pengajarScanCounter" class="text-xs font-semibold text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800">0 / 0 Hadir</span>
 <button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.openQrScanner('attendance','pengajar')" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm transition-all"><i class="fa-solid fa-qrcode"></i><span>Scan QR Pengajar</span></button>
@@ -1629,17 +2013,45 @@ body { background: #ffffff !important; color: #000000 !important; }
 </div>
 
 
+<!-- TAB IZIN DIGITAL (KHUSUS MUSYRIF & PENGAJAR — PERSETUJUAN ADMIN) -->
+<div id="tab-izin" class="space-y-4 tab-content hidden">
+<div class="bento-card p-4 space-y-3">
+<div class="flex flex-wrap items-center justify-between gap-2.5">
+<div>
+<h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2"><i class="fa-solid fa-file-circle-check text-emerald-600"></i><span>Izin Digital Musyrif &amp; Pengajar</span></h2>
+<p id="izinTabSubtitle" class="text-[11px] text-slate-500">Pengajuan izin berhalangan hadir Musyrif &amp; Pengajar untuk disetujui oleh Admin</p>
+</div>
+<div class="flex items-center gap-1.5">
+<button type="button" onclick="window.AlRifaieSmart && window.AlRifaieSmart.loadIzinDigital(true)" class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold"><i class="fa-solid fa-rotate-right"></i></button>
+<button type="button" id="btnOpenIzinForm" onclick="window.AlRifaieSmart && window.AlRifaieSmart.openIzinFormSheet()" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold shadow-sm inline-flex items-center gap-1.5"><i class="fa-solid fa-plus"></i><span>Ajukan Izin</span></button>
+</div>
+</div>
+<div class="flex flex-wrap items-center gap-2 pt-1">
+<div class="flex items-center gap-1 overflow-x-auto pb-0.5">
+<button type="button" id="izinFilterBtn_all" onclick="window.AlRifaieSmart && window.AlRifaieSmart.setIzinFilter('all')" class="izin-filter-btn px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap bg-emerald-600 text-white shadow-sm">Semua (<span id="izinCntAll">0</span>)</button>
+<button type="button" id="izinFilterBtn_Menunggu" onclick="window.AlRifaieSmart && window.AlRifaieSmart.setIzinFilter('Menunggu')" class="izin-filter-btn px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Menunggu (<span id="izinCntMenunggu">0</span>)</button>
+<button type="button" id="izinFilterBtn_Disetujui" onclick="window.AlRifaieSmart && window.AlRifaieSmart.setIzinFilter('Disetujui')" class="izin-filter-btn px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Disetujui (<span id="izinCntDisetujui">0</span>)</button>
+<button type="button" id="izinFilterBtn_Ditolak" onclick="window.AlRifaieSmart && window.AlRifaieSmart.setIzinFilter('Ditolak')" class="izin-filter-btn px-3 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Ditolak (<span id="izinCntDitolak">0</span>)</button>
+</div>
+<input type="text" id="izinSearchInput" oninput="window.AlRifaieSmart && window.AlRifaieSmart.renderIzinDigitalUI()" placeholder="Cari nama musyrif / pengajar / alasan..." class="clean-input flex-1 min-w-[160px] px-3 py-1.5 text-xs font-semibold">
+</div>
+</div>
+<div id="izinDigitalList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+</div>
+
+
 <!-- TAB STATISTIK & REKAP -->
 <div id="tab-rekap" class="space-y-4 tab-content hidden">
 <div class="clean-card p-4 space-y-4">
 <div class="flex justify-between items-center flex-wrap gap-2">
 <div class="flex items-center gap-2">
-<h2 class="text-base font-bold text-slate-900 dark:text-white">Statistik & Rekap Kehadiran</h2>
+<h2 class="text-base font-bold text-slate-900 dark:text-white">Statistik &amp; Rekap Kehadiran</h2>
 <span id="rekLoadingBadge" class="hidden loading-pill-smooth text-[10px] font-semibold px-2.5 py-0.5 rounded-full text-blue-700"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Memuat...</span>
 </div>
 <div class="flex flex-wrap gap-1.5 no-print">
 <button onclick="loadRekap(true)" class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 font-semibold text-xs rounded-xl"><i class="fa-solid fa-rotate-right mr-1"></i>Refresh</button>
 <button onclick="openWaReportModal()" class="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-semibold text-xs rounded-xl"><i class="fa-brands fa-whatsapp mr-1"></i>Laporan WA</button>
+<button onclick="window.AlRifaieSmart && window.AlRifaieSmart.downloadOfficialRekapPdf()" class="px-3 py-1.5 bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 font-semibold text-xs rounded-xl"><i class="fa-solid fa-file-pdf mr-1"></i>PDF Resmi</button>
 <button onclick="window.print()" class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 font-semibold text-xs rounded-xl"><i class="fa-solid fa-print mr-1"></i>Cetak</button>
 <button onclick="exportCSV('Dashboard_Rekap.csv')" class="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 font-semibold text-xs rounded-xl"><i class="fa-solid fa-download mr-1"></i>CSV</button>
 </div>
@@ -1647,9 +2059,10 @@ body { background: #ffffff !important; color: #000000 !important; }
 <div class="grid grid-cols-2 md:grid-cols-6 gap-2.5 no-print">
 <div><label class="block text-[10px] font-semibold text-slate-500 mb-1">Kegiatan</label><select id="rekAct" onchange="onRekActChange(); loadRekap();" class="clean-input w-full px-2.5 py-2 text-xs font-semibold"><option value="wb">Wajib Belajar</option><option value="takhassus">Takhassus</option><option value="musyrif">Musyrif</option><option value="pengajar">Pengajar</option></select></div>
 <div><label class="block text-[10px] font-semibold text-slate-500 mb-1">Kamar / Kelas</label><select id="rekTgt" onchange="filterRekapVisual()" class="clean-input w-full px-2.5 py-2 text-xs font-semibold"><option value="">Semua</option></select></div>
-<div><label class="block text-[10px] font-semibold text-slate-500 mb-1">Rentang</label><select id="rekTime" onchange="toggleMonthSelect(); filterRekapVisual();" class="clean-input w-full px-2.5 py-2 text-xs font-semibold"><option value="today">Hari Ini</option><option value="week">Minggu Ini</option><option value="month" selected>Bulan Spesifik</option><option value="date">Satu Tanggal</option><option value="range">Rentang Tanggal</option></select></div>
-<div><label class="block text-[10px] font-semibold text-slate-500 mb-1">Bulan</label><select id="rekMonth" onchange="filterRekapVisual()" class="clean-input w-full px-2.5 py-2 text-xs font-semibold"><option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option><option value="04">Apr</option><option value="05">Mei</option><option value="06">Jun</option><option value="07">Jul</option><option value="08">Agu</option><option value="09">Sep</option><option value="10">Okt</option><option value="11">Nov</option><option value="12">Des</option></select></div>
-<div><label class="block text-[10px] font-semibold text-slate-500 mb-1">Tahun</label><select id="rekYear" onchange="filterRekapVisual()" class="clean-input w-full px-2.5 py-2 text-xs font-semibold"><option value="2026">2026</option><option value="2027">2027</option></select></div>
+<div><label class="block text-[10px] font-semibold text-slate-500 mb-1">Rentang</label><select id="rekTime" onchange="toggleMonthSelect(); filterRekapVisual();" class="clean-input w-full px-2.5 py-2 text-xs font-semibold"><option value="today">Hari Ini</option><option value="week">Minggu Ini</option><option value="month" selected>Bulan Spesifik</option><option value="month_range">Rentang Bulan (Dari - Sampai)</option><option value="date">Satu Tanggal</option><option value="range">Rentang Tanggal</option></select></div>
+<div id="filterMonthSingleC"><label class="block text-[10px] font-semibold text-slate-500 mb-1">Bulan</label><select id="rekMonth" onchange="filterRekapVisual()" class="clean-input w-full px-2.5 py-2 text-xs font-semibold"><option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option><option value="04">Apr</option><option value="05">Mei</option><option value="06">Jun</option><option value="07">Jul</option><option value="08">Agu</option><option value="09">Sep</option><option value="10">Okt</option><option value="11">Nov</option><option value="12">Des</option></select></div>
+<div id="filterYearSingleC"><label class="block text-[10px] font-semibold text-slate-500 mb-1">Tahun</label><select id="rekYear" onchange="filterRekapVisual()" class="clean-input w-full px-2.5 py-2 text-xs font-semibold"><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option></select></div>
+<div class="hidden col-span-2 md:col-span-3" id="filterMonthRangeC"><label class="block text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 mb-1">Rentang Bulan (Dari Bulan — Sampai Bulan)</label><div class="grid grid-cols-2 gap-1.5"><div class="flex gap-1"><select id="rekMonthStart" onchange="syncOverallMonthInputsFromTop(); filterRekapVisual();" class="clean-input w-full px-2 py-2 text-xs font-semibold"><option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option><option value="04">Apr</option><option value="05">Mei</option><option value="06">Jun</option><option value="07">Jul</option><option value="08">Agu</option><option value="09">Sep</option><option value="10">Okt</option><option value="11">Nov</option><option value="12">Des</option></select><select id="rekYearStart" onchange="syncOverallMonthInputsFromTop(); filterRekapVisual();" class="clean-input w-20 px-1.5 py-2 text-xs font-semibold"><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option></select></div><div class="flex gap-1"><select id="rekMonthEnd" onchange="syncOverallMonthInputsFromTop(); filterRekapVisual();" class="clean-input w-full px-2 py-2 text-xs font-semibold"><option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option><option value="04">Apr</option><option value="05">Mei</option><option value="06">Jun</option><option value="07">Jul</option><option value="08">Agu</option><option value="09">Sep</option><option value="10">Okt</option><option value="11">Nov</option><option value="12">Des</option></select><select id="rekYearEnd" onchange="syncOverallMonthInputsFromTop(); filterRekapVisual();" class="clean-input w-20 px-1.5 py-2 text-xs font-semibold"><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option></select></div></div></div>
 <div class="hidden" id="filterDateSingleC"><label class="block text-[10px] font-semibold text-slate-500 mb-1">Tanggal</label><input type="date" id="rekDateSingle" onchange="filterRekapVisual()" class="clean-input w-full px-2.5 py-2 text-xs font-semibold"></div>
 <div class="hidden col-span-2" id="filterDateRangeC"><label class="block text-[10px] font-semibold text-slate-500 mb-1">Mulai - Sampai</label><div class="flex gap-1"><input type="date" id="rekDateStart" onchange="filterRekapVisual()" class="clean-input w-full px-2 py-2 text-xs"><input type="date" id="rekDateEnd" onchange="filterRekapVisual()" class="clean-input w-full px-2 py-2 text-xs"></div></div>
 <div><label class="block text-[10px] font-semibold text-blue-700 dark:text-blue-400 mb-1">Cari Nama</label><input type="text" id="rekSearchName" oninput="debounceFilterDashboard()" placeholder="Ketik nama..." class="clean-input w-full px-2.5 py-2 text-xs font-semibold"></div>
@@ -1657,6 +2070,35 @@ body { background: #ffffff !important; color: #000000 !important; }
 </div>
 
 
+<!-- BAR PILIHAN KATEGORI STATISTIK -->
+<div id="rekapCategoryBar" class="clean-card p-2 no-print">
+<div class="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+<button type="button" id="rekapCatBtn_ringkasan" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.switchRekapCategory('ringkasan')" class="rekap-cat-btn px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-1.5 transition-all bg-indigo-600 text-white shadow-sm">
+<i class="fa-solid fa-chart-line text-[11px]"></i>
+<span>Ringkasan &amp; Tren</span>
+</button>
+<button type="button" id="rekapCatBtn_peringkat" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.switchRekapCategory('peringkat')" class="rekap-cat-btn px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-1.5 transition-all bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300">
+<i class="fa-solid fa-trophy text-[11px]"></i>
+<span>Peringkat</span>
+</button>
+<button type="button" id="rekapCatBtn_pelanggaran" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.switchRekapCategory('pelanggaran')" class="rekap-cat-btn px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-1.5 transition-all bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300">
+<i class="fa-solid fa-list-ol text-[11px]"></i>
+<span>Alpa, Izin &amp; Poin</span>
+</button>
+<button type="button" id="rekapCatBtn_suratdisiplin" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.switchRekapCategory('suratdisiplin')" class="rekap-cat-btn admin-only-surat hidden px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-1.5 transition-all bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300">
+<i class="fa-solid fa-file-signature text-[11px]"></i>
+<span>Surat Pernyataan &amp; Hukuman</span>
+</button>
+<button type="button" id="rekapCatBtn_keseluruhan" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.switchRekapCategory('keseluruhan')" class="rekap-cat-btn px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-1.5 transition-all bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300">
+<i class="fa-solid fa-table-list text-[11px]"></i>
+<span>Rekap Kamar/Kelas</span>
+</button>
+</div>
+</div>
+
+
+<!-- KATEGORI 1: RINGKASAN & TREN -->
+<div id="rekapCat_ringkasan" class="rekap-cat-panel space-y-4">
 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
 <div class="clean-card p-4 text-center"><span class="text-[10px] font-bold uppercase text-blue-700 dark:text-blue-400">Total Data</span><h3 id="ctDat" class="text-2xl font-bold mt-1">0</h3></div>
 <div class="clean-card p-4 text-center"><span class="text-[10px] font-bold uppercase text-emerald-600">Hadir</span><h3 id="stHadir" class="text-2xl font-bold mt-1">0%</h3><p id="ctHadir" class="text-[10px] text-slate-400">0 Data</p></div>
@@ -1664,13 +2106,15 @@ body { background: #ffffff !important; color: #000000 !important; }
 <div class="clean-card p-4 text-center"><span class="text-[10px] font-bold uppercase text-red-600">Alpa</span><h3 id="stAlpa" class="text-2xl font-bold mt-1">0%</h3><p id="ctAlpa" class="text-[10px] text-slate-400">0 Data</p></div>
 </div>
 
-
 <div class="clean-card p-4">
 <h3 class="font-bold text-xs uppercase text-slate-500 mb-2">Tren Kehadiran</h3>
-<div class="relative w-full h-52"><canvas id="rekapChart"></canvas></div>
+<div class="relative w-full h-56"><canvas id="rekapChart"></canvas></div>
+</div>
 </div>
 
 
+<!-- KATEGORI 2: PERINGKAT -->
+<div id="rekapCat_peringkat" class="rekap-cat-panel hidden space-y-4">
 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
 <div class="clean-card p-4">
 <div class="flex items-center justify-between mb-2.5">
@@ -1691,17 +2135,105 @@ body { background: #ffffff !important; color: #000000 !important; }
 </div>
 </div>
 </div>
-
-
-<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-<div class="clean-card p-4"><h3 class="font-bold text-xs text-red-600 mb-2 uppercase">Alpa Terbanyak</h3><div class="max-h-56 overflow-y-auto"><table class="w-full text-xs"><tbody id="listAlpa" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody></table></div></div>
-<div class="clean-card p-4"><h3 class="font-bold text-xs text-amber-600 mb-2 uppercase">Izin Terbanyak</h3><div class="max-h-56 overflow-y-auto"><table class="w-full text-xs"><tbody id="listIzin" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody></table></div></div>
-<div class="clean-card p-4"><h3 id="titlePelTitle" class="font-bold text-xs text-blue-700 dark:text-blue-400 mb-2 uppercase">Poin Pelanggaran</h3><div class="max-h-56 overflow-y-auto"><table class="w-full text-xs"><tbody id="listPel" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody></table></div></div>
 </div>
 
 
+<!-- KATEGORI 3: ALPA, IZIN & POIN -->
+<div id="rekapCat_pelanggaran" class="rekap-cat-panel hidden space-y-4">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+<div class="clean-card p-4">
+<div class="flex items-center justify-between gap-2 mb-2">
+<h3 class="font-bold text-xs text-red-600 uppercase">Alpa Terbanyak</h3>
+<button type="button" id="btnOpenSuratFromAlpa" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.switchRekapCategory('suratdisiplin')" class="admin-only-surat hidden px-2 py-1 rounded-lg bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 text-[10px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-file-signature"></i><span>Buat Surat</span></button>
+</div>
+<div class="max-h-72 overflow-y-auto"><table class="w-full text-xs"><tbody id="listAlpa" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody></table></div>
+</div>
+<div class="clean-card p-4"><h3 class="font-bold text-xs text-amber-600 mb-2 uppercase">Izin Terbanyak</h3><div class="max-h-72 overflow-y-auto"><table class="w-full text-xs"><tbody id="listIzin" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody></table></div></div>
+<div class="clean-card p-4"><h3 id="titlePelTitle" class="font-bold text-xs text-blue-700 dark:text-blue-400 mb-2 uppercase">Poin Pelanggaran</h3><div class="max-h-72 overflow-y-auto"><table class="w-full text-xs"><tbody id="listPel" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody></table></div></div>
+</div>
+</div>
+
+
+<!-- KATEGORI 3B: CETAK SURAT PERNYATAAN & SURAT HUKUMAN (SANTRI & MUSYRIF) -->
+<div id="rekapCat_suratdisiplin" class="rekap-cat-panel hidden space-y-4">
+<div class="bento-card p-4 space-y-3.5">
+<div class="flex flex-wrap items-start justify-between gap-2.5">
+<div>
+<h3 class="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><i class="fa-solid fa-file-signature text-red-600"></i><span>Cetak Surat Pernyataan &amp; Surat Hukuman</span></h3>
+<p class="text-[11px] text-slate-500">Centang nama santri atau musyrif dari daftar Alpa untuk mencetak surat resmi berkop YPM Al-Rifa'ie 2 (<span id="suratPeriodLabel" class="font-bold text-indigo-600 dark:text-indigo-400">Bulan Aktif</span>)</p>
+</div>
+<div class="flex items-center gap-1.5">
+<button type="button" id="suratTargetBtn_santri" onclick="window.AlRifaieSmart && window.AlRifaieSmart.switchSuratTarget('santri')" class="surat-target-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm">Daftar Alpa Santri</button>
+<button type="button" id="suratTargetBtn_musyrif" onclick="window.AlRifaieSmart && window.AlRifaieSmart.switchSuratTarget('musyrif')" class="surat-target-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Daftar Alpa Musyrif</button>
+</div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 rounded-2xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60">
+<div>
+<label class="block text-[10px] font-bold uppercase text-slate-500 mb-1.5">Pilih Jenis Surat (Khusus Admin)</label>
+<div class="flex gap-1.5">
+<button type="button" id="suratDocBtn_pernyataan" onclick="window.AlRifaieSmart && window.AlRifaieSmart.switchSuratDocType('pernyataan')" class="surat-doc-btn flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-sm"><i class="fa-solid fa-file-lines mr-1"></i>Surat Pernyataan</button>
+<button type="button" id="suratDocBtn_hukuman" onclick="window.AlRifaieSmart && window.AlRifaieSmart.switchSuratDocType('hukuman')" class="surat-doc-btn flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"><i class="fa-solid fa-gavel mr-1"></i>Surat Hukuman</button>
+</div>
+</div>
+<div class="flex flex-col justify-end gap-1.5">
+<label class="block text-[10px] font-bold uppercase text-slate-500">Filter Kamar / Kelas</label>
+<select id="suratKamarFilter" onchange="window.AlRifaieSmart && window.AlRifaieSmart.renderSuratDisiplinPanel()" class="clean-input w-full px-3 py-2 text-xs font-semibold">
+<option value="">Semua Kamar / Kelas</option>
+</select>
+</div>
+<div class="flex flex-col justify-end gap-1.5">
+<label class="block text-[10px] font-bold uppercase text-slate-500">Cari Nama</label>
+<input type="text" id="suratAlpaSearch" oninput="window.AlRifaieSmart && window.AlRifaieSmart.renderSuratDisiplinPanel()" placeholder="Ketik nama santri atau musyrif..." class="clean-input w-full px-3 py-2 text-xs font-semibold">
+</div>
+</div>
+
+<div id="suratHukumanConfigWrap" class="hidden p-3 rounded-2xl bg-red-50/70 dark:bg-red-950/25 border border-red-200/80 dark:border-red-900/50 space-y-2">
+<label class="block text-[11px] font-bold text-red-700 dark:text-red-300">Isi Sanksi / Hukuman (Ta'zir) yang Dicantumkan:</label>
+<div class="flex flex-wrap gap-1.5">
+<button type="button" onclick="window.AlRifaieSmart.applyHukumanPreset('Membersihkan lingkungan asrama/masjid selama 3 hari berturut-turut di bawah pengawasan Musyrif.')" class="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 text-[10px] font-bold text-red-700 dark:text-red-300">Kebersihan 3 Hari</button>
+<button type="button" onclick="window.AlRifaieSmart.applyHukumanPreset('Menyetorkan hafalan tambahan (Surat Al-Mulk / Nadhom) kepada Pengajar/Musyrif paling lambat 3 hari.')" class="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 text-[10px] font-bold text-red-700 dark:text-red-300">Setoran Hafalan</button>
+<button type="button" onclick="window.AlRifaieSmart.applyHukumanPreset('Pemanggilan orang tua / wali santri untuk pembinaan bersama Departemen Pendidikan.')" class="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 text-[10px] font-bold text-red-700 dark:text-red-300">Panggilan Wali</button>
+<button type="button" onclick="window.AlRifaieSmart.applyHukumanPreset('Pembinaan khusus dan evaluasi tugas kepengurusan bersama Ketua Departemen Pendidikan.')" class="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 text-[10px] font-bold text-red-700 dark:text-red-300">Evaluasi Musyrif</button>
+</div>
+<textarea id="suratHukumanText" rows="2" placeholder="Ketik jenis hukuman / ta'zir khusus..." class="clean-input w-full px-3 py-2 text-xs"></textarea>
+</div>
+
+<div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+<div class="flex items-center gap-1.5">
+<button type="button" onclick="window.AlRifaieSmart && window.AlRifaieSmart.toggleSelectAllSurat(true)" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-[11px] font-bold">Pilih Semua</button>
+<button type="button" onclick="window.AlRifaieSmart && window.AlRifaieSmart.toggleSelectAllSurat(false)" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-[11px] font-bold">Batal Pilih</button>
+<span id="suratSelectedCountText" class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 ml-1">0 dipilih</span>
+</div>
+<button type="button" id="btnGenerateSuratDisiplinPdf" onclick="window.AlRifaieSmart && window.AlRifaieSmart.generateSuratDisiplinPdf()" disabled class="opacity-50 px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 text-white text-xs font-bold shadow-sm inline-flex items-center gap-1.5 transition-all">
+<i class="fa-solid fa-file-pdf"></i><span>Cetak Surat Pernyataan (0)</span>
+</button>
+</div>
+</div>
+
 <div class="clean-card overflow-hidden">
-<div class="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap justify-between items-center gap-2">
+<div class="overflow-x-auto max-h-[420px]">
+<table class="w-full text-left text-xs">
+<thead class="bg-slate-50 dark:bg-slate-800/70 text-slate-500 uppercase text-[10px] sticky top-0">
+<tr>
+<th class="p-3 w-10 text-center">Pilih</th>
+<th class="p-3">Nama &amp; Kamar/Kelas</th>
+<th class="p-3 text-center">Total Alpa</th>
+<th class="p-3 hidden sm:table-cell">Rincian Tanggal</th>
+</tr>
+</thead>
+<tbody id="suratAlpaTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+</table>
+</div>
+</div>
+</div>
+
+
+<!-- KATEGORI 4: REKAP KESELURUHAN KAMAR / KELAS -->
+<div id="rekapCat_keseluruhan" class="rekap-cat-panel hidden space-y-4">
+<div class="clean-card overflow-hidden">
+<div class="p-4 border-b border-slate-200 dark:border-slate-800 space-y-3">
+<div class="flex flex-wrap justify-between items-center gap-2">
 <div>
 <h3 class="font-bold text-sm">Rekap Absensi Keseluruhan Tiap Kamar / Kelas</h3>
 <p class="text-[11px] text-slate-500">Ketuk baris kamar/kelas untuk melihat detail lengkap seluruh anggotanya.</p>
@@ -1709,6 +2241,27 @@ body { background: #ffffff !important; color: #000000 !important; }
 <div class="flex items-center gap-2 no-print">
 <span id="roomRecapPeriodBadge" class="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">Periode Aktif</span>
 <button onclick="downloadAllRoomsPdf()" class="px-3 py-1.5 bg-red-600 text-white font-semibold text-xs rounded-xl"><i class="fa-solid fa-file-pdf mr-1"></i>PDF Semua Kamar</button>
+</div>
+</div>
+<div class="p-3 rounded-xl bg-slate-50/90 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/70 flex flex-wrap items-end gap-2 no-print">
+<div class="flex-1 min-w-[140px]">
+<label class="block text-[10px] font-bold text-slate-500 mb-1">Dari Bulan</label>
+<div class="flex gap-1">
+<select id="overallMonthStart" class="clean-input w-full px-2 py-1.5 text-xs font-semibold"><option value="01">Januari</option><option value="02">Februari</option><option value="03">Maret</option><option value="04">April</option><option value="05">Mei</option><option value="06">Juni</option><option value="07">Juli</option><option value="08">Agustus</option><option value="09">September</option><option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option></select>
+<select id="overallYearStart" class="clean-input w-20 px-1.5 py-1.5 text-xs font-semibold"><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option></select>
+</div>
+</div>
+<div class="flex-1 min-w-[140px]">
+<label class="block text-[10px] font-bold text-slate-500 mb-1">Sampai Bulan</label>
+<div class="flex gap-1">
+<select id="overallMonthEnd" class="clean-input w-full px-2 py-1.5 text-xs font-semibold"><option value="01">Januari</option><option value="02">Februari</option><option value="03">Maret</option><option value="04">April</option><option value="05">Mei</option><option value="06">Juni</option><option value="07">Juli</option><option value="08">Agustus</option><option value="09">September</option><option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option></select>
+<select id="overallYearEnd" class="clean-input w-20 px-1.5 py-1.5 text-xs font-semibold"><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option></select>
+</div>
+</div>
+<div class="flex items-center gap-1.5">
+<button type="button" onclick="applyOverallMonthRange()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm"><i class="fa-solid fa-calendar-check"></i><span>Terapkan</span></button>
+<button type="button" onclick="resetOverallMonthRange()" class="px-2.5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-xs rounded-xl">Bulan Ini</button>
+</div>
 </div>
 </div>
 <div class="overflow-x-auto">
@@ -1726,6 +2279,7 @@ body { background: #ffffff !important; color: #000000 !important; }
 </thead>
 <tbody id="roomRecapTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
 </table>
+</div>
 </div>
 </div>
 </div>
@@ -1815,22 +2369,221 @@ body { background: #ffffff !important; color: #000000 !important; }
 
 <!-- TAB SETELAN & USER -->
 <div id="tab-admin" class="space-y-4 tab-content hidden">
-<div class="clean-card p-5 space-y-4">
+
+<!-- HEADER KATEGORI SETELAN ADMIN -->
+<div id="adminCategoryBar" class="clean-card p-3 space-y-2.5">
+<div class="flex items-center justify-between gap-2 flex-wrap px-1">
+<div>
+<h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2"><i class="fa-solid fa-sliders text-indigo-600"></i><span>Setelan Admin</span></h2>
+<p class="text-[11px] text-slate-500">Pilih kategori pengaturan di bawah agar navigasi lebih ringkas &amp; rapi</p>
+</div>
+</div>
+<div class="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+<button type="button" id="adminCatBtn_akses" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.switchAdminCategory('akses')" class="admin-cat-btn px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-1.5 transition-all bg-indigo-600 text-white shadow-sm">
+<i class="fa-solid fa-shield-halved text-[11px]"></i>
+<span>Hak Akses</span>
+</button>
+<button type="button" id="adminCatBtn_absensi" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.switchAdminCategory('absensi')" class="admin-cat-btn px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-1.5 transition-all bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300">
+<i class="fa-solid fa-clock text-[11px]"></i>
+<span>Batas Absen</span>
+</button>
+<button type="button" id="adminCatBtn_offline" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.switchAdminCategory('offline')" class="admin-cat-btn px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-1.5 transition-all bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300">
+<i class="fa-solid fa-cloud-arrow-up text-[11px]"></i>
+<span>Offline &amp; Notif</span>
+<span id="adminCatOfflineDot" class="hidden px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-400 text-slate-900">0</span>
+</button>
+<button type="button" id="adminCatBtn_sistem" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.switchAdminCategory('sistem')" class="admin-cat-btn px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-1.5 transition-all bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300">
+<i class="fa-solid fa-gear text-[11px]"></i>
+<span>Akun &amp; Aplikasi</span>
+</button>
+</div>
+</div>
+
+
+<!-- KATEGORI ADMIN 1: HAK AKSES (WALI SANTRI, USER PENGURUS, HAK AKSES PERAN) -->
+<div id="adminCat_akses" class="admin-cat-panel space-y-4">
+<div class="p-1.5 rounded-2xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/70 grid grid-cols-3 gap-1">
+<button type="button" id="adminAksesSubBtn_walisantri" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.switchAdminAksesSub('walisantri')" class="admin-akses-sub-btn px-2.5 py-2 rounded-xl text-[11px] font-bold transition-all bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-sm flex items-center justify-center gap-1.5">
+<i class="fa-solid fa-people-roof text-[10px]"></i>
+<span class="truncate">Wali Santri</span>
+<span id="badgeCountWali" class="px-1.5 py-0.5 rounded-full text-[9px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">0</span>
+</button>
+<button type="button" id="adminAksesSubBtn_pengurus" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.switchAdminAksesSub('pengurus')" class="admin-akses-sub-btn px-2.5 py-2 rounded-xl text-[11px] font-bold transition-all text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5">
+<i class="fa-solid fa-users text-[10px]"></i>
+<span class="truncate">Pengurus</span>
+<span id="badgeCountPengurus" class="px-1.5 py-0.5 rounded-full text-[9px] bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">0</span>
+</button>
+<button type="button" id="adminAksesSubBtn_peran" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.switchAdminAksesSub('peran')" class="admin-akses-sub-btn px-2.5 py-2 rounded-xl text-[11px] font-bold transition-all text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5">
+<i class="fa-solid fa-user-lock text-[10px]"></i>
+<span class="truncate">Akses Peran</span>
+</button>
+</div>
+
+<!-- SUB-PANEL 1A: AKUN WALI SANTRI -->
+<div id="adminAksesSub_walisantri" class="admin-akses-sub clean-card p-5 space-y-4">
 <div class="flex justify-between items-center flex-wrap gap-2">
-<div><h2 class="text-base font-bold">Manajemen User & Hak Akses</h2><p class="text-xs text-slate-500">Tambahkan akun pengurus dan pilih fitur yang boleh diakses</p></div>
-<button onclick="openUserModal()" class="px-3.5 py-2 bg-brand-700 text-white font-semibold text-xs rounded-xl">+ Tambah User</button>
+<div>
+<h3 class="text-base font-bold flex items-center gap-2"><i class="fa-solid fa-people-roof text-emerald-600"></i><span>Akun Wali Santri &amp; Hak Akses</span></h3>
+<p class="text-xs text-slate-500">Buat username, password, dan tentukan fitur apa saja yang boleh dibuka Wali Santri</p>
+</div>
+<button type="button" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.openWaliModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm"><i class="fa-solid fa-plus"></i><span>Tambah Wali Santri</span></button>
+</div>
+<div>
+<input type="text" id="waliSearchInput" oninput="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.renderWaliSantriTable()" placeholder="Cari username, nama wali, atau nama santri..." class="clean-input w-full px-3.5 py-2 text-xs font-semibold">
 </div>
 <div class="overflow-x-auto">
 <table class="w-full text-left text-xs">
-<thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-500"><tr><th class="p-3">Username</th><th class="p-3">Jabatan</th><th class="p-3">PIN</th><th class="p-3">Hak Akses Fitur</th><th class="p-3 text-center">Aksi</th></tr></thead>
+<thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-500"><tr><th class="p-3">Username</th><th class="p-3">Nama Wali / Santri</th><th class="p-3">Hak Akses Fitur</th><th class="p-3 text-center">Aksi</th></tr></thead>
+<tbody id="waliSantriTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+</table>
+</div>
+</div>
+
+<!-- SUB-PANEL 1B: MANAJEMEN USER PENGURUS (PENGURUS + MUSYRIF + PENGAJAR) -->
+<div id="adminAksesSub_pengurus" class="admin-akses-sub hidden clean-card p-5 space-y-4">
+<div class="flex justify-between items-center flex-wrap gap-2">
+<div>
+<h3 class="text-base font-bold flex items-center gap-2"><i class="fa-solid fa-users-gear text-indigo-600"></i><span>Pengurus, Musyrif &amp; Pengajar</span></h3>
+<p class="text-xs text-slate-500">Atur hak akses akun pengurus tambahan, Musyrif kamar, dan Pengajar Takhassus secara perorangan</p>
+</div>
+<button onclick="openUserModal()" class="px-3.5 py-2 bg-brand-700 text-white font-semibold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm"><i class="fa-solid fa-plus"></i><span>Tambah Pengurus</span></button>
+</div>
+<div class="flex flex-wrap items-center gap-1.5">
+<button type="button" id="pengFilterBtn_all" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.setPengurusFilter('all')" class="pengurus-filter-btn px-3 py-1.5 rounded-full text-[11px] font-bold bg-indigo-600 text-white shadow-sm transition-all">Semua (<span id="pengCountAll">0</span>)</button>
+<button type="button" id="pengFilterBtn_custom" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.setPengurusFilter('custom')" class="pengurus-filter-btn px-3 py-1.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all">Pengurus (<span id="pengCountCustom">0</span>)</button>
+<button type="button" id="pengFilterBtn_musyrif" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.setPengurusFilter('musyrif')" class="pengurus-filter-btn px-3 py-1.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all">Musyrif (<span id="pengCountMusyrif">0</span>)</button>
+<button type="button" id="pengFilterBtn_pengajar" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.setPengurusFilter('pengajar')" class="pengurus-filter-btn px-3 py-1.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-all">Pengajar (<span id="pengCountPengajar">0</span>)</button>
+</div>
+<div>
+<input type="text" id="pengurusSearchInput" oninput="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.renderUnifiedPengurusTable()" placeholder="Cari nama pengurus, musyrif, pengajar, kamar, atau kelas..." class="clean-input w-full px-3.5 py-2 text-xs font-semibold">
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left text-xs">
+<thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-500"><tr><th class="p-3">Nama &amp; Keterangan</th><th class="p-3">Peran</th><th class="p-3">Hak Akses Fitur</th><th class="p-3 text-center">Aksi</th></tr></thead>
 <tbody id="usersTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
 </table>
 </div>
 </div>
 
+<!-- SUB-PANEL 1C: PENGATURAN HAK AKSES PERAN & FITUR -->
+<div id="adminAksesSub_peran" class="admin-akses-sub hidden clean-card p-5 space-y-4">
+<div class="flex justify-between items-center flex-wrap gap-2">
+<div>
+<h3 class="text-base font-bold flex items-center gap-2"><i class="fa-solid fa-shield-halved text-indigo-600"></i><span>Pengaturan Hak Akses Peran &amp; Fitur</span></h3>
+<p class="text-xs text-slate-500">Atur fitur bawaan untuk Wali Santri, Musyrif, Pengajar, dan Pengurus Default.</p>
+</div>
+</div>
+<form onsubmit="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.saveRolePermissions(event)" class="space-y-3">
+<div id="rolePermissionsMatrix" class="space-y-3"></div>
+<div class="text-right pt-1">
+<button type="submit" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm"><i class="fa-solid fa-check"></i><span>Simpan Hak Akses Peran</span></button>
+</div>
+</form>
+</div>
+</div>
 
+
+<!-- KATEGORI ADMIN 2: BATAS WAKTU ABSENSI (OTOMATIS TERLAMBAT) -->
+<div id="adminCat_absensi" class="admin-cat-panel hidden space-y-4">
+<div class="clean-card p-5 space-y-4">
+<div>
+<h3 class="text-base font-bold flex items-center gap-2"><i class="fa-solid fa-clock text-amber-500"></i><span>Batas Waktu Absen (Otomatis Terlambat)</span></h3>
+<p class="text-xs text-slate-500">Jika scan NFC / QR melewati jam batas (WIB) yang diatur di bawah ini, sistem otomatis menandai pelanggaran <b>Terlambat</b>.</p>
+</div>
+<form onsubmit="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.saveAttendanceDeadlines(event)" class="space-y-3">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+<div class="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/70 flex items-center justify-between gap-3">
+<label class="flex items-center gap-2.5 cursor-pointer min-w-0">
+<input type="checkbox" id="dlEnable_wb" class="w-4 h-4 accent-indigo-600 rounded" checked>
+<div class="min-w-0">
+<div class="text-xs font-bold text-slate-800 dark:text-slate-100">Wajib Belajar</div>
+<div class="text-[10px] text-slate-500">Batas hadir santri WB</div>
+</div>
+</label>
+<input type="time" id="dlTime_wb" value="20:15" class="clean-input px-2.5 py-1.5 text-xs font-bold w-28 text-center">
+</div>
+<div class="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/70 flex items-center justify-between gap-3">
+<label class="flex items-center gap-2.5 cursor-pointer min-w-0">
+<input type="checkbox" id="dlEnable_takhassus" class="w-4 h-4 accent-indigo-600 rounded" checked>
+<div class="min-w-0">
+<div class="text-xs font-bold text-slate-800 dark:text-slate-100">Takhassus</div>
+<div class="text-[10px] text-slate-500">Batas hadir kelas Takhassus</div>
+</div>
+</label>
+<input type="time" id="dlTime_takhassus" value="16:15" class="clean-input px-2.5 py-1.5 text-xs font-bold w-28 text-center">
+</div>
+<div class="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/70 flex items-center justify-between gap-3">
+<label class="flex items-center gap-2.5 cursor-pointer min-w-0">
+<input type="checkbox" id="dlEnable_musyrif" class="w-4 h-4 accent-emerald-600 rounded" checked>
+<div class="min-w-0">
+<div class="text-xs font-bold text-slate-800 dark:text-slate-100">Absensi Musyrif</div>
+<div class="text-[10px] text-slate-500">Batas hadir &amp; hitung menit telat</div>
+</div>
+</label>
+<input type="time" id="dlTime_musyrif" value="20:10" class="clean-input px-2.5 py-1.5 text-xs font-bold w-28 text-center">
+</div>
+<div class="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/70 flex items-center justify-between gap-3">
+<label class="flex items-center gap-2.5 cursor-pointer min-w-0">
+<input type="checkbox" id="dlEnable_pengajar" class="w-4 h-4 accent-emerald-600 rounded" checked>
+<div class="min-w-0">
+<div class="text-xs font-bold text-slate-800 dark:text-slate-100">Absensi Pengajar</div>
+<div class="text-[10px] text-slate-500">Batas hadir &amp; hitung menit telat</div>
+</div>
+</label>
+<input type="time" id="dlTime_pengajar" value="16:10" class="clean-input px-2.5 py-1.5 text-xs font-bold w-28 text-center">
+</div>
+</div>
+<div class="text-right">
+<button type="submit" class="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm"><i class="fa-solid fa-clock"></i><span>Simpan Batas Waktu Absen</span></button>
+</div>
+</form>
+</div>
+</div>
+
+
+<!-- KATEGORI ADMIN 3: PANTAUAN DATA OFFLINE MANGKRAK & NOTIFIKASI LATAR BELAKANG -->
+<div id="adminCat_offline" class="admin-cat-panel hidden space-y-4">
+<div class="clean-card p-5 space-y-4">
+<div class="flex justify-between items-start flex-wrap gap-2">
+<div>
+<h3 class="text-base font-bold flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up text-emerald-600"></i><span>Antrean Data Offline Mangkrak &amp; Notifikasi</span></h3>
+<p class="text-xs text-slate-500">Pantau data offline yang belum terkirim ke Google Sheet, unggah manual atau otomatis, serta atur notifikasi saat aplikasi tertutup.</p>
+</div>
+<span id="adminOfflineCountBadge" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300">Semua Tersinkron (0)</span>
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+<label class="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/70 flex items-center justify-between gap-3 cursor-pointer">
+<div>
+<div class="text-xs font-bold text-slate-800 dark:text-slate-100">Unggah Otomatis Saat Online</div>
+<div class="text-[10px] text-slate-500">Kirim otomatis data offline begitu koneksi tersedia (termasuk di latar belakang)</div>
+</div>
+<input type="checkbox" id="adminAutoUploadOfflineToggle" onchange="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.toggleAutoUploadOffline(this.checked)" class="w-4 h-4 accent-emerald-600 rounded shrink-0" checked>
+</label>
+<label class="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/70 flex items-center justify-between gap-3 cursor-pointer">
+<div>
+<div class="text-xs font-bold text-slate-800 dark:text-slate-100">Notifikasi Saat Aplikasi Tertutup</div>
+<div class="text-[10px] text-slate-500">Tetap tampilkan notifikasi informasi baru, galeri, &amp; sinkronisasi walau aplikasi ditutup</div>
+</div>
+<input type="checkbox" id="adminBgNotifToggle" onchange="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.toggleBackgroundNotif(this.checked)" class="w-4 h-4 accent-indigo-600 rounded shrink-0" checked>
+</label>
+</div>
+
+<div class="flex flex-wrap items-center gap-2">
+<button type="button" id="btnAdminUploadAllOffline" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.uploadAllOfflineManual()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm"><i class="fa-solid fa-cloud-arrow-up"></i><span>Unggah Semua Sekarang (Manual)</span></button>
+<button type="button" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.refreshAdminOfflineQueueUI()" class="px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs rounded-xl inline-flex items-center gap-1.5"><i class="fa-solid fa-rotate-right"></i><span>Refresh Antrean</span></button>
+<button type="button" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.triggerBackgroundCheckNow()" class="px-3 py-2 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold text-xs rounded-xl inline-flex items-center gap-1.5"><i class="fa-solid fa-bell"></i><span>Cek Notifikasi Latar</span></button>
+</div>
+
+<div id="adminOfflineQueueList" class="space-y-2"></div>
+</div>
+</div>
+
+
+<!-- KATEGORI ADMIN 4: AKUN ADMIN & SETELAN APLIKASI -->
+<div id="adminCat_sistem" class="admin-cat-panel hidden space-y-4">
 <div class="clean-card p-5">
-<h2 class="text-base font-bold mb-3">Ubah Username & Password Admin</h2>
+<h3 class="text-base font-bold mb-3">Ubah Username &amp; Password Admin</h3>
 <form onsubmit="saveAdminCreds(event)" class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
 <div><label class="block text-xs font-semibold text-slate-600 mb-1">Username Admin Baru</label><input type="text" id="setAdminUser" class="clean-input w-full px-3.5 py-2.5 text-xs font-semibold" required></div>
 <div><label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Password / PIN Admin Baru</label><div class="relative"><input type="password" id="setAdminPin" placeholder="Masukkan password baru" class="clean-input w-full pl-3.5 pr-11 py-2.5 text-xs font-semibold" required><button type="button" id="toggleSetAdminPinBtn" onclick="togglePasswordVisibility('setAdminPin', 'toggleSetAdminPinBtn')" aria-label="Tampilkan sandi admin" class="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg text-slate-400 hover:text-[#34D399] flex items-center justify-center"><i class="fa-regular fa-eye text-xs"></i></button></div></div>
@@ -1838,9 +2591,8 @@ body { background: #ffffff !important; color: #000000 !important; }
 </form>
 </div>
 
-
 <div class="clean-card p-5">
-<h2 class="text-base font-bold mb-3">Setelan Aplikasi</h2>
+<h3 class="text-base font-bold mb-3">Setelan Aplikasi</h3>
 <form onsubmit="saveSettings(event)" class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
 <div><label class="block text-xs font-semibold text-slate-600 mb-1">Nama Aplikasi</label><input type="text" id="setAppName" class="clean-input w-full px-3.5 py-2.5 text-xs font-semibold" required></div>
 <div><label class="block text-xs font-semibold text-slate-600 mb-1">Logo Aplikasi</label><input type="file" id="setLogo" accept="image/*" class="clean-input w-full px-2.5 py-2 text-xs"></div>
@@ -1850,37 +2602,70 @@ body { background: #ffffff !important; color: #000000 !important; }
 </div>
 </div>
 
+</div>
+
 
 </main>
 </div>
 </div>
 
 
-<!-- FLOATING TAB BAR TERPISAH DARI LATAR BELAKANG -->
+<!-- FLOATING CAPSULE DOCK TAB BAR ESTETIK -->
 <nav id="mobileBottomNav" class="clean-bottom-bar hidden no-print" aria-label="Navigasi Utama">
-<div class="px-2 h-16 flex items-center justify-around">
-<button onclick="switchTab('home')" id="bnav-home" class="bottom-nav-item is-active flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold">
-<i class="fa-solid fa-house text-sm"></i>
-<span>Beranda</span>
+<div class="px-2.5 py-1.5 flex items-center justify-between gap-1">
+<div class="flex-1 flex items-center justify-around">
+<button onclick="switchTab('home')" id="bnav-home" class="bottom-nav-item is-active flex-1 flex flex-col items-center justify-center gap-0.5 font-semibold">
+<span class="bnav-icon-pill"><i class="fa-solid fa-house text-[13px]"></i></span>
+<span class="bnav-label">Beranda</span>
+<span class="bnav-dot"></span>
 </button>
-<button onclick="switchTab('wb')" id="bnav-wb" data-perm="wb" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold">
-<i class="fa-solid fa-book-open text-sm"></i>
-<span>Absen WB</span>
+<button onclick="switchTab('wb')" id="bnav-wb" data-perm="wb" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-0.5 font-semibold">
+<span class="bnav-icon-pill"><i class="fa-solid fa-book-open text-[13px]"></i></span>
+<span class="bnav-label">Absen WB</span>
+<span class="bnav-dot"></span>
 </button>
-<button onclick="switchTab('rekap')" id="bnav-rekap" data-perm="rekap" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold">
-<i class="fa-solid fa-chart-column text-sm"></i>
-<span>Statistik</span>
+<button onclick="switchTab('izin')" id="bnav-izin" data-perm="izin" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-0.5 font-semibold">
+<span class="bnav-icon-pill"><i class="fa-solid fa-file-circle-check text-[13px]"></i></span>
+<span class="bnav-label">Izin</span>
+<span class="bnav-dot"></span>
 </button>
-<button onclick="switchTab('tunggakan')" id="bnav-tunggakan" data-perm="tunggakan" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold">
-<i class="fa-solid fa-list-check text-sm"></i>
-<span>Tunggakan</span>
+<button onclick="switchTab('rekap')" id="bnav-rekap" data-perm="rekap" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-0.5 font-semibold">
+<span class="bnav-icon-pill"><i class="fa-solid fa-chart-column text-[13px]"></i></span>
+<span class="bnav-label">Statistik</span>
+<span class="bnav-dot"></span>
 </button>
-<button onclick="toggleSidebar()" id="bnav-menu" class="bottom-nav-item md:hidden flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold">
-<i class="fa-solid fa-bars text-sm"></i>
-<span>Menu</span>
+<button onclick="switchTab('tunggakan')" id="bnav-tunggakan" data-perm="tunggakan" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-0.5 font-semibold">
+<span class="bnav-icon-pill"><i class="fa-solid fa-list-check text-[13px]"></i></span>
+<span class="bnav-label">Tunggakan</span>
+<span class="bnav-dot"></span>
+</button>
+</div>
+<div class="md:hidden h-7 w-px bg-slate-200/80 dark:bg-slate-700/80 mx-0.5"></div>
+<button onclick="toggleSidebar()" id="bnav-menu" aria-label="Buka Menu Lainnya" class="md:hidden bnav-menu-orb">
+<i class="fa-solid fa-grip text-sm"></i>
 </button>
 </div>
 </nav>
+
+
+<!-- REUSABLE ONE-HANDED BOTTOM SHEET INTERAKTIF -->
+<div id="smartBottomSheetBackdrop" onclick="window.AlRifaieSmart && window.AlRifaieSmart.closeBottomSheet()" class="fixed inset-0 z-[135] modal-backdrop-clean hidden no-print"></div>
+<div id="smartBottomSheet" role="dialog" aria-modal="true" class="clean-bottom-sheet hidden no-print flex flex-col">
+<div class="pt-2.5 pb-1 flex justify-center shrink-0 cursor-pointer" onclick="window.AlRifaieSmart && window.AlRifaieSmart.closeBottomSheet()">
+<span class="w-11 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600"></span>
+</div>
+<div class="px-5 pt-1 pb-3 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-2 shrink-0">
+<div class="min-w-0">
+<h3 id="smartSheetTitle" class="text-sm font-extrabold text-slate-900 dark:text-white truncate">Detail</h3>
+<p id="smartSheetSub" class="text-[11px] text-slate-500 truncate mt-0.5"></p>
+</div>
+<button type="button" onclick="window.AlRifaieSmart && window.AlRifaieSmart.closeBottomSheet()" aria-label="Tutup" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+<i class="fa-solid fa-xmark text-xs"></i>
+</button>
+</div>
+<div id="smartSheetBody" class="p-5 overflow-y-auto overscroll-contain flex-1"></div>
+<div id="smartSheetFooter" class="hidden px-5 pt-3 pb-2 border-t border-slate-100 dark:border-slate-800 shrink-0"></div>
+</div>
 
 
 <!-- POP-UP BERHASIL LOGIN (TUNGGAL, TENGAH LAYAR & NON-BLUR) -->
@@ -1902,6 +2687,37 @@ OK
 <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-100 dark:bg-slate-800 overflow-hidden">
 <div id="loginPopupTimerBar" class="h-full w-full bg-gradient-to-r from-emerald-500 to-blue-600"></div>
 </div>
+</div>
+</div>
+
+
+<!-- MODAL KONFIRMASI KELUAR AKUN (OFFLINE-SAFE & ZERO DEPENDENCY) -->
+<div id="logoutConfirmModal" role="dialog" aria-modal="true" aria-labelledby="logoutConfirmTitle" onclick="handleLogoutBackdropClick(event)" class="fixed inset-0 z-[180] flex items-center justify-center p-4 modal-backdrop-clean hidden no-print">
+<div onclick="event.stopPropagation()" class="clean-card modal-sheet-enter w-full max-w-[320px] p-6 text-center shadow-2xl space-y-4">
+<div class="w-14 h-14 mx-auto rounded-2xl bg-red-50 dark:bg-red-950/70 border border-red-200/70 dark:border-red-900/60 text-red-600 dark:text-red-400 flex items-center justify-center">
+<i class="fa-solid fa-right-from-bracket text-xl"></i>
+</div>
+<div class="space-y-1.5">
+<h3 id="logoutConfirmTitle" class="text-base font-bold text-slate-900 dark:text-white leading-tight">Keluar dari Akun?</h3>
+<p class="text-xs text-slate-500 dark:text-slate-300 leading-relaxed">Sesi login pada perangkat ini akan dihapus dan Anda perlu login kembali.</p>
+</div>
+<div class="grid grid-cols-2 gap-2.5 pt-1">
+<button type="button" id="btnCancelLogout" onclick="closeLogoutConfirmModal(event)" class="min-h-[44px] px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold active:scale-95 transition-all">
+Batal
+</button>
+<button type="button" id="btnConfirmLogout" onclick="confirmLogoutNow(event)" class="min-h-[44px] px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md active:scale-95 transition-all">
+Ya, Keluar
+</button>
+</div>
+</div>
+</div>
+
+
+<!-- TOAST RINGAN PERUBAHAN TEMA -->
+<div id="themeFeedbackToast" aria-live="polite" class="no-print">
+<div class="px-4 py-2 rounded-full bg-slate-900/95 dark:bg-slate-100/95 text-white dark:text-slate-900 text-xs font-bold shadow-xl inline-flex items-center gap-2 border border-white/15 dark:border-slate-300">
+<i id="themeToastIcon" class="fa-solid fa-moon text-emerald-400"></i>
+<span id="themeToastText">Mode Gelap Aktif</span>
 </div>
 </div>
 
@@ -2055,6 +2871,7 @@ OK
 <label class="flex items-center gap-2"><input type="checkbox" name="uPerm" value="takhassus" class="accent-blue-700"> Absen Takhassus</label>
 <label class="flex items-center gap-2"><input type="checkbox" name="uPerm" value="musyrif" class="accent-blue-700"> Absen Musyrif</label>
 <label class="flex items-center gap-2"><input type="checkbox" name="uPerm" value="pengajar" class="accent-blue-700"> Absen Pengajar</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="uPerm" value="izin" class="accent-emerald-600"> Izin Digital</label>
 <label class="flex items-center gap-2"><input type="checkbox" name="uPerm" value="rekap" class="accent-blue-700"> Statistik Rekap</label>
 <label class="flex items-center gap-2"><input type="checkbox" name="uPerm" value="tunggakan" class="accent-blue-700"> Pantauan Tunggakan</label>
 <label class="flex items-center gap-2"><input type="checkbox" name="uPerm" value="simpanan" class="accent-blue-700"> Dana Simpanan</label>
@@ -2068,6 +2885,110 @@ OK
 <div class="flex justify-end gap-2 pt-2">
 <button type="button" onclick="closeModal('userModal')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800">Batal</button>
 <button type="submit" class="px-4 py-2 bg-brand-700 text-white rounded-xl text-xs font-semibold">Simpan User</button>
+</div>
+</form>
+</div>
+</div>
+
+
+<!-- MODAL AKUN WALI SANTRI -->
+<div id="waliSantriModal" class="fixed inset-0 z-[110] flex modal-backdrop-clean p-4 hidden overflow-y-auto">
+<div class="clean-card modal-sheet-enter w-full max-w-md p-6 m-auto">
+<h3 id="waliModalTitle" class="text-base font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-people-roof text-emerald-600"></i><span>Tambah Akun Wali Santri</span></h3>
+<form onsubmit="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.saveWaliSantriAction(event)" class="space-y-3">
+<input type="hidden" id="wsId">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+<div>
+<label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Username Login</label>
+<input type="text" id="wsUsername" placeholder="Cth: wali_ahmad" autocomplete="off" class="clean-input w-full px-3.5 py-2.5 text-xs font-semibold" required>
+</div>
+<div>
+<label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Password Login</label>
+<div class="relative">
+<input type="password" id="wsPassword" placeholder="Minimal 4 karakter" autocomplete="new-password" class="clean-input w-full pl-3.5 pr-10 py-2.5 text-xs font-semibold" required>
+<button type="button" id="toggleWsPasswordBtn" onclick="togglePasswordVisibility('wsPassword', 'toggleWsPasswordBtn')" aria-label="Tampilkan password wali" class="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg text-slate-400 hover:text-emerald-500 flex items-center justify-center"><i class="fa-regular fa-eye text-xs"></i></button>
+</div>
+</div>
+</div>
+<p id="wsPasswordHint" class="text-[10px] text-slate-400 -mt-1">Password akan dienkripsi otomatis sebelum disimpan.</p>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+<div>
+<label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Nama Wali Santri</label>
+<input type="text" id="wsNamaWali" placeholder="Cth: Bpk. H. Sulaiman" class="clean-input w-full px-3.5 py-2.5 text-xs font-semibold" required>
+</div>
+<div>
+<label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Nama Santri / Kamar (Opsional)</label>
+<input type="text" id="wsNamaSantri" placeholder="Cth: Ahmad (Kamar A1)" class="clean-input w-full px-3.5 py-2.5 text-xs font-semibold">
+</div>
+</div>
+<div>
+<div class="flex items-center justify-between gap-2 mb-1.5">
+<label class="block text-xs font-semibold text-slate-600 dark:text-slate-300">Pilih Hak Akses Fitur:</label>
+<span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Beranda &amp; Galeri selalu aktif</span>
+</div>
+<div class="grid grid-cols-2 gap-2 text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-3 rounded-xl">
+<label class="flex items-center gap-2"><input type="checkbox" name="wsPerm" value="rekap" class="accent-emerald-600"> Statistik Rekap</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="wsPerm" value="tunggakan" class="accent-emerald-600"> Pantauan Tunggakan</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="wsPerm" value="wb" class="accent-emerald-600"> Absen WB</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="wsPerm" value="takhassus" class="accent-emerald-600"> Absen Takhassus</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="wsPerm" value="musyrif" class="accent-emerald-600"> Absen Musyrif</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="wsPerm" value="pengajar" class="accent-emerald-600"> Absen Pengajar</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="wsPerm" value="simpanan" class="accent-emerald-600"> Dana Simpanan</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="wsPerm" value="operasional" class="accent-emerald-600"> Dana Operasional</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="wsPerm" value="surat" class="accent-emerald-600"> Arsip Surat</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="wsPerm" value="saranAdmin" class="accent-emerald-600"> Kotak Saran</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="wsPerm" value="database" class="accent-emerald-600"> Database</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="wsPerm" value="admin" class="accent-emerald-600"> Setelan &amp; User</label>
+</div>
+</div>
+<div class="flex justify-end gap-2 pt-2">
+<button type="button" onclick="closeModal('waliSantriModal')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800">Batal</button>
+<button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold">Simpan Akun</button>
+</div>
+</form>
+</div>
+</div>
+
+
+<!-- MODAL HAK AKSES KHUSUS MUSYRIF / PENGAJAR -->
+<div id="staffPermModal" class="fixed inset-0 z-[110] flex modal-backdrop-clean p-4 hidden overflow-y-auto">
+<div class="clean-card modal-sheet-enter w-full max-w-md p-6 m-auto space-y-4">
+<div class="flex items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+<div class="min-w-0">
+<h3 id="staffPermModalTitle" class="text-base font-bold text-slate-900 dark:text-white">Hak Akses Musyrif / Pengajar</h3>
+<p id="staffPermModalSub" class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold truncate mt-0.5">--</p>
+</div>
+<button type="button" onclick="closeModal('staffPermModal')" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+<i class="fa-solid fa-xmark text-xs"></i>
+</button>
+</div>
+<form onsubmit="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.saveStaffPermAction(event)" class="space-y-3">
+<input type="hidden" id="spRole">
+<input type="hidden" id="spName">
+<div>
+<label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Pilih Fitur yang Dapat Diakses:</label>
+<div class="grid grid-cols-2 gap-2 text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-3 rounded-xl">
+<label class="flex items-center gap-2"><input type="checkbox" name="spPerm" value="wb" class="accent-indigo-600"> Absen WB</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="spPerm" value="takhassus" class="accent-indigo-600"> Absen Takhassus</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="spPerm" value="musyrif" class="accent-indigo-600"> Absen Musyrif</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="spPerm" value="pengajar" class="accent-indigo-600"> Absen Pengajar</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="spPerm" value="izin" class="accent-emerald-600"> Izin Digital</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="spPerm" value="rekap" class="accent-indigo-600"> Statistik Rekap</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="spPerm" value="tunggakan" class="accent-indigo-600"> Pantauan Tunggakan</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="spPerm" value="simpanan" class="accent-indigo-600"> Dana Simpanan</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="spPerm" value="operasional" class="accent-indigo-600"> Dana Operasional</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="spPerm" value="surat" class="accent-indigo-600"> Arsip Surat</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="spPerm" value="saranAdmin" class="accent-indigo-600"> Kotak Saran</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="spPerm" value="database" class="accent-indigo-600"> Database</label>
+<label class="flex items-center gap-2"><input type="checkbox" name="spPerm" value="admin" class="accent-indigo-600"> Setelan &amp; User</label>
+</div>
+</div>
+<div class="flex items-center justify-between gap-2 pt-2">
+<button type="button" id="btnResetStaffPermDefault" onclick="window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.resetStaffPermToDefault()" class="hidden px-3 py-2 rounded-xl text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">Reset Default</button>
+<div class="flex items-center gap-2 ml-auto">
+<button type="button" onclick="closeModal('staffPermModal')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800">Batal</button>
+<button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold">Simpan Akses</button>
+</div>
 </div>
 </form>
 </div>
@@ -2272,49 +3193,50 @@ OK
 </div>
 </div>
 
-<!-- MODAL KONFIRMASI SCAN NFC / QR + PILIH PELANGGARAN (AUTO MASUK DATABASE) -->
-<div id="scanConfirmModal" class="fixed inset-0 z-[135] flex modal-backdrop-clean p-4 hidden overflow-y-auto">
-<div class="clean-card modal-sheet-enter w-full max-w-sm p-5 m-auto space-y-4">
-<div class="flex items-start justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+<!-- PANEL KONFIRMASI SCAN NFC / QR RINGKAS DI BAWAH LAYAR (TIDAK MEMOTONG LAYAR SCAN!) -->
+<div id="scanConfirmModal" class="fixed inset-x-0 bottom-0 z-[140] flex items-end justify-center p-3 pb-5 hidden pointer-events-none">
+<div class="clean-card modal-sheet-enter pointer-events-auto w-full max-w-md p-4 space-y-3 shadow-2xl border-2 border-emerald-500/40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md">
+<div class="flex items-start justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
 <div class="min-w-0 space-y-1">
-<span id="scanConfirmMethodBadge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold"><i class="fa-solid fa-circle-check"></i><span>NFC Terdeteksi</span></span>
-<h3 id="scanConfirmName" class="text-base font-extrabold text-slate-900 dark:text-white leading-tight truncate">Nama Santri</h3>
+<div class="flex flex-wrap items-center gap-1.5">
+<span id="scanConfirmMethodBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold"><i class="fa-solid fa-circle-check"></i><span>NFC Terdeteksi</span></span>
+<span id="scanConfirmLateBadge" class="hidden inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 text-[10px] font-bold"></span>
+</div>
+<h3 id="scanConfirmName" class="text-sm font-extrabold text-slate-900 dark:text-white leading-tight truncate">Nama Santri</h3>
 <p id="scanConfirmSub" class="text-[11px] font-semibold text-slate-500 truncate">Kamar / Kelas</p>
 </div>
 <button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.cancelScanConfirm()" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0" title="Batal"><i class="fa-solid fa-xmark text-xs"></i></button>
 </div>
 
 <div class="space-y-2">
-<p class="text-[11px] font-bold text-slate-600 dark:text-slate-300">Pilih Pelanggaran (Opsional — lewati jika tertib):</p>
-<div id="scanConfirmPelSantri" class="space-y-2">
-<label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 cursor-pointer hover:border-amber-400 transition-colors">
-<span class="flex items-center gap-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200"><i class="fa-solid fa-clock text-amber-500 w-4 text-center"></i> Terlambat</span>
-<input type="checkbox" name="scanConfirmPelSantri" value="Terlambat" onchange="window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel()" class="w-4 h-4 accent-amber-600 rounded">
+<div id="scanConfirmPelSantri" class="grid grid-cols-3 gap-2">
+<label class="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 cursor-pointer hover:border-amber-400 transition-colors text-[11px] font-bold text-slate-700 dark:text-slate-200">
+<input type="checkbox" name="scanConfirmPelSantri" value="Terlambat" onchange="window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel()" class="w-3.5 h-3.5 accent-amber-600 rounded">
+<span>Terlambat</span>
 </label>
-<label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 cursor-pointer hover:border-amber-400 transition-colors">
-<span class="flex items-center gap-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200"><i class="fa-solid fa-shirt text-indigo-500 w-4 text-center"></i> Pakaian</span>
-<input type="checkbox" name="scanConfirmPelSantri" value="Pakaian" onchange="window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel()" class="w-4 h-4 accent-amber-600 rounded">
+<label class="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 cursor-pointer hover:border-amber-400 transition-colors text-[11px] font-bold text-slate-700 dark:text-slate-200">
+<input type="checkbox" name="scanConfirmPelSantri" value="Pakaian" onchange="window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel()" class="w-3.5 h-3.5 accent-amber-600 rounded">
+<span>Pakaian</span>
 </label>
-<label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 cursor-pointer hover:border-amber-400 transition-colors">
-<span class="flex items-center gap-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200"><i class="fa-solid fa-book text-rose-500 w-4 text-center"></i> Kitab</span>
-<input type="checkbox" name="scanConfirmPelSantri" value="Kitab" onchange="window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel()" class="w-4 h-4 accent-amber-600 rounded">
+<label class="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 cursor-pointer hover:border-amber-400 transition-colors text-[11px] font-bold text-slate-700 dark:text-slate-200">
+<input type="checkbox" name="scanConfirmPelSantri" value="Kitab" onchange="window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel()" class="w-3.5 h-3.5 accent-amber-600 rounded">
+<span>Kitab</span>
 </label>
 </div>
 
-<div id="scanConfirmPelPetugas" class="hidden space-y-2.5">
-<label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60 cursor-pointer">
-<span class="flex items-center gap-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200"><i class="fa-solid fa-clock text-amber-500 w-4 text-center"></i> Terlambat Hadir</span>
+<div id="scanConfirmPelPetugas" class="hidden space-y-2">
+<label class="flex items-center justify-between px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/60 cursor-pointer">
+<span class="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200"><i class="fa-solid fa-clock text-amber-500"></i> Terlambat Hadir</span>
 <input type="checkbox" id="scanConfirmCekTelat" onchange="document.getElementById('scanConfirmMenitWrap').classList.toggle('hidden', !this.checked); window.AlRifaieAttendance && window.AlRifaieAttendance.updateScanConfirmButtonLabel();" class="w-4 h-4 accent-amber-600 rounded">
 </label>
 <div id="scanConfirmMenitWrap" class="hidden">
-<label class="block text-[11px] font-semibold text-slate-500 mb-1">Durasi Keterlambatan (Menit)</label>
-<input type="number" id="scanConfirmMenitTelat" min="1" placeholder="Contoh: 15" class="clean-input w-full px-3 py-2 text-xs font-semibold">
+<input type="number" id="scanConfirmMenitTelat" min="1" placeholder="Durasi keterlambatan (menit)" class="clean-input w-full px-3 py-2 text-xs font-semibold">
 </div>
 </div>
 </div>
 
-<div class="pt-1 space-y-2">
-<button type="button" id="scanConfirmSaveBtn" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.confirmScanSave()" class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs inline-flex items-center justify-center gap-2 shadow-md transition-all">
+<div>
+<button type="button" id="scanConfirmSaveBtn" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.confirmScanSave()" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs inline-flex items-center justify-center gap-2 shadow-md transition-all">
 <i class="fa-solid fa-circle-check"></i><span>Hadir &amp; Simpan (Tanpa Pelanggaran)</span>
 </button>
 </div>
@@ -2644,7 +3566,38 @@ return `${w.getFullYear()}-${String(w.getMonth() + 1).padStart(2, '0')}-${String
 
 
 function hasPerm(perm) {
-return session && (session.role === 'admin' || (session.permissions && (session.permissions.includes('ALL') || session.permissions.includes(perm))));
+if (!session) return false;
+if (session.role === 'admin') return true;
+if (perm === 'izin' && session.role === 'walisantri') return false;
+if (window.AlRifaieAdminSettings && typeof window.AlRifaieAdminSettings.getEffectivePermissionsForSession === 'function') {
+const eff = window.AlRifaieAdminSettings.getEffectivePermissionsForSession(session);
+return eff.includes('ALL') || eff.includes(perm);
+}
+return Boolean(session.permissions && (session.permissions.includes('ALL') || session.permissions.includes(perm)));
+}
+
+function refreshPermissionsUI() {
+const isAdmin = Boolean(session && session.role === 'admin');
+document.querySelectorAll('.nav-btn[data-perm]').forEach(b => {
+b.classList.toggle('hidden', !hasPerm(b.dataset.perm));
+});
+document.querySelectorAll('.nav-group-header[data-group-perms]').forEach(header => {
+const perms = (header.dataset.groupPerms || '').split(',').map(p => p.trim()).filter(Boolean);
+const hasAnyPerm = perms.some(p => hasPerm(p));
+header.classList.toggle('hidden', !hasAnyPerm);
+});
+document.querySelectorAll('.bottom-nav-item[data-perm]').forEach(b => {
+b.classList.toggle('hidden', !hasPerm(b.dataset.perm));
+});
+document.querySelectorAll('.admin-only-surat').forEach(el => {
+el.classList.toggle('hidden', !isAdmin);
+});
+if (!isAdmin) {
+const suratPanel = document.getElementById('rekapCat_suratdisiplin');
+if (suratPanel && !suratPanel.classList.contains('hidden') && window.AlRifaieAdminSettings && typeof window.AlRifaieAdminSettings.switchRekapCategory === 'function') {
+window.AlRifaieAdminSettings.switchRekapCategory('ringkasan');
+}
+}
 }
 
 
@@ -2687,20 +3640,64 @@ el.classList.remove('grid-stagger-enter');
 }
 
 
-function applyThemeUI(isDark) {
-document.documentElement.classList.toggle('dark', isDark);
-const icon = document.getElementById('themeIcon');
-if (icon) icon.className = isDark ? 'fa-solid fa-sun text-xs text-[#34D399]' : 'fa-solid fa-moon text-xs text-[#4F46E5]';
-const metaTheme = document.getElementById('metaThemeColor') || document.querySelector('meta[name="theme-color"]');
-if (metaTheme) metaTheme.setAttribute('content', isDark ? '#0B1120' : '#F8FAFC');
+let __lastThemeToggleMs = 0;
+let __themeToastTimer = null;
+
+function showThemeFeedbackToast(isDark) {
+const toast = document.getElementById('themeFeedbackToast');
+const icon = document.getElementById('themeToastIcon');
+const text = document.getElementById('themeToastText');
+if (!toast) return;
+if (icon) icon.className = isDark ? 'fa-solid fa-moon text-indigo-500' : 'fa-solid fa-sun text-amber-400';
+if (text) text.innerText = isDark ? 'Mode Gelap Aktif' : 'Mode Terang Aktif';
+clearTimeout(__themeToastTimer);
+toast.classList.add('toast-visible');
+__themeToastTimer = setTimeout(() => {
+toast.classList.remove('toast-visible');
+}, 1600);
 }
 
-function toggleDarkMode() {
+function applyThemeUI(isDark) {
+const darkBool = Boolean(isDark);
+document.documentElement.classList.toggle('dark', darkBool);
+document.documentElement.setAttribute('data-theme', darkBool ? 'dark' : 'light');
+document.documentElement.style.colorScheme = darkBool ? 'dark' : 'light';
+if (document.body) {
+document.body.classList.toggle('dark-mode', darkBool);
+}
+const icon = document.getElementById('themeIcon');
+if (icon) icon.className = darkBool ? 'fa-solid fa-sun text-xs text-[#34D399]' : 'fa-solid fa-moon text-xs text-[#4F46E5]';
+const sbIcon = document.getElementById('sidebarThemeIcon');
+const sbLbl = document.getElementById('sidebarThemeLabel');
+if (sbIcon) sbIcon.className = darkBool ? 'fa-solid fa-sun text-[#34D399] text-xs' : 'fa-solid fa-moon text-indigo-500 text-xs';
+if (sbLbl) sbLbl.innerText = darkBool ? 'Terang' : 'Gelap';
+const metaTheme = document.getElementById('metaThemeColor') || document.querySelector('meta[name="theme-color"]');
+if (metaTheme) metaTheme.setAttribute('content', darkBool ? '#0B1120' : '#F8FAFC');
+try {
+if (window.AndroidBridge && typeof window.AndroidBridge.onThemeChanged === 'function') {
+window.AndroidBridge.onThemeChanged(darkBool);
+}
+} catch (e) {}
+}
+
+function toggleDarkMode(evt) {
+if (evt) {
+if (typeof evt.preventDefault === 'function') evt.preventDefault();
+if (typeof evt.stopPropagation === 'function') evt.stopPropagation();
+}
+const now = Date.now();
+if (now - __lastThemeToggleMs < 260) return;
+__lastThemeToggleMs = now;
 const isDark = !document.documentElement.classList.contains('dark');
 applyThemeUI(isDark);
+try {
 localStorage.setItem('alrifaie_theme_v2', isDark ? 'dark' : 'light');
 localStorage.setItem('alrifaie_theme', isDark ? 'dark' : 'light');
+} catch (e) {}
+showThemeFeedbackToast(isDark);
 }
+window.applyThemeUI = applyThemeUI;
+window.toggleDarkMode = toggleDarkMode;
 
 
 function closeSidebar() {
@@ -2756,13 +3753,11 @@ requestAnimationFrame(() => animateGridEntrances(target));
 
 
 document.querySelectorAll('.nav-btn').forEach(btn => {
-btn.classList.remove('bg-[#4F46E5]/15', 'dark:bg-[#4F46E5]/50', 'text-[#4F46E5]', 'dark:text-[#34D399]', 'bg-blue-50', 'dark:bg-blue-950/60', 'text-blue-700', 'dark:text-blue-300', 'font-semibold');
-btn.classList.add('text-slate-700', 'dark:text-slate-300', 'font-medium');
+btn.classList.remove('nav-btn-active', 'bg-[#4F46E5]/15', 'dark:bg-[#4F46E5]/50', 'text-[#4F46E5]', 'dark:text-[#34D399]', 'bg-blue-50', 'dark:bg-blue-950/60', 'text-blue-700', 'dark:text-blue-300', 'font-semibold');
 });
 const activeNav = document.getElementById('tabBtn' + tabId.charAt(0).toUpperCase() + tabId.slice(1));
 if (activeNav) {
-activeNav.classList.remove('text-slate-700', 'dark:text-slate-300', 'font-medium');
-activeNav.classList.add('bg-[#4F46E5]/15', 'dark:bg-[#4F46E5]/50', 'text-[#4F46E5]', 'dark:text-[#34D399]', 'font-semibold');
+activeNav.classList.add('nav-btn-active');
 }
 
 
@@ -2782,7 +3777,17 @@ document.documentElement.scrollTop = 0;
 document.body.scrollTop = 0;
 
 
-if (tabId === 'home') loadGaleri();
+if (tabId === 'home') {
+loadGaleri();
+if (window.AlRifaieSmart && typeof window.AlRifaieSmart.renderRoleBentoDashboard === 'function') {
+window.AlRifaieSmart.renderRoleBentoDashboard();
+}
+}
+else if (tabId === 'izin') {
+if (window.AlRifaieSmart && typeof window.AlRifaieSmart.onIzinTabOpened === 'function') {
+window.AlRifaieSmart.onIzinTabOpened();
+}
+}
 else if (tabId === 'rekap') loadRekap();
 else if (tabId === 'tunggakan') loadMissingAttendance();
 else if (tabId === 'simpanan') loadKeuangan('simpanan');
@@ -2790,7 +3795,12 @@ else if (tabId === 'operasional') loadKeuangan('operasional');
 else if (tabId === 'surat') loadSurat();
 else if (tabId === 'saranAdmin') loadSaranList();
 else if (tabId === 'database') loadDbData();
-else if (tabId === 'admin') loadUsers();
+else if (tabId === 'admin') {
+loadUsers();
+if (window.AlRifaieAdminSettings && typeof window.AlRifaieAdminSettings.onAdminTabOpened === 'function') {
+window.AlRifaieAdminSettings.onAdminTabOpened();
+}
+}
 
 if (window.AlRifaieAttendance && typeof window.AlRifaieAttendance.onTabChanged === 'function') {
 window.AlRifaieAttendance.onTabChanged(tabId);
@@ -2819,10 +3829,64 @@ tgtEl.innerHTML = '<option value="">Semua</option>' + opts.map(o => `<option val
 
 function toggleMonthSelect() {
 const t = document.getElementById('rekTime')?.value;
+const singleMonthC = document.getElementById('filterMonthSingleC');
+const singleYearC = document.getElementById('filterYearSingleC');
+const monthRangeC = document.getElementById('filterMonthRangeC');
 const singleC = document.getElementById('filterDateSingleC');
 const rangeC = document.getElementById('filterDateRangeC');
+if (singleMonthC) singleMonthC.classList.toggle('hidden', t !== 'month');
+if (singleYearC) singleYearC.classList.toggle('hidden', t !== 'month');
+if (monthRangeC) monthRangeC.classList.toggle('hidden', t !== 'month_range');
 if (singleC) singleC.classList.toggle('hidden', t !== 'date');
 if (rangeC) rangeC.classList.toggle('hidden', t !== 'range');
+}
+
+function syncOverallMonthInputsFromTop() {
+const pairs = [
+['rekMonthStart', 'overallMonthStart'],
+['rekYearStart', 'overallYearStart'],
+['rekMonthEnd', 'overallMonthEnd'],
+['rekYearEnd', 'overallYearEnd']
+];
+pairs.forEach(([src, dst]) => {
+const s = document.getElementById(src);
+const d = document.getElementById(dst);
+if (s && d) d.value = s.value;
+});
+}
+
+function applyOverallMonthRange() {
+const pairs = [
+['overallMonthStart', 'rekMonthStart'],
+['overallYearStart', 'rekYearStart'],
+['overallMonthEnd', 'rekMonthEnd'],
+['overallYearEnd', 'rekYearEnd']
+];
+pairs.forEach(([src, dst]) => {
+const s = document.getElementById(src);
+const d = document.getElementById(dst);
+if (s && d) d.value = s.value;
+});
+const rekTimeEl = document.getElementById('rekTime');
+if (rekTimeEl) rekTimeEl.value = 'month_range';
+toggleMonthSelect();
+filterRekapVisual();
+}
+
+function resetOverallMonthRange() {
+const now = new Date();
+const mm = String(now.getMonth() + 1).padStart(2, '0');
+const yy = String(now.getFullYear());
+['rekMonth', 'rekMonthStart', 'rekMonthEnd', 'overallMonthStart', 'overallMonthEnd'].forEach(id => {
+const el = document.getElementById(id); if (el) el.value = mm;
+});
+['rekYear', 'rekYearStart', 'rekYearEnd', 'overallYearStart', 'overallYearEnd'].forEach(id => {
+const el = document.getElementById(id); if (el) el.value = yy;
+});
+const rekTimeEl = document.getElementById('rekTime');
+if (rekTimeEl) rekTimeEl.value = 'month';
+toggleMonthSelect();
+filterRekapVisual();
 }
 
 
@@ -2864,6 +3928,10 @@ const timeMode = document.getElementById('rekTime')?.value || 'month';
 const monthEl = document.getElementById('rekMonth');
 const monthVal = monthEl?.value || '';
 const yearVal = document.getElementById('rekYear')?.value || '';
+const mStart = document.getElementById('rekMonthStart')?.value || monthVal || '01';
+const yStart = document.getElementById('rekYearStart')?.value || yearVal || '2026';
+const mEnd = document.getElementById('rekMonthEnd')?.value || monthVal || '12';
+const yEnd = document.getElementById('rekYearEnd')?.value || yearVal || '2026';
 const singleDate = document.getElementById('rekDateSingle')?.value || '';
 const startDate = document.getElementById('rekDateStart')?.value || '';
 const endDate = document.getElementById('rekDateEnd')?.value || '';
@@ -2871,12 +3939,27 @@ const searchQ = (document.getElementById('rekSearchName')?.value || '').toLowerC
 const todayStr = getWIBDateString();
 const isPoinKonversi = (act === 'wb' || act === 'takhassus');
 
+const monthNamesShort = { '01':'Jan','02':'Feb','03':'Mar','04':'Apr','05':'Mei','06':'Jun','07':'Jul','08':'Agu','09':'Sep','10':'Okt','11':'Nov','12':'Des' };
+let lowYM = `${yStart}-${mStart}`;
+let highYM = `${yEnd}-${mEnd}`;
+if (lowYM > highYM) { const tmp = lowYM; lowYM = highYM; highYM = tmp; }
+
+const weekCutoffDate = (() => {
+const d = new Date(todayStr + 'T00:00:00');
+d.setDate(d.getDate() - 6);
+return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+})();
 
 const periodBadge = document.getElementById('roomRecapPeriodBadge');
 if (periodBadge) {
 if (timeMode === 'today') periodBadge.innerText = `Hari Ini (${todayStr})`;
-else if (timeMode === 'week') periodBadge.innerText = 'Minggu Ini';
+else if (timeMode === 'week') periodBadge.innerText = `7 Hari Terakhir (${weekCutoffDate} s/d ${todayStr})`;
 else if (timeMode === 'month') periodBadge.innerText = `${monthEl ? monthEl.options[monthEl.selectedIndex].text : monthVal} ${yearVal}`;
+else if (timeMode === 'month_range') {
+const [ly, lm] = lowYM.split('-');
+const [hy, hm] = highYM.split('-');
+periodBadge.innerText = `${monthNamesShort[lm] || lm} ${ly} s/d ${monthNamesShort[hm] || hm} ${hy}`;
+}
 else if (timeMode === 'date') periodBadge.innerText = singleDate || 'Satu Tanggal';
 else if (timeMode === 'range') periodBadge.innerText = (startDate && endDate) ? `${startDate} s/d ${endDate}` : 'Rentang Tanggal';
 }
@@ -2887,7 +3970,12 @@ if (tgt && String(r.target || '').trim() !== tgt) return false;
 if (searchQ && !String(r.nama || '').toLowerCase().includes(searchQ)) return false;
 const tgl = String(r.tanggal || '');
 if (timeMode === 'today') return tgl === todayStr;
+if (timeMode === 'week') return tgl >= weekCutoffDate && tgl <= todayStr;
 if (timeMode === 'month') return tgl.startsWith(`${yearVal}-${monthVal}`);
+if (timeMode === 'month_range') {
+const ym = tgl.slice(0, 7);
+return ym >= lowYM && ym <= highYM;
+}
 if (timeMode === 'date' && singleDate) return tgl === singleDate;
 if (timeMode === 'range' && startDate && endDate) return tgl >= startDate && tgl <= endDate;
 return true;
@@ -3010,6 +4098,11 @@ roomTbody.innerHTML = roomStats.length
 <td class="p-3 text-right font-bold">${r.pct}%</td>
 </tr>`).join('')
 : '<tr><td colspan="7" class="p-5 text-center text-slate-400">Belum ada data kehadiran pada periode ini.</td></tr>';
+}
+
+const suratPanel = document.getElementById('rekapCat_suratdisiplin');
+if (suratPanel && !suratPanel.classList.contains('hidden') && window.AlRifaieSmart && typeof window.AlRifaieSmart.renderSuratDisiplinPanel === 'function') {
+window.AlRifaieSmart.renderSuratDisiplinPanel();
 }
 }
 
@@ -3190,23 +4283,23 @@ if (el) el.innerText = val || '';
 };
 
 
-setTextSafe('welcomeUserName', res.name || 'Petugas');
-const roleLbl = res.role === 'user' ? (res.jabatan || 'PENGURUS').toUpperCase() : String(res.role || 'USER').toUpperCase();
+const displayName = res.name || 'Petugas';
+setTextSafe('welcomeUserName', displayName);
+const roleLbl = res.role === 'walisantri'
+  ? (res.jabatan || 'WALI SANTRI').toUpperCase()
+  : (res.role === 'user' ? (res.jabatan || 'PENGURUS').toUpperCase() : String(res.role || 'USER').toUpperCase());
 setTextSafe('userSessionBadge', roleLbl);
 setTextSafe('serverRoleStatusBanner', roleLbl);
+setTextSafe('sidebarUserName', displayName);
+setTextSafe('sidebarUserRole', roleLbl);
+const initials = displayName.trim().split(/\s+/).slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('') || 'AP';
+setTextSafe('sidebarUserInitials', initials);
 
 
-document.querySelectorAll('.nav-btn[data-perm]').forEach(b => {
-b.classList.toggle('hidden', !hasPerm(b.dataset.perm));
-});
-document.querySelectorAll('.nav-group-header[data-group-perms]').forEach(header => {
-const perms = (header.dataset.groupPerms || '').split(',').map(p => p.trim()).filter(Boolean);
-const hasAnyPerm = perms.some(p => hasPerm(p));
-header.classList.toggle('hidden', !hasAnyPerm);
-});
-document.querySelectorAll('.bottom-nav-item[data-perm]').forEach(b => {
-b.classList.toggle('hidden', !hasPerm(b.dataset.perm));
-});
+refreshPermissionsUI();
+if (window.AndroidBridge && typeof window.AndroidBridge.syncLastSeenContentIds === 'function') {
+try { window.AndroidBridge.syncLastSeenContentIds('', '', String(res.role || '')); } catch (e) {}
+}
 
 
 const btnPengumuman = document.getElementById('btnTambahPengumuman');
@@ -3222,6 +4315,7 @@ const quickItems = [
 { perm:'takhassus', tab:'takhassus', icon:'fa-graduation-cap', bg:'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-400', label:'Takhassus' },
 { perm:'musyrif', tab:'musyrif', icon:'fa-user-tie', bg:'bg-sky-50 text-sky-700 dark:bg-sky-950/70 dark:text-sky-400', label:'Musyrif' },
 { perm:'pengajar', tab:'pengajar', icon:'fa-chalkboard-user', bg:'bg-teal-50 text-teal-700 dark:bg-teal-950/70 dark:text-teal-400', label:'Pengajar' },
+{ perm:'izin', tab:'izin', icon:'fa-file-circle-check', bg:'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-400', label:'Izin Digital' },
 { perm:'rekap', tab:'rekap', icon:'fa-chart-column', bg:'bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-blue-400', label:'Statistik' },
 { perm:'tunggakan', tab:'tunggakan', icon:'fa-list-check', bg:'bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-400', label:'Tunggakan' },
 { perm:'simpanan', tab:'simpanan', icon:'fa-piggy-bank', bg:'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-400', label:'Simpanan' },
@@ -3247,6 +4341,9 @@ switchTab('home');
 loadMembers('musyrif');
 loadMembers('pengajar');
 loadGaleri();
+if (window.AlRifaieSmart && typeof window.AlRifaieSmart.onSessionActivated === 'function') {
+window.AlRifaieSmart.onSessionActivated();
+}
 
 
 const loginSec = document.getElementById('loginSection');
@@ -3557,10 +4654,15 @@ const el = document.getElementById(id);
 if (el) el.value = tStr;
 });
 const now = new Date();
+const curMonthStr = String(now.getMonth()+1).padStart(2,'0');
+const curYearStr = String(now.getFullYear());
 const rekMonthEl = document.getElementById('rekMonth');
 const rekYearEl = document.getElementById('rekYear');
-if (rekMonthEl) rekMonthEl.value = String(now.getMonth()+1).padStart(2,'0');
-if (rekYearEl) rekYearEl.value = String(now.getFullYear());
+if (rekMonthEl) rekMonthEl.value = curMonthStr;
+if (rekYearEl) rekYearEl.value = curYearStr;
+['rekMonthStart', 'overallMonthStart'].forEach(id => { const el = document.getElementById(id); if (el) el.value = '01'; });
+['rekMonthEnd', 'overallMonthEnd'].forEach(id => { const el = document.getElementById(id); if (el) el.value = curMonthStr; });
+['rekYearStart', 'rekYearEnd', 'overallYearStart', 'overallYearEnd'].forEach(id => { const el = document.getElementById(id); if (el) el.value = curYearStr; });
 populateTunggakanMonthDropdown();
 applySavedSuratImages();
 startBannerClock();
@@ -3587,7 +4689,7 @@ console.warn('Error hidrasi pasca-splash:', err);
 
 window.addEventListener('DOMContentLoaded', () => {
 try {
-const savedTheme = localStorage.getItem('alrifaie_theme_v2');
+const savedTheme = localStorage.getItem('alrifaie_theme_v2') || localStorage.getItem('alrifaie_theme');
 applyThemeUI(savedTheme === 'dark');
 
 // Jika sesi login sudah tersimpan, langsung sembunyikan laman login sejak frame 0 agar tidak pernah berkedip
@@ -3682,6 +4784,9 @@ if (appSettings.bannerUrl) {
 try { localStorage.setItem('alrifaie_banner', appSettings.bannerUrl); } catch (e) {}
 applyBannerImage(appSettings.bannerUrl, false);
 }
+if (window.AlRifaieAdminSettings && typeof window.AlRifaieAdminSettings.onSettingsFromServer === 'function') {
+window.AlRifaieAdminSettings.onSettingsFromServer(appSettings);
+}
 }
 if (b.loginData) masterData = b.loginData;
 if (b.coreData && Object.keys(b.coreData).length > 0) {
@@ -3708,6 +4813,9 @@ if (Array.isArray(b.galeri)) {
 galeriCache = hydrateGaleriWithHd(b.galeri);
 saveLocalGaleri(galeriCache);
 renderGaleri(galeriCache);
+}
+if (window.AlRifaieSmart && typeof window.AlRifaieSmart.renderRoleBentoDashboard === 'function') {
+window.AlRifaieSmart.renderRoleBentoDashboard();
 }
 }
 
@@ -4341,6 +5449,97 @@ sel.value = prevSelected;
 }
 
 
+function showLoginChooser() {
+const chooser = document.getElementById('loginChooserWrap');
+const pengurus = document.getElementById('pengurusLoginWrap');
+const wali = document.getElementById('walisantriLoginWrap');
+const sub = document.getElementById('loginSubtitleText');
+if (chooser) chooser.classList.remove('hidden');
+if (pengurus) pengurus.classList.add('hidden');
+if (wali) wali.classList.add('hidden');
+if (sub) sub.innerText = 'Pilih jalur masuk untuk melanjutkan ke aplikasi';
+}
+
+function selectLoginPortal(portal) {
+const chooser = document.getElementById('loginChooserWrap');
+const pengurus = document.getElementById('pengurusLoginWrap');
+const wali = document.getElementById('walisantriLoginWrap');
+const sub = document.getElementById('loginSubtitleText');
+if (chooser) chooser.classList.add('hidden');
+if (portal === 'walisantri') {
+if (pengurus) pengurus.classList.add('hidden');
+if (wali) wali.classList.remove('hidden');
+if (sub) sub.innerText = 'Masuk menggunakan akun Wali Santri';
+setTimeout(() => { document.getElementById('waliLoginUsername')?.focus(); }, 60);
+} else {
+if (wali) wali.classList.add('hidden');
+if (pengurus) pengurus.classList.remove('hidden');
+if (sub) sub.innerText = 'Silakan masuk sebagai pengurus untuk melanjutkan';
+}
+}
+
+async function handleWaliLogin(e) {
+e.preventDefault();
+if (isLoginInProgress) return;
+const userEl = document.getElementById('waliLoginUsername');
+const pwdEl = document.getElementById('waliLoginPassword');
+const uname = userEl ? userEl.value.trim() : '';
+const pwd = pwdEl ? pwdEl.value : '';
+const btn = e.target.querySelector('button[type="submit"]');
+const origHtml = btn ? btn.innerHTML : '<span>Masuk sebagai Wali Santri</span>';
+
+const resetBtn = () => {
+isLoginInProgress = false;
+if (btn) {
+btn.innerHTML = origHtml;
+btn.disabled = false;
+}
+};
+
+if (!uname || !pwd) {
+if (typeof Swal !== 'undefined') Swal.fire('Perhatian', 'Silakan masukkan Username dan Password Wali Santri.', 'warning');
+return;
+}
+
+isLoginInProgress = true;
+if (btn) {
+btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i><span>Memverifikasi...</span>';
+btn.disabled = true;
+}
+
+try {
+let res = { success: false, message: 'Layanan verifikasi Wali Santri belum siap.' };
+if (window.AlRifaieAdminSettings && typeof window.AlRifaieAdminSettings.verifyWaliSantriCredentials === 'function') {
+res = await window.AlRifaieAdminSettings.verifyWaliSantriCredentials(uname, pwd);
+}
+resetBtn();
+if (!res || !res.success) {
+if (typeof Swal !== 'undefined') {
+Swal.fire('Akses Ditolak', (res && res.message) || 'Username atau password Wali Santri tidak sesuai.', 'error');
+}
+return;
+}
+const normalizedSession = {
+...res,
+success: true,
+role: 'walisantri',
+name: res.name || uname,
+username: res.username || uname,
+permissions: Array.isArray(res.permissions) ? res.permissions : []
+};
+saveDeviceSession(normalizedSession);
+activateSessionUI(normalizedSession, false);
+} catch (err) {
+resetBtn();
+if (typeof Swal !== 'undefined') {
+Swal.fire('Gagal Verifikasi', (err && err.message) || 'Terjadi kesalahan saat memverifikasi akun Wali Santri.', 'error');
+}
+}
+}
+
+window.showLoginChooser = showLoginChooser;
+window.selectLoginPortal = selectLoginPortal;
+
 function handleLogin(e) {
 e.preventDefault();
 if (isLoginInProgress) return;
@@ -4479,31 +5678,74 @@ Swal.fire('Error Aplikasi', err.message || 'Gagal menjalankan proses login.', 'e
 }
 
 
-function logout() {
-Swal.fire({
-title: 'Keluar dari Akun?',
-text: 'Sesi login pada perangkat ini akan dihapus dan Anda perlu login kembali.',
-icon: 'question',
-showCancelButton: true,
-confirmButtonColor: '#DC2626',
-cancelButtonColor: '#64748B',
-confirmButtonText: 'Ya, Keluar',
-cancelButtonText: 'Batal'
-}).then(result => {
-if (!result.isConfirmed) return;
+let __logoutModalOpenedAt = 0;
+
+function closeLogoutConfirmModal(evt) {
+if (evt) {
+if (typeof evt.preventDefault === 'function') evt.preventDefault();
+if (typeof evt.stopPropagation === 'function') evt.stopPropagation();
+}
+const modal = document.getElementById('logoutConfirmModal');
+if (!modal) return;
+modal.classList.remove('modal-is-open');
+modal.classList.add('modal-is-closing');
+setTimeout(() => {
+modal.classList.add('hidden');
+modal.classList.remove('modal-is-closing');
+const anyModalOpen = document.querySelector('.modal-backdrop-clean.modal-is-open');
+const sb = document.getElementById('appSidebar');
+const isSidebarOpen = sb && !sb.classList.contains('-translate-x-full') && window.innerWidth < 768;
+if (!anyModalOpen && !isSidebarOpen) {
+document.body.style.overflow = '';
+document.documentElement.style.overflow = '';
+}
+}, 200);
+}
+
+function handleLogoutBackdropClick(evt) {
+if (!evt || evt.target !== evt.currentTarget) return;
+if (Date.now() - __logoutModalOpenedAt < 350) return;
+closeLogoutConfirmModal(evt);
+}
+
+function confirmLogoutNow(evt) {
+if (evt) {
+if (typeof evt.preventDefault === 'function') evt.preventDefault();
+if (typeof evt.stopPropagation === 'function') evt.stopPropagation();
+}
+const modal = document.getElementById('logoutConfirmModal');
+if (modal) {
+modal.classList.remove('modal-is-open', 'modal-is-closing');
+modal.classList.add('hidden');
+}
+
 clearTimeout(loginNotifTimer);
+clearTimeout(loginPopupHideTimer);
 hideLoginSuccessPopup();
+
+try {
+if (window.AlRifaieSmart && typeof window.AlRifaieSmart.closeBottomSheet === 'function') {
+window.AlRifaieSmart.closeBottomSheet();
+}
+} catch (e) {}
+
+try {
+document.querySelectorAll('.modal-backdrop-clean.modal-is-open').forEach(m => {
+m.classList.remove('modal-is-open', 'modal-is-closing');
+m.classList.add('hidden');
+});
+} catch (e) {}
+
+closeSidebar();
+document.body.style.overflow = '';
+document.documentElement.style.overflow = '';
+
 clearDeviceSession();
 session = null;
-
 
 const appCont = document.getElementById('appContainer');
 const loginSec = document.getElementById('loginSection');
 const bottomNav = document.getElementById('mobileBottomNav');
-
-
-closeSidebar();
-
 
 if (appCont) {
 appCont.classList.add('hidden');
@@ -4512,25 +5754,56 @@ appCont.classList.remove('home-enter-smooth');
 }
 if (bottomNav) bottomNav.classList.add('hidden');
 
-
 if (loginSec) {
 loginSec.classList.remove('hidden', 'login-leaving');
 loginSec.style.display = 'flex';
 }
+
 window.scrollTo(0, 0);
 document.documentElement.scrollTop = 0;
 document.body.scrollTop = 0;
+
 const roleEl = document.getElementById('loginRole');
 const nameInpEl = document.getElementById('loginNameInput');
 const nameSelEl = document.getElementById('loginNameSelect');
 const pinEl = document.getElementById('loginPin');
+const waliUserEl = document.getElementById('waliLoginUsername');
+const waliPwdEl = document.getElementById('waliLoginPassword');
 if (roleEl) roleEl.value = '';
 if (nameInpEl) nameInpEl.value = '';
 if (nameSelEl) nameSelEl.value = '';
 if (pinEl) pinEl.value = '';
+if (waliUserEl) waliUserEl.value = '';
+if (waliPwdEl) waliPwdEl.value = '';
 updateRoleOptions();
-});
+showLoginChooser();
 }
+
+function logout(evt) {
+if (evt) {
+if (typeof evt.preventDefault === 'function') evt.preventDefault();
+if (typeof evt.stopPropagation === 'function') evt.stopPropagation();
+}
+const now = Date.now();
+if (now - __logoutModalOpenedAt < 250) return;
+__logoutModalOpenedAt = now;
+
+closeSidebar();
+
+const modal = document.getElementById('logoutConfirmModal');
+if (modal) {
+modal.classList.remove('hidden', 'modal-is-closing');
+void modal.offsetWidth;
+modal.classList.add('modal-is-open');
+document.body.style.overflow = 'hidden';
+} else {
+confirmLogoutNow();
+}
+}
+window.logout = logout;
+window.closeLogoutConfirmModal = closeLogoutConfirmModal;
+window.handleLogoutBackdropClick = handleLogoutBackdropClick;
+window.confirmLogoutNow = confirmLogoutNow;
 
 
 function buildRoomMatrixHtml(roomName, isLastPage = true) {
@@ -4754,6 +6027,7 @@ confirmButtonColor: '#1D4ED8'
 
 
 function drawChart(fData) {
+window.__lastRekapChartData = fData;
 const ctx = document.getElementById('rekapChart');
 if (!ctx) return;
 if (typeof Chart === 'undefined') {
@@ -4780,6 +6054,7 @@ data: { labels, datasets: [
 ]},
 options: { responsive:true, maintainAspectRatio:false, animation:false }
 });
+window.rekapChartInst = rekapChartInst;
 }
 
 
@@ -4859,19 +6134,17 @@ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([ro
 
 
 function loadUsers() {
+if (window.AlRifaieAdminSettings && typeof window.AlRifaieAdminSettings.renderUnifiedPengurusTable === 'function') {
+window.AlRifaieAdminSettings.renderUnifiedPengurusTable();
+}
 google.script.run.withSuccessHandler(list => {
 usersCache = list || [];
-const tb = document.getElementById('usersTableBody');
-tb.innerHTML = usersCache.map(u => `<tr>
-<td class="p-3 font-bold">${u.username}</td>
-<td class="p-3">${u.jabatan}</td>
-<td class="p-3 font-mono">${u.pin}</td>
-<td class="p-3"><div class="flex flex-wrap gap-1">${u.akses.map(a=>`<span class="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[10px] font-semibold">${a}</span>`).join('')}</div></td>
-<td class="p-3 text-center whitespace-nowrap">
-<button onclick="openUserModal('${u.id}')" class="text-blue-700 dark:text-blue-400 mr-2"><i class="fa-solid fa-pen"></i></button>
-<button onclick="delUser('${u.id}')" class="text-red-600"><i class="fa-solid fa-trash"></i></button>
-</td>
-</tr>`).join('') || '<tr><td colspan="5" class="p-5 text-center text-slate-400">Belum ada user tambahan.</td></tr>';
+if (window.AlRifaieAdminSettings && typeof window.AlRifaieAdminSettings.renderUnifiedPengurusTable === 'function') {
+window.AlRifaieAdminSettings.renderUnifiedPengurusTable();
+return;
+}
+const badge = document.getElementById('badgeCountPengurus');
+if (badge) badge.innerText = String(usersCache.length);
 }).getUsersData();
 }
 
@@ -4891,6 +6164,12 @@ document.querySelectorAll('input[name="uPerm"]').forEach(c => { if (u.akses.incl
 } else {
 document.getElementById('userModalTitle').innerText = 'Tambah User & Hak Akses';
 document.getElementById('uName').value = ''; document.getElementById('uJabatan').value = ''; document.getElementById('uPin').value = '';
+const defaultUserPerms = (window.AlRifaieAdminSettings && typeof window.AlRifaieAdminSettings.loadRolePermissions === 'function')
+  ? (window.AlRifaieAdminSettings.loadRolePermissions().user || [])
+  : [];
+if (defaultUserPerms.length > 0) {
+  document.querySelectorAll('input[name="uPerm"]').forEach(c => { if (defaultUserPerms.includes(c.value)) c.checked = true; });
+}
 }
 openModal('userModal');
 }
@@ -5836,8 +7115,31 @@ await HdMediaVault.set('banner_server_sig', makeShortHash(bannerServer));
 }
 
 
-const updatedPayloadLocal = { appName: newAppName, logoUrl: logoLocal, bannerUrl: bannerLocal };
-const updatedPayloadServer = { appName: newAppName, logoUrl: logoServer, bannerUrl: bannerServer };
+const curDeadlines = (window.AlRifaieAdminSettings && typeof window.AlRifaieAdminSettings.loadDeadlines === 'function')
+  ? window.AlRifaieAdminSettings.loadDeadlines()
+  : (appSettings.attendanceDeadlines || null);
+const curRolePerms = (window.AlRifaieAdminSettings && typeof window.AlRifaieAdminSettings.loadRolePermissions === 'function')
+  ? window.AlRifaieAdminSettings.loadRolePermissions()
+  : (appSettings.rolePermissions || null);
+const curStaffOverrides = (window.AlRifaieAdminSettings && typeof window.AlRifaieAdminSettings.loadStaffPermissionOverrides === 'function')
+  ? window.AlRifaieAdminSettings.loadStaffPermissionOverrides()
+  : (appSettings.staffPermissionOverrides || null);
+const updatedPayloadLocal = {
+  appName: newAppName,
+  logoUrl: logoLocal,
+  bannerUrl: bannerLocal,
+  ...(curDeadlines ? { attendanceDeadlines: curDeadlines } : {}),
+  ...(curRolePerms ? { rolePermissions: curRolePerms } : {}),
+  ...(curStaffOverrides ? { staffPermissionOverrides: curStaffOverrides } : {})
+};
+const updatedPayloadServer = {
+  appName: newAppName,
+  logoUrl: logoServer,
+  bannerUrl: bannerServer,
+  ...(curDeadlines ? { attendanceDeadlines: curDeadlines } : {}),
+  ...(curRolePerms ? { rolePermissions: curRolePerms } : {}),
+  ...(curStaffOverrides ? { staffPermissionOverrides: curStaffOverrides } : {})
+};
 
 
 const applySettingsNow = (savedToServer = true) => {
@@ -5976,7 +7278,10 @@ const waPreviewEl = document.getElementById('waPreviewText');
 const actSel = document.getElementById('rekAct');
 const actText = actSel.options[actSel.selectedIndex].text;
 const timeSel = document.getElementById('rekTime');
-const timeText = timeSel.options[timeSel.selectedIndex].text;
+const periodBadgeEl = document.getElementById('roomRecapPeriodBadge');
+const timeText = (periodBadgeEl && periodBadgeEl.innerText.trim())
+  ? periodBadgeEl.innerText.trim()
+  : timeSel.options[timeSel.selectedIndex].text;
 const tgt = document.getElementById('rekTgt').value || 'Semua Kamar/Kelas';
 
 
@@ -6068,6 +7373,8 @@ a.click();
 }
 </script>
 <script defer src="./qr-lib.js"></script>
+<script defer src="./admin-settings-module.js"></script>
 <script defer src="./nfc-qr-module.js"></script>
+<script defer src="./smart-features-module.js"></script>
 </body>
 </html>

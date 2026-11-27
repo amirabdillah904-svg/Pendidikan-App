@@ -210,6 +210,39 @@ function dispatchExistingFunction_(fnName, args) {
   if (fnName === 'uploadHdImage') {
     return uploadHdImage(args && args[0] ? args[0] : {});
   }
+  if (fnName === 'getWaliSantriUsers') {
+    return getWaliSantriUsers();
+  }
+  if (fnName === 'saveWaliSantriUser') {
+    return saveWaliSantriUser(args && args[0] ? args[0] : {});
+  }
+  if (fnName === 'deleteWaliSantriUser') {
+    return deleteWaliSantriUser(args && args[0] ? args[0] : '');
+  }
+  if (fnName === 'verifyWaliSantriLogin') {
+    return verifyWaliSantriLogin(args && args[0] ? args[0] : '', args && args[1] ? args[1] : '');
+  }
+  if (fnName === 'verifyLogin' && args && String(args[0] || '').toLowerCase() === 'walisantri') {
+    return verifyWaliSantriLogin(args[1] || '', args[2] || '');
+  }
+  if (fnName === 'getIzinDigital') {
+    return getIzinDigital();
+  }
+  if (fnName === 'saveIzinDigital') {
+    return saveIzinDigital(args && args[0] ? args[0] : {});
+  }
+  if (fnName === 'updateIzinDigitalStatus') {
+    return updateIzinDigitalStatus(args && args[0] ? args[0] : '', args && args[1] ? args[1] : '', args && args[2] ? args[2] : '', args && args[3] ? args[3] : '');
+  }
+  if (fnName === 'deleteIzinDigital') {
+    return deleteIzinDigital(args && args[0] ? args[0] : '');
+  }
+  if (fnName === 'getSantriTindakan') {
+    return getSantriTindakan();
+  }
+  if (fnName === 'saveSantriTindakan') {
+    return saveSantriTindakan(args && args[0] ? args[0] : {});
+  }
 
   // Otomatis simpan gambar HD (data:image/...) ke Google Drive agar Google Sheet hanya menyimpan URL HD tajam
   const safeArgs = Array.isArray(args) ? args.slice() : [];
@@ -229,6 +262,20 @@ function dispatchExistingFunction_(fnName, args) {
     if (typeof cfg.logoUrl === 'string' && cfg.logoUrl.indexOf('data:image/') === 0 && cfg.logoUrl.length > 48000) {
       const upLogo = saveHdImageToDrive_(cfg.logoUrl, 'logo');
       if (upLogo && upLogo.url) cfg.logoUrl = upLogo.url;
+    }
+    try {
+      const props = PropertiesService.getScriptProperties();
+      if (cfg.attendanceDeadlines && typeof cfg.attendanceDeadlines === 'object') {
+        props.setProperty('ALRIFAIE_ATTENDANCE_DEADLINES', JSON.stringify(cfg.attendanceDeadlines));
+      }
+      if (cfg.rolePermissions && typeof cfg.rolePermissions === 'object') {
+        props.setProperty('ALRIFAIE_ROLE_PERMISSIONS', JSON.stringify(cfg.rolePermissions));
+      }
+      if (cfg.staffPermissionOverrides && typeof cfg.staffPermissionOverrides === 'object') {
+        props.setProperty('ALRIFAIE_STAFF_PERM_OVERRIDES', JSON.stringify(cfg.staffPermissionOverrides));
+      }
+    } catch (propErr) {
+      Logger.log('Info simpan extra settings: ' + propErr);
     }
     safeArgs[0] = cfg;
   }
@@ -270,6 +317,24 @@ function dispatchExistingFunction_(fnName, args) {
     throw new Error('Fungsi tidak dikenali atau belum tersedia di Apps Script: ' + fnName);
   }
   const result = targetFn.apply(null, safeArgs);
+
+  // Sisipkan batas waktu absen & hak akses peran ke respons settings secara otomatis
+  try {
+    if ((fnName === 'getInitialBundle' || fnName === 'getFastLoginData') && result && typeof result === 'object') {
+      const props = PropertiesService.getScriptProperties();
+      const rawDl = props.getProperty('ALRIFAIE_ATTENDANCE_DEADLINES');
+      const rawRp = props.getProperty('ALRIFAIE_ROLE_PERMISSIONS');
+      const rawSp = props.getProperty('ALRIFAIE_STAFF_PERM_OVERRIDES');
+      if (rawDl || rawRp || rawSp) {
+        result.settings = result.settings && typeof result.settings === 'object' ? result.settings : {};
+        if (rawDl) result.settings.attendanceDeadlines = JSON.parse(rawDl);
+        if (rawRp) result.settings.rolePermissions = JSON.parse(rawRp);
+        if (rawSp) result.settings.staffPermissionOverrides = JSON.parse(rawSp);
+      }
+    }
+  } catch (mergeErr) {
+    Logger.log('Info merge extra settings: ' + mergeErr);
+  }
 
   // Otomatis tambahkan header "NFC Code" & "QR Code" pada sheet absensi / database setelah data masuk
   try {
@@ -493,4 +558,416 @@ function createJsonOutput_(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * =========================================================================
+ * MANAJEMEN AKUN & AUTENTIKASI WALI SANTRI (HASH SHA-256 BERSALT)
+ * =========================================================================
+ */
+const WALI_SANTRI_PROP_KEY = 'ALRIFAIE_WALI_SANTRI_USERS_V1';
+
+function readWaliSantriStore_() {
+  try {
+    const raw = PropertiesService.getScriptProperties().getProperty(WALI_SANTRI_PROP_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function writeWaliSantriStore_(list) {
+  PropertiesService.getScriptProperties().setProperty(WALI_SANTRI_PROP_KEY, JSON.stringify(list || []));
+}
+
+function computeSaltedSha256_(password, salt) {
+  const bytes = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    String(salt || '') + ':' + String(password || ''),
+    Utilities.Charset.UTF_8
+  );
+  return bytes.map(function (b) {
+    const v = b < 0 ? b + 256 : b;
+    return (v < 16 ? '0' : '') + v.toString(16);
+  }).join('');
+}
+
+function timingSafeHexEqual_(a, b) {
+  const sa = String(a || '');
+  const sb = String(b || '');
+  if (!sa || sa.length !== sb.length) return false;
+  let diff = 0;
+  for (let i = 0; i < sa.length; i++) {
+    diff |= sa.charCodeAt(i) ^ sb.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+function getWaliSantriUsers() {
+  const list = readWaliSantriStore_();
+  return list.map(function (u) {
+    return {
+      id: String(u.id || ''),
+      username: String(u.username || ''),
+      namaWali: String(u.namaWali || ''),
+      namaSantri: String(u.namaSantri || ''),
+      akses: Array.isArray(u.akses) ? u.akses : [],
+      createdAt: u.createdAt || ''
+    };
+  });
+}
+
+function saveWaliSantriUser(payload) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const data = payload && typeof payload === 'object' ? payload : {};
+    const id = String(data.id || '').trim();
+    const username = String(data.username || '').trim();
+    const password = String(data.password || '');
+    const namaWali = String(data.namaWali || '').trim();
+    const namaSantri = String(data.namaSantri || '').trim();
+    const allowedPermKeys = ['wb', 'takhassus', 'musyrif', 'pengajar', 'izin', 'rekap', 'tunggakan', 'simpanan', 'operasional', 'surat', 'saranAdmin', 'database', 'admin'];
+    const akses = Array.isArray(data.akses)
+      ? data.akses.map(function (x) { return String(x); }).filter(function (k) { return allowedPermKeys.indexOf(k) !== -1; })
+      : [];
+
+    if (!username || username.length < 3) {
+      return { success: false, message: 'Username Wali Santri minimal 3 karakter.' };
+    }
+
+    const list = readWaliSantriStore_();
+    const dupIdx = list.findIndex(function (x) {
+      return String(x.username || '').toLowerCase() === username.toLowerCase() && String(x.id) !== id;
+    });
+    if (dupIdx !== -1) {
+      return { success: false, message: 'Username sudah digunakan oleh akun Wali Santri lain.' };
+    }
+
+    if (id) {
+      const idx = list.findIndex(function (x) { return String(x.id) === id; });
+      if (idx === -1) {
+        return { success: false, message: 'Akun Wali Santri tidak ditemukan.' };
+      }
+      const existing = list[idx];
+      let nextSalt = existing.salt || '';
+      let nextHash = existing.passwordHash || '';
+      if (password) {
+        if (password.length < 4) {
+          return { success: false, message: 'Password minimal 4 karakter.' };
+        }
+        nextSalt = Utilities.getUuid().replace(/-/g, '').slice(0, 16);
+        nextHash = computeSaltedSha256_(password, nextSalt);
+      } else if (data.passwordHash && data.salt) {
+        nextSalt = String(data.salt);
+        nextHash = String(data.passwordHash);
+      }
+      list[idx] = {
+        id: existing.id,
+        username: username,
+        namaWali: namaWali || username,
+        namaSantri: namaSantri,
+        akses: akses,
+        salt: nextSalt,
+        passwordHash: nextHash,
+        createdAt: existing.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      writeWaliSantriStore_(list);
+      return { success: true, id: existing.id };
+    }
+
+    if (!password && !(data.passwordHash && data.salt)) {
+      return { success: false, message: 'Password wajib diisi untuk akun Wali Santri baru.' };
+    }
+    if (password && password.length < 4) {
+      return { success: false, message: 'Password minimal 4 karakter.' };
+    }
+
+    const newId = 'ws_' + Date.now() + '_' + Utilities.getUuid().slice(0, 6);
+    const salt = password ? Utilities.getUuid().replace(/-/g, '').slice(0, 16) : String(data.salt);
+    const passwordHash = password ? computeSaltedSha256_(password, salt) : String(data.passwordHash);
+
+    list.push({
+      id: newId,
+      username: username,
+      namaWali: namaWali || username,
+      namaSantri: namaSantri,
+      akses: akses,
+      salt: salt,
+      passwordHash: passwordHash,
+      createdAt: new Date().toISOString()
+    });
+    writeWaliSantriStore_(list);
+    return { success: true, id: newId };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function deleteWaliSantriUser(id) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const targetId = String(id || '').trim();
+    if (!targetId) return { success: false, message: 'ID akun tidak valid.' };
+    const list = readWaliSantriStore_().filter(function (x) { return String(x.id) !== targetId; });
+    writeWaliSantriStore_(list);
+    return { success: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function verifyWaliSantriLogin(username, password) {
+  const uname = String(username || '').trim().toLowerCase();
+  const pwd = String(password || '');
+  if (!uname || !pwd) {
+    return { success: false, message: 'Username dan password wajib diisi.' };
+  }
+  const list = readWaliSantriStore_();
+  const acc = list.find(function (x) { return String(x.username || '').trim().toLowerCase() === uname; });
+  if (!acc || !acc.passwordHash || !acc.salt) {
+    return { success: false, message: 'Username atau password Wali Santri tidak sesuai.' };
+  }
+  const candidateHash = computeSaltedSha256_(pwd, acc.salt);
+  if (!timingSafeHexEqual_(candidateHash, acc.passwordHash)) {
+    return { success: false, message: 'Username atau password Wali Santri tidak sesuai.' };
+  }
+
+  let defaultWaliPerms = ['rekap'];
+  try {
+    const rawRp = PropertiesService.getScriptProperties().getProperty('ALRIFAIE_ROLE_PERMISSIONS');
+    if (rawRp) {
+      const rp = JSON.parse(rawRp);
+      if (Array.isArray(rp.walisantri)) defaultWaliPerms = rp.walisantri;
+    }
+  } catch (e) {}
+
+  const perms = Array.isArray(acc.akses) ? acc.akses : defaultWaliPerms;
+  return {
+    success: true,
+    role: 'walisantri',
+    username: acc.username,
+    name: acc.namaWali || acc.username,
+    namaSantri: acc.namaSantri || '',
+    jabatan: acc.namaSantri ? ('Wali • ' + acc.namaSantri) : 'Wali Santri',
+    permissions: perms
+  };
+}
+
+/**
+ * =========================================================================
+ * IZIN DIGITAL (SAKIT / PULANG / DISPENSASI) & PERSETUJUAN PENGURUS
+ * =========================================================================
+ */
+const IZIN_DIGITAL_SHEET_NAME = 'IzinDigital';
+const TINDAKAN_SANTRI_SHEET_NAME = 'TindakanSantri';
+
+function getOrCreateIzinSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(IZIN_DIGITAL_SHEET_NAME);
+  if (!sh) {
+    sh = ss.insertSheet(IZIN_DIGITAL_SHEET_NAME);
+    sh.appendRow(['ID', 'NamaSantri', 'KamarKelas', 'Jenis', 'Mulai', 'Selesai', 'Alasan', 'Pengaju', 'PeranPengaju', 'Status', 'DiprosesOleh', 'CatatanAdmin', 'CreatedAt']);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function getIzinDigital() {
+  try {
+    const sh = getOrCreateIzinSheet_();
+    const lastRow = sh.getLastRow();
+    if (lastRow <= 1) return [];
+    const rows = sh.getRange(2, 1, lastRow - 1, 13).getValues();
+    const out = [];
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const r = rows[i];
+      if (!r[0]) continue;
+      out.push({
+        id: String(r[0]),
+        namaSantri: String(r[1] || ''),
+        kamarKelas: String(r[2] || ''),
+        jenis: String(r[3] || 'Sakit'),
+        startDate: String(r[4] || ''),
+        endDate: String(r[5] || ''),
+        alasan: String(r[6] || ''),
+        pengaju: String(r[7] || ''),
+        peranPengaju: String(r[8] || ''),
+        status: String(r[9] || 'Menunggu'),
+        diprosesOleh: String(r[10] || ''),
+        catatanAdmin: String(r[11] || ''),
+        createdAt: String(r[12] || '')
+      });
+    }
+    return out;
+  } catch (e) {
+    return [];
+  }
+}
+
+function safeSheetCell_(val, maxLen) {
+  const s = String(val == null ? '' : val).trim().slice(0, maxLen || 300);
+  if (/^[=+\-@\t\r]/.test(s)) return "'" + s;
+  return s;
+}
+
+function saveIzinDigital(payload) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const d = payload && typeof payload === 'object' ? payload : {};
+    const namaPemohon = safeSheetCell_(d.namaSantri || d.namaPemohon, 120);
+    const unitTugas = safeSheetCell_(d.kamarKelas || d.unitTugas, 100);
+    const allowedJenis = ['Sakit', 'Keperluan Keluarga', 'Tugas Luar / Dinas', 'Izin Pribadi', 'Pulang', 'Dispensasi'];
+    const jenis = allowedJenis.indexOf(String(d.jenis || '')) !== -1 ? String(d.jenis) : 'Izin Pribadi';
+    const startDate = String(d.startDate || '').trim().slice(0, 10);
+    const endDate = String(d.endDate || startDate).trim().slice(0, 10);
+    const alasan = safeSheetCell_(d.alasan, 400);
+    const pengaju = safeSheetCell_(d.pengaju || namaPemohon, 100);
+    const peranPengaju = String(d.peranPengaju || '').trim().toLowerCase();
+
+    if (['musyrif', 'pengajar', 'admin'].indexOf(peranPengaju) === -1) {
+      return { success: false, message: 'Izin Digital hanya diperuntukkan bagi Musyrif, Pengajar, atau Admin.' };
+    }
+    if (!namaPemohon || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate < startDate) {
+      return { success: false, message: 'Nama pemohon dan rentang tanggal izin wajib valid.' };
+    }
+
+    const sh = getOrCreateIzinSheet_();
+    const id = String(d.id || ('iz_' + Date.now() + '_' + Utilities.getUuid().slice(0, 6))).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60);
+    const initialStatus = (peranPengaju === 'admin') ? 'Disetujui' : 'Menunggu';
+    const diprosesOleh = (peranPengaju === 'admin') ? pengaju : '';
+    const createdAt = new Date().toISOString();
+
+    sh.appendRow([id, namaPemohon, unitTugas, jenis, startDate, endDate, alasan, pengaju, peranPengaju, initialStatus, diprosesOleh, '', createdAt]);
+    return { success: true, id: id, status: initialStatus };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function updateIzinDigitalStatus(id, nextStatus, approverName, catatanAdmin) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const targetId = String(id || '').trim();
+    const allowedStatuses = ['Menunggu', 'Disetujui', 'Ditolak'];
+    if (!targetId || allowedStatuses.indexOf(String(nextStatus || '')) === -1) {
+      return { success: false, message: 'Parameter status izin tidak valid.' };
+    }
+    const sh = getOrCreateIzinSheet_();
+    const lastRow = sh.getLastRow();
+    if (lastRow <= 1) return { success: false, message: 'Data izin tidak ditemukan.' };
+    const ids = sh.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (let i = 0; i < ids.length; i++) {
+      if (String(ids[i][0]) === targetId) {
+        const rowNum = i + 2;
+        sh.getRange(rowNum, 10).setValue(String(nextStatus));
+        sh.getRange(rowNum, 11).setValue(safeSheetCell_(approverName, 100));
+        sh.getRange(rowNum, 12).setValue(safeSheetCell_(catatanAdmin, 300));
+        return { success: true };
+      }
+    }
+    return { success: false, message: 'Data izin tidak ditemukan.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function deleteIzinDigital(id) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const targetId = String(id || '').trim();
+    if (!targetId) return { success: false, message: 'ID izin tidak valid.' };
+    const sh = getOrCreateIzinSheet_();
+    const lastRow = sh.getLastRow();
+    if (lastRow <= 1) return { success: true };
+    const ids = sh.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (let i = ids.length - 1; i >= 0; i--) {
+      if (String(ids[i][0]) === targetId) {
+        sh.deleteRow(i + 2);
+        return { success: true };
+      }
+    }
+    return { success: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * =========================================================================
+ * LOG TINDAKAN MUSYRIF / PENGAJAR UNTUK SANTRI BERMASALAH
+ * =========================================================================
+ */
+function getOrCreateTindakanSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(TINDAKAN_SANTRI_SHEET_NAME);
+  if (!sh) {
+    sh = ss.insertSheet(TINDAKAN_SANTRI_SHEET_NAME);
+    sh.appendRow(['ID', 'Tanggal', 'NamaSantri', 'KamarKelas', 'Tindakan', 'Catatan', 'Petugas', 'PeranPetugas']);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function getSantriTindakan() {
+  try {
+    const sh = getOrCreateTindakanSheet_();
+    const lastRow = sh.getLastRow();
+    if (lastRow <= 1) return [];
+    const rows = sh.getRange(2, 1, lastRow - 1, 8).getValues();
+    const out = [];
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const r = rows[i];
+      if (!r[0]) continue;
+      out.push({
+        id: String(r[0]),
+        tanggal: String(r[1] || ''),
+        namaSantri: String(r[2] || ''),
+        kamarKelas: String(r[3] || ''),
+        tindakan: String(r[4] || ''),
+        catatan: String(r[5] || ''),
+        petugas: String(r[6] || ''),
+        peranPetugas: String(r[7] || '')
+      });
+    }
+    return out;
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveSantriTindakan(payload) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const d = payload && typeof payload === 'object' ? payload : {};
+    const namaSantri = safeSheetCell_(d.namaSantri, 120);
+    const tindakan = safeSheetCell_(d.tindakan, 120);
+    if (!namaSantri || !tindakan) {
+      return { success: false, message: 'Nama santri dan jenis tindakan wajib diisi.' };
+    }
+    const sh = getOrCreateTindakanSheet_();
+    const id = String(d.id || ('tnd_' + Date.now() + '_' + Utilities.getUuid().slice(0, 6))).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60);
+    const rawDate = String(d.tanggal || '').trim().slice(0, 10);
+    const tanggal = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : new Date().toISOString().slice(0, 10);
+    sh.appendRow([
+      id,
+      tanggal,
+      namaSantri,
+      safeSheetCell_(d.kamarKelas, 100),
+      tindakan,
+      safeSheetCell_(d.catatan, 400),
+      safeSheetCell_(d.petugas, 100),
+      safeSheetCell_(d.peranPetugas, 40)
+    ]);
+    return { success: true, id: id };
+  } finally {
+    lock.releaseLock();
+  }
 }

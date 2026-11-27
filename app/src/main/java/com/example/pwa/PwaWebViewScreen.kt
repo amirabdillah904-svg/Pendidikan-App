@@ -192,6 +192,16 @@ fun PwaWebViewScreen(
     }
   }
 
+  LaunchedEffect(viewModel, webViewRef) {
+    viewModel.offlineQueueJsonEvents.collect { queueJson ->
+      val safeJson = queueJson.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "")
+      webViewRef?.evaluateJavascript(
+        "if(window.__androidOnOfflineQueueChanged){window.__androidOnOfflineQueueChanged('$safeJson');}",
+        null,
+      )
+    }
+  }
+
   // Fallback document picker for non-image file inputs
   val genericFileLauncher =
     rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -424,6 +434,33 @@ fun PwaWebViewScreen(
                   },
                   onVibrateFeedback = { ms ->
                     onVibrateFeedback(ms)
+                  },
+                  onGetPendingOfflineQueueJson = {
+                    viewModel.getPendingOperationsJsonBlocking()
+                  },
+                  onRetrySingleOfflineOp = { clientOpId ->
+                    viewModel.retrySinglePendingOperation(clientOpId)
+                  },
+                  onDeleteOfflineOp = { clientOpId ->
+                    viewModel.deletePendingOperation(clientOpId)
+                  },
+                  onIsAutoUploadOfflineEnabled = {
+                    viewModel.isAutoUploadOfflineEnabled()
+                  },
+                  onSetAutoUploadOfflineEnabled = { enabled ->
+                    viewModel.setAutoUploadOfflineEnabled(enabled)
+                  },
+                  onIsBackgroundNotifEnabled = {
+                    viewModel.isBackgroundNotifEnabled()
+                  },
+                  onSetBackgroundNotifEnabled = { enabled ->
+                    viewModel.setBackgroundNotifEnabled(enabled)
+                  },
+                  onSyncLastSeenContentIds = { pengId, galId, role ->
+                    viewModel.syncLastSeenContentIds(pengId, galId, role)
+                  },
+                  onTriggerBackgroundCheckNow = {
+                    viewModel.triggerBackgroundWorkNow()
                   },
                 )
               addJavascriptInterface(jsBridge, PwaJsBridge.BRIDGE_NAME)

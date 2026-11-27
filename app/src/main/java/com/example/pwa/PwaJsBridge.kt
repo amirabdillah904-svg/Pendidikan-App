@@ -30,6 +30,15 @@ class PwaJsBridge(
   private val onOpenNfcSettings: () -> Unit = {},
   private val onRequestCameraPermission: () -> Unit = {},
   private val onVibrateFeedback: (durationMs: Long) -> Unit = {},
+  private val onGetPendingOfflineQueueJson: () -> String = { "[]" },
+  private val onRetrySingleOfflineOp: (clientOpId: String) -> Unit = {},
+  private val onDeleteOfflineOp: (clientOpId: String) -> Unit = {},
+  private val onIsAutoUploadOfflineEnabled: () -> Boolean = { true },
+  private val onSetAutoUploadOfflineEnabled: (enabled: Boolean) -> Unit = {},
+  private val onIsBackgroundNotifEnabled: () -> Boolean = { true },
+  private val onSetBackgroundNotifEnabled: (enabled: Boolean) -> Unit = {},
+  private val onSyncLastSeenContentIds: (pengumumanId: String, galeriId: String, userRole: String) -> Unit = { _, _, _ -> },
+  private val onTriggerBackgroundCheckNow: () -> Unit = {},
 ) {
 
   @JavascriptInterface
@@ -130,6 +139,56 @@ class PwaJsBridge(
     onVibrateFeedback(durationMs)
   }
 
+  @JavascriptInterface
+  fun getPendingOfflineQueueJson(): String {
+    return onGetPendingOfflineQueueJson()
+  }
+
+  @JavascriptInterface
+  fun retrySingleOfflineOp(clientOpId: String) {
+    onRetrySingleOfflineOp(clientOpId)
+  }
+
+  @JavascriptInterface
+  fun deleteOfflineOp(clientOpId: String) {
+    onDeleteOfflineOp(clientOpId)
+  }
+
+  @JavascriptInterface
+  fun isAutoUploadOfflineEnabled(): Boolean {
+    return onIsAutoUploadOfflineEnabled()
+  }
+
+  @JavascriptInterface
+  fun setAutoUploadOfflineEnabled(enabled: Boolean) {
+    onSetAutoUploadOfflineEnabled(enabled)
+  }
+
+  @JavascriptInterface
+  fun isBackgroundNotifEnabled(): Boolean {
+    return onIsBackgroundNotifEnabled()
+  }
+
+  @JavascriptInterface
+  fun setBackgroundNotifEnabled(enabled: Boolean) {
+    onSetBackgroundNotifEnabled(enabled)
+  }
+
+  @JavascriptInterface
+  fun syncLastSeenContentIds(pengumumanId: String, galeriId: String, userRole: String) {
+    onSyncLastSeenContentIds(pengumumanId, galeriId, userRole)
+  }
+
+  @JavascriptInterface
+  fun triggerBackgroundCheckNow() {
+    onTriggerBackgroundCheckNow()
+  }
+
+  @JavascriptInterface
+  fun syncAttendanceDeadlines(deadlinesJson: String) {
+    com.example.offline.BackgroundSyncPrefs.setAttendanceDeadlinesJson(context, deadlinesJson)
+  }
+
   companion object {
     const val BRIDGE_NAME = "AndroidBridge"
     private val ALLOWED_EXTERNAL_SCHEMES = setOf("https", "http", "whatsapp", "mailto", "tel")
@@ -144,10 +203,14 @@ class PwaJsBridge(
         if (window.__androidPwaBridgeInstalled) return;
         window.__androidPwaBridgeInstalled = true;
 
+        var lastNotifiedDark = null;
         function notifyTheme() {
           try {
-            if (window.AndroidBridge) {
-              window.AndroidBridge.onThemeChanged(document.documentElement.classList.contains('dark'));
+            var curDark = document.documentElement.classList.contains('dark');
+            if (curDark === lastNotifiedDark) return;
+            lastNotifiedDark = curDark;
+            if (window.AndroidBridge && typeof window.AndroidBridge.onThemeChanged === 'function') {
+              window.AndroidBridge.onThemeChanged(curDark);
             }
           } catch (e) {}
         }
@@ -277,14 +340,16 @@ class PwaJsBridge(
         // === OFFLINE-FIRST & REAL-TIME INFORMATION NOTIFICATION INTERCEPTOR ===
         var READ_FNS = [
           'getFastLoginData', 'getInitialBundle', 'getRekapData', 'getMissingAttendance',
-          'getFinancialData', 'getUsersData', 'getPengumuman', 'getGaleriData',
-          'getSaran', 'getSurat', 'getDbData'
+          'getFinancialData', 'getUsersData', 'getWaliSantriUsers', 'getPengumuman', 'getGaleriData',
+          'getSaran', 'getSurat', 'getDbData', 'getIzinDigital', 'getSantriTindakan'
         ];
         var WRITE_FNS = [
           'submitAbsensi', 'saveFinancialData', 'deleteFinancialData',
           'savePengumuman', 'deletePengumuman', 'saveGaleriData', 'deleteGaleriData',
           'toggleGaleriLike', 'saveSaran', 'deleteSaran', 'saveSuratData', 'deleteSurat',
-          'saveDbData', 'deleteDbData', 'saveUserData', 'deleteUserData', 'updateAppSettings'
+          'saveDbData', 'deleteDbData', 'saveUserData', 'deleteUserData',
+          'saveWaliSantriUser', 'deleteWaliSantriUser', 'updateAppSettings',
+          'saveIzinDigital', 'updateIzinDigitalStatus', 'deleteIzinDigital', 'saveSantriTindakan'
         ];
 
         function genClientOpId() {
@@ -305,7 +370,13 @@ class PwaJsBridge(
           if (fnName === 'saveSuratData' && first) return 'Arsip Surat • ' + String(first.perihal || '');
           if (fnName === 'saveDbData') return 'Database (' + String((args && args[0]) || '') + ')';
           if (fnName === 'saveUserData') return 'Data User';
+          if (fnName === 'saveWaliSantriUser') return 'Akun Wali Santri';
+          if (fnName === 'deleteWaliSantriUser') return 'Hapus Akun Wali Santri';
           if (fnName === 'updateAppSettings') return 'Setelan Aplikasi';
+          if (fnName === 'saveIzinDigital' && first) return 'Izin Digital • ' + String(first.namaSantri || '');
+          if (fnName === 'updateIzinDigitalStatus') return 'Persetujuan Izin Digital';
+          if (fnName === 'deleteIzinDigital') return 'Hapus Izin Digital';
+          if (fnName === 'saveSantriTindakan' && first) return 'Tindakan Santri • ' + String(first.namaSantri || '');
           return 'Data ' + fnName;
         }
 
@@ -326,6 +397,10 @@ class PwaJsBridge(
               );
             }
             localStorage.setItem('alrifaie_last_seen_pengumuman_id', latestId);
+            if (window.AndroidBridge && typeof window.AndroidBridge.syncLastSeenContentIds === 'function') {
+              var roleStr = (window.session && window.session.role) ? String(window.session.role) : '';
+              window.AndroidBridge.syncLastSeenContentIds(latestId, '', roleStr);
+            }
           } catch (e) {}
         }
 
@@ -345,6 +420,10 @@ class PwaJsBridge(
               window.AndroidBridge.notifyRealtimeEvent('Galeri Santri Baru • Dept. Pendidikan', body);
             }
             localStorage.setItem('alrifaie_last_seen_galeri_id', latestId);
+            if (window.AndroidBridge && typeof window.AndroidBridge.syncLastSeenContentIds === 'function') {
+              var roleStr = (window.session && window.session.role) ? String(window.session.role) : '';
+              window.AndroidBridge.syncLastSeenContentIds('', latestId, roleStr);
+            }
           } catch (e) {}
         }
 
@@ -549,8 +628,17 @@ class PwaJsBridge(
 
         window.__androidHandleBack = function() {
           try {
+            var logoutModal = document.getElementById('logoutConfirmModal');
+            if (logoutModal && !logoutModal.classList.contains('hidden') && typeof closeLogoutConfirmModal === 'function') {
+              closeLogoutConfirmModal();
+              return 'handled';
+            }
             if (typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible()) {
               Swal.close();
+              return 'handled';
+            }
+            if (window.AlRifaieSmart && typeof window.AlRifaieSmart.isBottomSheetOpen === 'function' && window.AlRifaieSmart.isBottomSheetOpen()) {
+              window.AlRifaieSmart.closeBottomSheet();
               return 'handled';
             }
             var openModal = document.querySelector('.modal-backdrop-clean.modal-is-open');
@@ -561,6 +649,12 @@ class PwaJsBridge(
             var sidebar = document.getElementById('appSidebar');
             if (sidebar && !sidebar.classList.contains('-translate-x-full') && window.innerWidth < 768 && typeof closeSidebar === 'function') {
               closeSidebar();
+              return 'handled';
+            }
+            var loginSec = document.getElementById('loginSection');
+            var chooserWrap = document.getElementById('loginChooserWrap');
+            if (loginSec && !loginSec.classList.contains('hidden') && chooserWrap && chooserWrap.classList.contains('hidden') && typeof window.showLoginChooser === 'function') {
+              window.showLoginChooser();
               return 'handled';
             }
             var appCont = document.getElementById('appContainer');

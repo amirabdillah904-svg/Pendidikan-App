@@ -9,6 +9,8 @@ import android.net.NetworkRequest
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.R
+import com.example.offline.BackgroundSyncAndNotifyWorker
+import com.example.offline.BackgroundSyncPrefs
 import com.example.offline.OfflineDatabase
 import com.example.offline.OfflineSyncRepository
 import com.example.offline.PendingSyncEntity
@@ -25,6 +27,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import org.json.JSONArray
+import org.json.JSONObject
 
 sealed interface PwaUiEvent {
   data class FileExported(val result: ExportResult) : PwaUiEvent
@@ -58,6 +62,9 @@ class PwaViewModel(application: Application) : AndroidViewModel(application) {
   private val _events = MutableSharedFlow<PwaUiEvent>(extraBufferCapacity = 8)
   val events: SharedFlow<PwaUiEvent> = _events.asSharedFlow()
 
+  private val _offlineQueueJsonEvents = MutableSharedFlow<String>(extraBufferCapacity = 8)
+  val offlineQueueJsonEvents: SharedFlow<String> = _offlineQueueJsonEvents.asSharedFlow()
+
   private var autoSyncJob: Job? = null
 
   private val connectivityManager =
@@ -85,6 +92,7 @@ class PwaViewModel(application: Application) : AndroidViewModel(application) {
     viewModelScope.launch {
       repository.pendingOperations.collect { list ->
         _uiState.update { it.copy(pendingOperations = list, pendingCount = list.size) }
+        _offlineQueueJsonEvents.tryEmit(serializePendingOperations(list))
       }
     }
 
@@ -98,8 +106,11 @@ class PwaViewModel(application: Application) : AndroidViewModel(application) {
       // Gracefully ignore on restricted environments
     }
 
+    // Ensure periodic background notifications & sync worker is active
+    BackgroundSyncAndNotifyWorker.schedulePeriodicWork(application)
+
     // Attempt initial sync after splash screen completes so startup animation stays butter-smooth
-    if (!_uiState.value.isOffline) {
+    if (!_uiState.value.isOffline && BackgroundSyncPrefs.isAutoUploadOfflineEnabled(application)) {
       scheduleAutoSync(delayMs = 4200L)
     }
   }
@@ -107,17 +118,26 @@ class PwaViewModel(application: Application) : AndroidViewModel(application) {
   private fun handleConnectivityChanged(online: Boolean) {
     val wasOffline = _uiState.value.isOffline
     _uiState.update { it.copy(isOffline = !online) }
-    if (online && (wasOffline || _uiState.value.pendingCount > 0)) {
+    if (
+      online &&
+        BackgroundSyncPrefs.isAutoUploadOfflineEnabled(getApplication()) &&
+        (wasOffline || _uiState.value.pendingCount > 0)
+    ) {
       scheduleAutoSync(delayMs = 1500L)
     }
   }
 
   private fun scheduleAutoSync(delayMs: Long) {
+    if (!BackgroundSyncPrefs.isAutoUploadOfflineEnabled(getApplication())) return
     autoSyncJob?.cancel()
     autoSyncJob =
       viewModelScope.launch {
         delay(delayMs)
-        if (!_uiState.value.isOffline && _uiState.value.pendingCount > 0) {
+        if (
+          !_uiState.value.isOffline &&
+            _uiState.value.pendingCount > 0 &&
+            BackgroundSyncPrefs.isAutoUploadOfflineEnabled(getApplication())
+        ) {
           syncPendingNow(silentIfEmpty = true)
         }
       }
@@ -165,8 +185,12 @@ class PwaViewModel(application: Application) : AndroidViewModel(application) {
       val count = repository.enqueueWrite(clientOpId, fnName, argsJson, cleanLabel)
       notificationHelper.notifyOfflineSaved(cleanLabel, count)
       _events.emit(PwaUiEvent.Message(R.string.snackbar_offline_saved))
-      if (isNetworkConnected(getApplication())) {
-        scheduleAutoSync(delayMs = 2500L)
+      if (BackgroundSyncPrefs.isAutoUploadOfflineEnabled(getApplication())) {
+        // Schedule WorkManager one-time connected sync so upload happens even if app is closed
+        BackgroundSyncAndNotifyWorker.enqueueImmediateConnectedSync(getApplication())
+        if (isNetworkConnected(getApplication())) {
+          scheduleAutoSync(delayMs = 2500L)
+        }
       }
     }
   }
@@ -182,6 +206,94 @@ class PwaViewModel(application: Application) : AndroidViewModel(application) {
    */
   fun getCachedGasReadBlocking(cacheKey: String): String? {
     return runBlocking(Dispatchers.IO) { repository.getCachedResponse(cacheKey) }
+  }
+
+  fun getPendingOperationsJsonBlocking(): String {
+    val list = runBlocking(Dispatchers.IO) { repository.getAllPendingOperationsOnce() }
+    return serializePendingOperations(list)
+  }
+
+  fun isAutoUploadOfflineEnabled(): Boolean =
+    BackgroundSyncPrefs.isAutoUploadOfflineEnabled(getApplication())
+
+  fun setAutoUploadOfflineEnabled(enabled: Boolean) {
+    BackgroundSyncPrefs.setAutoUploadOfflineEnabled(getApplication(), enabled)
+    if (enabled && _uiState.value.pendingCount > 0) {
+      BackgroundSyncAndNotifyWorker.enqueueImmediateConnectedSync(getApplication())
+      if (isNetworkConnected(getApplication())) {
+        scheduleAutoSync(delayMs = 800L)
+      }
+    }
+  }
+
+  fun isBackgroundNotifEnabled(): Boolean =
+    BackgroundSyncPrefs.isBackgroundNotifEnabled(getApplication())
+
+  fun setBackgroundNotifEnabled(enabled: Boolean) {
+    BackgroundSyncPrefs.setBackgroundNotifEnabled(getApplication(), enabled)
+  }
+
+  fun syncLastSeenContentIds(pengumumanId: String, galeriId: String, userRole: String) {
+    val ctx = getApplication<Application>()
+    if (pengumumanId.isNotBlank()) BackgroundSyncPrefs.setLastSeenPengumumanId(ctx, pengumumanId)
+    if (galeriId.isNotBlank()) BackgroundSyncPrefs.setLastSeenGaleriId(ctx, galeriId)
+    if (userRole.isNotBlank()) BackgroundSyncPrefs.setCurrentUserRole(ctx, userRole)
+  }
+
+  fun triggerBackgroundWorkNow() {
+    BackgroundSyncAndNotifyWorker.enqueueImmediateConnectedSync(getApplication())
+  }
+
+  fun retrySinglePendingOperation(clientOpId: String) {
+    if (_uiState.value.isSyncing) return
+    if (!isNetworkConnected(getApplication())) {
+      _uiState.update { it.copy(isOffline = true) }
+      emitMessage(R.string.snackbar_sync_failed)
+      return
+    }
+    viewModelScope.launch {
+      _uiState.update { it.copy(isSyncing = true, isOffline = false) }
+      try {
+        val result = repository.syncSingleOperationById(clientOpId)
+        if (result.syncedCount > 0) {
+          notificationHelper.notifySyncSuccess(result.syncedCount)
+          _events.emit(PwaUiEvent.SyncCompleted(result.syncedCount))
+        } else if (result.failedCount > 0) {
+          _events.emit(PwaUiEvent.Message(R.string.snackbar_sync_failed))
+        }
+      } finally {
+        _uiState.update { it.copy(isSyncing = false) }
+      }
+    }
+  }
+
+  private fun serializePendingOperations(list: List<PendingSyncEntity>): String {
+    val arr = JSONArray()
+    list.forEach { op ->
+      val parsedArgs = OfflineSyncRepository.parseArgsArray(op.argsJson)
+      val firstObj = parsedArgs.optJSONObject(0)
+      val petugas =
+        firstObj?.optString("petugas")?.takeIf { it.isNotBlank() }
+          ?: firstObj?.optString("penulis")?.takeIf { it.isNotBlank() }
+          ?: parsedArgs.optString(1).takeIf { op.fnName == "savePengumuman" || op.fnName == "saveSaran" }
+          ?: ""
+      val role = firstObj?.optString("role").orEmpty()
+      arr.put(
+        JSONObject().apply {
+          put("clientOpId", op.clientOpId)
+          put("fnName", op.fnName)
+          put("summaryLabel", op.summaryLabel)
+          put("status", op.status)
+          put("retryCount", op.retryCount)
+          put("lastError", op.lastError.orEmpty())
+          put("createdAt", op.createdAt)
+          put("updatedAt", op.updatedAt)
+          put("petugas", petugas)
+          put("role", role)
+        }
+      )
+    }
+    return arr.toString()
   }
 
   fun notifyOnlineWriteSuccess(summaryLabel: String) {

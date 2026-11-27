@@ -18,6 +18,9 @@ interface OfflineSyncDao {
   @Query("SELECT * FROM pending_sync_ops ORDER BY createdAt ASC")
   suspend fun getAllPendingOperations(): List<PendingSyncEntity>
 
+  @Query("SELECT * FROM pending_sync_ops WHERE clientOpId = :clientOpId LIMIT 1")
+  suspend fun getOperationById(clientOpId: String): PendingSyncEntity?
+
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun upsertPendingOperation(operation: PendingSyncEntity)
 
