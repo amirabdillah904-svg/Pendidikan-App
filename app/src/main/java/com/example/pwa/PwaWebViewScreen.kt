@@ -120,6 +120,7 @@ fun PwaWebViewScreen(
   onGetNfcStatus: () -> String = { "{\"supported\":false,\"enabled\":false,\"locked\":false,\"mode\":\"idle\"}" },
   onOpenNfcSettings: () -> Unit = {},
   onVibrateFeedback: (Long) -> Unit = {},
+  onSpeakAnnouncement: (String) -> Unit = {},
 ) {
   val context = LocalContext.current
   val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -434,6 +435,9 @@ fun PwaWebViewScreen(
                   },
                   onVibrateFeedback = { ms ->
                     onVibrateFeedback(ms)
+                  },
+                  onSpeakAnnouncement = { text ->
+                    onSpeakAnnouncement(text)
                   },
                   onGetPendingOfflineQueueJson = {
                     viewModel.getPendingOperationsJsonBlocking()

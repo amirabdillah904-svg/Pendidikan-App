@@ -1629,6 +1629,9 @@
   }
 
   function openTindakanSheet(namaSantri, kamarKelas, issueSummary) {
+    const sess = global.session || {};
+    const canCreateSurat = sess.role === 'admin' || (Array.isArray(sess.permissions) && (sess.permissions.includes('ALL') || sess.permissions.includes('surat')));
+    const roleLabel = sess.role === 'musyrif' ? 'Musyrif' : (sess.role === 'pengajar' ? 'Pengajar' : 'Pengurus');
     const recentLogs = (tindakanListCache.length ? tindakanListCache : readLocalTindakan())
       .filter(t => normText(t.namaSantri) === normText(namaSantri))
       .slice(0, 4);
@@ -1647,32 +1650,55 @@
     const bodyHtml = `<form onsubmit="window.AlRifaieSmart.saveTindakanForm(event)" class="space-y-3">
       <input type="hidden" id="tndNamaSantri" value="${escHtml(namaSantri)}">
       <input type="hidden" id="tndKamarKelas" value="${escHtml(kamarKelas)}">
-      <div class="p-3 rounded-xl bg-red-50/80 dark:bg-red-950/35 border border-red-200/70 dark:border-red-900/60 text-xs">
-        <div class="font-bold text-red-700 dark:text-red-300"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Catatan Masalah:</div>
-        <div class="text-slate-700 dark:text-slate-200 mt-0.5">${escHtml(issueSummary || 'Memerlukan pembinaan kedisiplinan')}</div>
+      <div class="p-3 rounded-xl bg-red-50/85 dark:bg-red-950/35 border border-red-200/80 dark:border-red-900/60 text-xs space-y-1">
+        <div class="font-extrabold text-red-700 dark:text-red-300"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Peringatan Pembinaan (${escHtml(roleLabel)})</div>
+        <div class="text-slate-700 dark:text-slate-200">${escHtml(issueSummary || 'Memerlukan pembinaan kedisiplinan')}</div>
+        <div class="text-[10.5px] text-red-600/90 dark:text-red-300/90">Berikan tindakan langsung kepada santri lalu simpan catatannya di bawah ini.</div>
       </div>
       <div>
-        <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">Jenis Tindakan yang Diambil</label>
+        <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">Tindakan yang Diberikan</label>
         <select id="tndJenis" class="clean-input w-full px-3 py-2.5 text-xs font-semibold" required>
           <option value="Teguran Lisan & Nasihat">Teguran Lisan &amp; Nasihat</option>
           <option value="Pembinaan Personal di Kamar/Kelas">Pembinaan Personal di Kamar/Kelas</option>
+          <option value="Hukuman Edukatif / Takzir Ringan">Hukuman Edukatif / Takzir Ringan</option>
           <option value="Koordinasi dengan Wali Santri">Koordinasi dengan Wali Santri</option>
-          <option value="Pembuatan Surat Pernyataan">Pembuatan Surat Pernyataan</option>
-          <option value="Dilaporkan ke Departemen Pendidikan">Dilaporkan ke Departemen Pendidikan</option>
+          <option value="Dilaporkan ke Departemen Pendidikan (Pengajuan SP)">Dilaporkan ke Departemen Pendidikan (Pengajuan SP)</option>
         </select>
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">Catatan Hasil Pembinaan (Opsional)</label>
-        <textarea id="tndCatatan" rows="2" placeholder="Cth: Santri mengakui kesalahan dan berjanji hadir tepat waktu..." class="clean-input w-full px-3 py-2 text-xs"></textarea>
+        <textarea id="tndCatatan" rows="2" placeholder="Cth: Santri sudah dinasihati, diberi takzir edukatif, dan berjanji hadir tepat waktu..." class="clean-input w-full px-3 py-2 text-xs"></textarea>
       </div>
       <div class="flex gap-2 pt-1">
-        <button type="button" onclick="window.AlRifaieSmart.closeBottomSheet(); window.AlRifaieSmart.openSuratDisiplinForPerson('santri','${safeNama}')" class="px-3 py-2.5 rounded-xl bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 text-xs font-bold inline-flex items-center gap-1"><i class="fa-solid fa-file-signature"></i><span>Buat Surat</span></button>
-        <button type="submit" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-emerald-600 text-white text-xs font-bold shadow-md">Simpan Tindakan</button>
+        ${canCreateSurat ? `<button type="button" onclick="window.AlRifaieSmart.closeBottomSheet(); window.AlRifaieSmart.openSuratDisiplinForPerson('santri','${safeNama}')" class="px-3 py-2.5 rounded-xl bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 text-xs font-bold inline-flex items-center gap-1"><i class="fa-solid fa-file-signature"></i><span>Buat SP</span></button>` : ''}
+        <button type="submit" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-emerald-600 text-white text-xs font-bold shadow-md">Simpan Tindakan Pembinaan</button>
       </div>
       ${historyHtml}
     </form>`;
 
-    openBottomSheet('Tindak Lanjut Santri', `${namaSantri} • ${kamarKelas}`, bodyHtml, '');
+    openBottomSheet('Beri Tindakan Santri', `${namaSantri} • ${kamarKelas}`, bodyHtml, '');
+  }
+
+  function notifyStaffProblematicSantriAlert(role, staffName, assignLabel, problematicList) {
+    if (!Array.isArray(problematicList) || !problematicList.length) return;
+    try {
+      const today = getTodayWib();
+      const roleLabel = role === 'musyrif' ? 'Musyrif' : 'Pengajar';
+      const namesSig = problematicList.slice(0, 3).map(p => normText(p.nama)).join(',');
+      const alertKey = `${today}|${role}|${normText(staffName)}|${problematicList.length}|${namesSig}`;
+      const storeKey = 'alrifaie_staff_problem_alert_v1';
+      if (localStorage.getItem(storeKey) === alertKey) return;
+      localStorage.setItem(storeKey, alertKey);
+
+      const topNames = problematicList.slice(0, 3).map(p => p.nama).join(', ')
+        + (problematicList.length > 3 ? ` dan ${problematicList.length - 3} santri lainnya` : '');
+      const title = `Peringatan untuk ${roleLabel} (${problematicList.length} Santri)`;
+      const body = `Mohon segera berikan peringatan kepada ${topNames} (${assignLabel}).`;
+
+      if (global.AndroidBridge && typeof global.AndroidBridge.notifyRealtimeEvent === 'function') {
+        global.AndroidBridge.notifyRealtimeEvent(title, body);
+      }
+    } catch (e) {}
   }
 
   function saveTindakanForm(e) {
@@ -2117,36 +2143,46 @@
       const problematicList = Object.values(problemMap)
         .sort((a, b) => (b.alpa * 2 + b.pelList.length) - (a.alpa * 2 + a.pelList.length) || a.nama.localeCompare(b.nama));
 
+      const roleTitle = role === 'musyrif' ? 'Musyrif' : 'Pengajar';
+
+      if (hasLockedAssignment && problematicList.length > 0) {
+        notifyStaffProblematicSantriAlert(role, sess.name || roleTitle, assign.label, problematicList);
+      }
+
       let alertHtml = '';
       if (!hasLockedAssignment) {
         alertHtml = `<div class="bento-card p-3.5 flex items-center gap-3 border border-amber-200/80 dark:border-amber-900/60 bg-amber-50/60 dark:bg-amber-950/25">
           <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0"><i class="fa-solid fa-lock text-sm"></i></div>
           <div class="min-w-0">
             <div class="text-xs font-bold text-amber-800 dark:text-amber-300">${role === 'musyrif' ? 'Kamar Binaan' : 'Kelas Binaan'} Belum Tertaut</div>
-            <div class="text-[11px] text-slate-500">Daftar santri bermasalah terkunci otomatis per ${role === 'musyrif' ? 'kamar' : 'kelas'}. Hubungi Admin jika belum muncul.</div>
+            <div class="text-[11px] text-slate-500">Pemberitahuan santri bermasalah terkunci otomatis per ${role === 'musyrif' ? 'kamar' : 'kelas'}. Hubungi Admin jika belum muncul.</div>
           </div>
         </div>`;
       } else if (problematicList.length) {
-        alertHtml = `<div class="bento-card p-4 border-l-4 border-l-red-500 bg-gradient-to-br from-red-50/75 via-white to-amber-50/40 dark:from-red-950/35 dark:via-slate-900 dark:to-amber-950/20 space-y-3">
+        alertHtml = `<div class="bento-card p-4 border-l-4 border-l-red-500 bg-gradient-to-br from-red-50/80 via-white to-amber-50/45 dark:from-red-950/35 dark:via-slate-900 dark:to-amber-950/20 space-y-3">
           <div class="flex items-start justify-between gap-2 flex-wrap">
             <div class="flex items-center gap-2.5 min-w-0">
               <div class="w-10 h-10 rounded-2xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm">
                 <i class="fa-solid fa-bell text-sm"></i>
               </div>
               <div class="min-w-0">
-                <h3 class="text-xs sm:text-sm font-extrabold text-red-700 dark:text-red-300">Informasi Santri Bermasalah (${problematicList.length})</h3>
-                <p class="text-[11px] text-slate-600 dark:text-slate-300">Hanya menampilkan santri di binaan Anda &bull; Pembuatan surat dikelola oleh Admin</p>
+                <h3 class="text-xs sm:text-sm font-extrabold text-red-700 dark:text-red-300">Peringatan untuk ${roleTitle} (${problematicList.length} Santri)</h3>
+                <p class="text-[11px] text-slate-600 dark:text-slate-300">Mohon segera berikan peringatan dan pembinaan kepada santri binaan di bawah ini.</p>
               </div>
             </div>
             <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/60 inline-flex items-center gap-1 shrink-0">
               <i class="fa-solid fa-lock text-[9px]"></i>
-              <span>Terkunci: ${escHtml(assign.label)}</span>
+              <span>${escHtml(assign.label)}</span>
             </span>
           </div>
-          <div class="space-y-2 max-h-64 overflow-y-auto pr-0.5">
+          <div class="px-3 py-2 rounded-xl bg-amber-100/80 dark:bg-amber-950/50 border border-amber-300/70 dark:border-amber-800/60 text-[11px] font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-2">
+            <i class="fa-solid fa-triangle-exclamation text-amber-600 dark:text-amber-400 shrink-0"></i>
+            <span>Kepada ${roleTitle}, harap segera memberi peringatan secara langsung kepada santri berikut agar lebih tertib dan tidak mengulangi pelanggaran.</span>
+          </div>
+          <div class="space-y-2 max-h-72 overflow-y-auto pr-0.5">
             ${problematicList.map(p => {
               const latestDates = p.alpaDates.slice(-3).reverse().join(', ');
-              return `<div class="p-3 rounded-2xl bg-white/95 dark:bg-slate-900/80 border border-red-200/70 dark:border-red-900/50 space-y-1">
+              return `<div class="p-3 rounded-2xl bg-white/95 dark:bg-slate-900/85 border border-red-200/75 dark:border-red-900/55 space-y-1">
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-xs font-extrabold text-slate-900 dark:text-white truncate">${escHtml(p.nama)}</span>
                   <div class="flex items-center gap-1 shrink-0">
@@ -2159,6 +2195,7 @@
                   ${latestDates ? `<span>&bull; Tgl Alpa: <b>${escHtml(latestDates)}</b></span>` : ''}
                 </div>
                 ${p.pelList.length > 0 ? `<div class="text-[10.5px] text-amber-700 dark:text-amber-300 font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1 text-[9px]"></i>${escHtml(p.pelList.slice(0, 3).join(', '))}</div>` : ''}
+                <div class="text-[10.5px] font-semibold text-rose-700 dark:text-rose-300 pt-0.5"><i class="fa-solid fa-circle-info mr-1 text-[9px]"></i>Mohon segera diberi peringatan oleh ${roleTitle.toLowerCase()}.</div>
               </div>`;
             }).join('')}
           </div>

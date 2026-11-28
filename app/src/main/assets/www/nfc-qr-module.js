@@ -18,6 +18,7 @@
 
   const REGISTRY_KEY = 'alrifaie_id_registry_v1';
   const VERIFIED_TODAY_KEY = 'alrifaie_verified_today_v1';
+  const SCAN_VOICE_PREF_KEY = 'alrifaie_scan_voice_enabled_v1';
 
   let activeTabName = 'home';
   let nfcBindListening = false;
@@ -88,6 +89,117 @@
       }
       if (navigator.vibrate) navigator.vibrate(ms || 50);
     } catch (e) {}
+  }
+
+  function isScanVoiceEnabled() {
+    try {
+      const saved = localStorage.getItem(SCAN_VOICE_PREF_KEY);
+      return saved === null ? true : saved !== '0';
+    } catch (e) {
+      return true;
+    }
+  }
+
+  function updateScanVoiceToggleUI() {
+    const btn = document.getElementById('scanVoiceToggleBtn');
+    if (!btn) return;
+    const enabled = isScanVoiceEnabled();
+    btn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+    btn.title = enabled ? 'Suara Pengumuman Aktif (Ketuk untuk bisukan)' : 'Suara Pengumuman Dibisukan (Ketuk untuk aktifkan)';
+    btn.className = enabled
+      ? 'w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 hover:bg-emerald-100 dark:hover:bg-emerald-900/70 text-emerald-600 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 flex items-center justify-center shrink-0 transition-colors'
+      : 'w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500 border border-transparent flex items-center justify-center shrink-0 transition-colors';
+    btn.innerHTML = enabled
+      ? '<i class="fa-solid fa-volume-high text-xs"></i>'
+      : '<i class="fa-solid fa-volume-xmark text-xs"></i>';
+  }
+
+  function toggleScanVoice() {
+    const next = !isScanVoiceEnabled();
+    try {
+      localStorage.setItem(SCAN_VOICE_PREF_KEY, next ? '1' : '0');
+    } catch (e) {}
+    updateScanVoiceToggleUI();
+    if (next) {
+      speakTextIndonesian('Suara pengumuman absensi aktif');
+    }
+  }
+
+  function formatTimeForIndonesianSpeech(waktuStr) {
+    const m = String(waktuStr || '').match(/(\d{1,2})[:.](\d{2})/);
+    let hh = 0;
+    let mm = 0;
+    if (m) {
+      hh = parseInt(m[1], 10);
+      mm = parseInt(m[2], 10);
+    } else {
+      const nowWib = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+      hh = nowWib.getHours();
+      mm = nowWib.getMinutes();
+    }
+    if (mm === 0) return 'pukul ' + hh + ' tepat';
+    return 'pukul ' + hh + ' lewat ' + mm;
+  }
+
+  function buildAttendanceVoicePhrase(match, waktuScan, isUpdateExisting) {
+    const nama = String((match && match.nama) || '').trim();
+    if (!nama) return '';
+    const rawTarget = String((match && match.target) || '').trim();
+    const type = String((match && match.type) || '').toLowerCase();
+
+    let unitText = '';
+    if (type === 'wb') {
+      unitText = rawTarget
+        ? (/^kamar\b/i.test(rawTarget) ? rawTarget : ('Kamar ' + rawTarget))
+        : '';
+    } else if (type === 'takhassus') {
+      unitText = rawTarget
+        ? (/^kelas\b/i.test(rawTarget) ? rawTarget : ('Kelas ' + rawTarget))
+        : '';
+    } else if (type === 'musyrif') {
+      unitText = 'Musyrif';
+    } else if (type === 'pengajar') {
+      unitText = 'Pengajar';
+    } else if (rawTarget) {
+      unitText = rawTarget;
+    }
+
+    const subject = unitText ? (nama + ', ' + unitText) : nama;
+    if (isUpdateExisting) {
+      return subject + ', data pelanggaran diperbarui';
+    }
+    return subject + ', telah hadir ' + formatTimeForIndonesianSpeech(waktuScan);
+  }
+
+  function speakTextIndonesian(text) {
+    const clean = String(text || '').trim();
+    if (!clean) return;
+    try {
+      if (global.AndroidBridge && typeof global.AndroidBridge.speakAnnouncement === 'function') {
+        global.AndroidBridge.speakAnnouncement(clean);
+        return;
+      }
+    } catch (e) {}
+
+    try {
+      if (typeof global.speechSynthesis !== 'undefined' && typeof global.SpeechSynthesisUtterance === 'function') {
+        global.speechSynthesis.cancel();
+        const utter = new global.SpeechSynthesisUtterance(clean);
+        utter.lang = 'id-ID';
+        utter.rate = 1.0;
+        utter.pitch = 1.0;
+        const voices = global.speechSynthesis.getVoices ? global.speechSynthesis.getVoices() : [];
+        const idVoice = voices.find(v => /^id([_-]|$)/i.test(String(v.lang || '')));
+        if (idVoice) utter.voice = idVoice;
+        global.speechSynthesis.speak(utter);
+      }
+    } catch (e) {}
+  }
+
+  function speakAttendanceAnnouncement(match, waktuScan, isUpdateExisting) {
+    if (!isScanVoiceEnabled()) return;
+    const phrase = buildAttendanceVoicePhrase(match, waktuScan, isUpdateExisting);
+    if (phrase) speakTextIndonesian(phrase);
   }
 
   // ===================== 1. REGISTRY IDENTITAS NFC & QR =====================
@@ -927,6 +1039,7 @@
     if (inpTelat) inpTelat.value = petugasLateMinutes;
 
     updateScanConfirmButtonLabel();
+    updateScanVoiceToggleUI();
 
     const modalEl = document.getElementById('scanConfirmModal');
     if (modalEl) {
@@ -1031,6 +1144,7 @@
     }
 
     vibrateSafe(45);
+    speakAttendanceAnnouncement(match, waktuScan, isUpdateExisting);
     const sameRoom = activeTargetNow === match.target;
     const pelText = selectedPel.length ? (' • ' + selectedPel.join(', ')) : '';
     const msg = isUpdateExisting
@@ -2208,6 +2322,7 @@
     setAllIzinAlpaChoice: setAllIzinAlpaChoice,
     submitIzinAlpaModal: submitIzinAlpaModal,
     updateScanConfirmButtonLabel: updateScanConfirmButtonLabel,
+    toggleScanVoice: toggleScanVoice,
     confirmScanSave: function () {
       commitScanConfirmToDatabase(false);
     },

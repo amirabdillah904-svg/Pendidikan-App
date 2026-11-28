@@ -3794,7 +3794,10 @@ Ya, Keluar
 <h3 id="scanConfirmName" class="text-sm font-extrabold text-slate-900 dark:text-white leading-tight truncate">Nama Santri</h3>
 <p id="scanConfirmSub" class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">Kamar / Kelas</p>
 </div>
+<div class="flex items-center gap-1.5 shrink-0">
+<button type="button" id="scanVoiceToggleBtn" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.toggleScanVoice()" aria-label="Suara Pengumuman Absensi" aria-pressed="true" class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 hover:bg-emerald-100 dark:hover:bg-emerald-900/70 text-emerald-600 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 flex items-center justify-center shrink-0 transition-colors" title="Suara Pengumuman Aktif"><i class="fa-solid fa-volume-high text-xs"></i></button>
 <button type="button" onclick="window.AlRifaieAttendance && window.AlRifaieAttendance.cancelScanConfirm()" aria-label="Tutup Konfirmasi" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-300 flex items-center justify-center shrink-0 transition-colors" title="Tutup"><i class="fa-solid fa-xmark text-xs"></i></button>
+</div>
 </div>
 
 <div class="rounded-2xl bg-slate-50/90 dark:bg-slate-800/45 border border-slate-200/80 dark:border-slate-700/70 p-3 space-y-2.5">

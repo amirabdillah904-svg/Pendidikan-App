@@ -371,6 +371,7 @@ function dispatchExistingFunction_(fnName, args) {
     deleteUserData: typeof deleteUserData === 'function' ? deleteUserData : null,
     updateAdminCredentials: typeof updateAdminCredentials === 'function' ? updateAdminCredentials : null,
     updateAppSettings: typeof updateAppSettings === 'function' ? updateAppSettings : null,
+    getPengumuman: typeof getPengumuman === 'function' ? getPengumuman : null,
     savePengumuman: typeof savePengumuman === 'function' ? savePengumuman : null,
     deletePengumuman: typeof deletePengumuman === 'function' ? deletePengumuman : null,
     getGaleriData: typeof getGaleriData === 'function' ? getGaleriData : null,
@@ -716,10 +717,10 @@ function syncAttendanceNfcQrColumns_(payload) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const type = String(payload.type || '').toLowerCase();
   const candidateNames = {
-    wb: ['Absensi WB', 'Absensi Wajib Belajar', 'Rekap WB', 'Log Absensi WB'],
-    takhassus: ['Absensi Takhassus', 'Rekap Takhassus', 'Log Absensi Takhassus'],
-    musyrif: ['Absensi Musyrif', 'Rekap Musyrif', 'Log Absensi Musyrif'],
-    pengajar: ['Absensi Pengajar', 'Rekap Pengajar', 'Log Absensi Pengajar']
+    wb: ['Log_Absensi_WB', 'Absensi WB', 'Absensi Wajib Belajar', 'Rekap WB', 'Log Absensi WB'],
+    takhassus: ['Log_Absensi_Takhassus', 'Absensi Takhassus', 'Rekap Takhassus', 'Log Absensi Takhassus'],
+    musyrif: ['Log_Absensi_Musyrif', 'Absensi Musyrif', 'Rekap Musyrif', 'Log Absensi Musyrif'],
+    pengajar: ['Log_Absensi_Pengajar', 'Absensi Pengajar', 'Rekap Pengajar', 'Log Absensi Pengajar']
   }[type] || [];
 
   let sheet = null;
@@ -772,10 +773,10 @@ function syncDatabaseNfcQrColumns_(dbType, rowIdx, data) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const type = String(dbType || '').toLowerCase();
   const candidateNames = {
-    wb: ['Data Santri WB', 'Santri WB', 'Wajib Belajar', 'DB_WB'],
-    takhassus: ['Data Santri Takhassus', 'Santri Takhassus', 'Takhassus', 'DB_Takhassus'],
-    musyrif: ['Data Musyrif', 'Musyrif', 'DB_Musyrif'],
-    pengajar: ['Data Pengajar', 'Pengajar', 'DB_Pengajar']
+    wb: ['Data_Wajib_Belajar', 'Data Santri WB', 'Santri WB', 'Wajib Belajar', 'DB_WB'],
+    takhassus: ['Data_Santri_Takhassus', 'Data Santri Takhassus', 'Santri Takhassus', 'Takhassus', 'DB_Takhassus'],
+    musyrif: ['Data_Musyrif', 'Data Musyrif', 'Musyrif', 'DB_Musyrif'],
+    pengajar: ['Data_Pengajar_Takhassus', 'Data Pengajar', 'Pengajar', 'DB_Pengajar']
   }[type] || [];
 
   let sheet = null;

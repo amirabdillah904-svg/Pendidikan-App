@@ -30,6 +30,7 @@ class PwaJsBridge(
   private val onOpenNfcSettings: () -> Unit = {},
   private val onRequestCameraPermission: () -> Unit = {},
   private val onVibrateFeedback: (durationMs: Long) -> Unit = {},
+  private val onSpeakAnnouncement: (text: String) -> Unit = {},
   private val onGetPendingOfflineQueueJson: () -> String = { "[]" },
   private val onRetrySingleOfflineOp: (clientOpId: String) -> Unit = {},
   private val onDeleteOfflineOp: (clientOpId: String) -> Unit = {},
@@ -137,6 +138,14 @@ class PwaJsBridge(
   @JavascriptInterface
   fun vibrateFeedback(durationMs: Long) {
     onVibrateFeedback(durationMs)
+  }
+
+  @JavascriptInterface
+  fun speakAnnouncement(text: String) {
+    val clean = text.trim().take(240)
+    if (clean.isNotEmpty()) {
+      onSpeakAnnouncement(clean)
+    }
   }
 
   @JavascriptInterface

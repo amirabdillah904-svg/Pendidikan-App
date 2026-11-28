@@ -1,0 +1,923 @@
+// ============================================================
+// ADAPTER PENGHUBUNG PWA NETLIFY & WEB APP GAS
+// ============================================================
+function dispatchApiCall_(fnName, args) {
+  const allowedFns = {
+    getFastLoginData: getFastLoginData,
+    getInitialBundle: getInitialBundle,
+    verifyLogin: verifyLogin,
+    submitAbsensi: submitAbsensi,
+    getRekapData: getRekapData,
+    getMissingAttendance: getMissingAttendance,
+    getFinancialData: getFinancialData,
+    saveFinancialData: saveFinancialData,
+    deleteFinancialData: deleteFinancialData,
+    getUsersData: getUsersData,
+    saveUserData: saveUserData,
+    deleteUserData: deleteUserData,
+    updateAdminCredentials: updateAdminCredentials,
+    updateAppSettings: updateAppSettings,
+    getPengumuman: getPengumuman,
+    savePengumuman: savePengumuman,
+    deletePengumuman: deletePengumuman,
+    getGaleriData: getGaleriData,
+    saveGaleriData: saveGaleriData,
+    deleteGaleriData: deleteGaleriData,
+    toggleGaleriLike: toggleGaleriLike,
+    getSaran: getSaran,
+    saveSaran: saveSaran,
+    deleteSaran: deleteSaran,
+    getSurat: getSurat,
+    saveSuratData: saveSuratData,
+    deleteSurat: deleteSurat,
+    getDbData: getDbData,
+    saveDbData: saveDbData,
+    deleteDbData: deleteDbData
+  };
+
+  if (!allowedFns[fnName]) {
+    throw new Error('Fungsi tidak dikenali: ' + fnName);
+  }
+  return allowedFns[fnName].apply(null, Array.isArray(args) ? args : []);
+}
+
+function doGet_old(e) {
+  if (e && e.parameter && e.parameter.callback && e.parameter.payload) {
+    try {
+      const req = JSON.parse(e.parameter.payload);
+      const result = dispatchApiCall_(req.fn || req.action, req.args || []);
+      return ContentService
+        .createTextOutput(e.parameter.callback + '(' + JSON.stringify(result) + ');')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    } catch (err) {
+      return ContentService
+        .createTextOutput(e.parameter.callback + '(' + JSON.stringify({ success: false, message: err.message }) + ');')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+  }
+
+  return HtmlService.createHtmlOutputFromFile('Index')
+    .setTitle("Departemen Pendidikan - YPM Al-Rifa'ie 2")
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// ============================================================
+// HELPER MEDIA (GOOGLE DRIVE + FALLBACK AMAN KE SHEETS)
+// ============================================================
+function getOrCreateFolder_(folderName) {
+  const folders = DriveApp.getFoldersByName(folderName);
+  return folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+}
+
+function saveImageToDrive_(dataUrl, fileName) {
+  if (!dataUrl || String(dataUrl).indexOf('data:image') !== 0) return String(dataUrl || '');
+  try {
+    const parts = String(dataUrl).split(',');
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const bytes = Utilities.base64Decode(parts[1]);
+    const blob = Utilities.newBlob(bytes, mime, fileName);
+    const folder = getOrCreateFolder_('AlRifaie_Media_App');
+    const file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return 'https://lh3.googleusercontent.com/d/' + file.getId();
+  } catch (err) {
+    // Fallback aman: simpan DataURL terkompresi langsung ke sel Sheets jika DriveApp gagal/belum diotorisasi
+    return String(dataUrl);
+  }
+}
+
+// ============================================================
+// 1. SETTINGS & KREDENSIAL ADMIN (DIGABUNG & BEBAS STUCK)
+// ============================================================
+function getAppSettings() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('Settings') || ss.insertSheet('Settings');
+    if (sheet.getLastRow() === 0) {
+      sheet.getRange(1, 1, 7, 2).setValues([
+        ['Key', 'Value'],
+        ['appName', 'Departemen Pendidikan'],
+        ['logoUrl', ''],
+        ['bannerUrl', ''],
+        ['suratTemplateId', ''],
+        ['adminUsername', 'Amir Ganteng'],
+        ['adminPin', '1312']
+      ]);
+    }
+    const data = sheet.getDataRange().getValues();
+    let settings = {};
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0]) settings[String(data[i][0]).trim()] = String(data[i][1] || '').trim();
+    }
+    if (!settings.adminUsername) settings.adminUsername = 'Amir Ganteng';
+    if (!settings.adminPin) settings.adminPin = '1312';
+    return settings;
+  } catch (err) {
+    return {
+      appName: 'Departemen Pendidikan',
+      logoUrl: '',
+      bannerUrl: '',
+      adminUsername: 'Amir Ganteng',
+      adminPin: '1312'
+    };
+  }
+}
+
+function updateAppSettings(newSettings) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('Settings') || ss.insertSheet('Settings');
+  const current = getAppSettings();
+
+  const payload = Object.assign({}, newSettings || {});
+  if (payload.logoUrl && String(payload.logoUrl).indexOf('data:image') === 0) {
+    payload.logoUrl = saveImageToDrive_(payload.logoUrl, 'logo_app_' + Date.now() + '.jpg');
+  }
+  if (payload.bannerUrl && String(payload.bannerUrl).indexOf('data:image') === 0) {
+    payload.bannerUrl = saveImageToDrive_(payload.bannerUrl, 'banner_app_' + Date.now() + '.jpg');
+  }
+
+  const merged = Object.assign({}, current, payload);
+  const rows = [['Key', 'Value']];
+  for (let key in merged) {
+    rows.push([key, String(merged[key] || '')]);
+  }
+
+  sheet.clearContents();
+  sheet.getRange(1, 1, rows.length, 2).setValues(rows);
+  SpreadsheetApp.flush();
+
+  try { CacheService.getScriptCache().remove('FAST_LOGIN_DATA'); } catch (e) {}
+
+  return {
+    success: true,
+    settings: {
+      appName: merged.appName || 'Departemen Pendidikan',
+      logoUrl: merged.logoUrl || '',
+      bannerUrl: merged.bannerUrl || '',
+      adminUsername: merged.adminUsername || 'Amir Ganteng'
+    }
+  };
+}
+
+function updateAdminCredentials(newUsername, newPin) {
+  if (!newUsername || !newPin) return { success: false, message: 'Username dan Password tidak boleh kosong!' };
+  return updateAppSettings({
+    adminUsername: String(newUsername).trim(),
+    adminPin: String(newPin).trim()
+  });
+}
+
+// ============================================================
+// 2. BUNDLE AWAL (1X PANGGIL UNTUK LOADING CEPAT)
+// ============================================================
+function getInitialBundle() {
+  const settings = getAppSettings();
+  const publicSettings = {
+    appName: settings.appName || 'Departemen Pendidikan',
+    logoUrl: settings.logoUrl || '',
+    bannerUrl: settings.bannerUrl || '',
+    adminUsername: settings.adminUsername || 'Amir Ganteng'
+  };
+  return {
+    settings: publicSettings,
+    loginData: getLoginData(),
+    coreData: getAppDataForRole(),
+    pengumuman: getPengumuman(),
+    galeri: getGaleriData()
+  };
+}
+
+function getFastLoginData() {
+  const cache = CacheService.getScriptCache();
+  try {
+    const cached = cache.get('FAST_LOGIN_DATA');
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+
+  const settings = getAppSettings();
+  const res = {
+    settings: {
+      appName: settings.appName || 'Departemen Pendidikan',
+      logoUrl: settings.logoUrl || '',
+      bannerUrl: settings.bannerUrl || '',
+      adminUsername: settings.adminUsername || 'Amir Ganteng'
+    },
+    loginData: getLoginData(),
+    pengumuman: getPengumuman()
+  };
+
+  try { cache.put('FAST_LOGIN_DATA', JSON.stringify(res), 300); } catch (e) {}
+  return res;
+}
+
+// ============================================================
+// 3. LOGIN & MANAJEMEN USER + HAK AKSES FITUR
+// ============================================================
+function getUsersSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('Data_Users');
+  if (!sheet) {
+    sheet = ss.insertSheet('Data_Users');
+    sheet.appendRow(['ID', 'Username', 'PIN', 'Jabatan', 'Akses_Fitur']);
+  }
+  return sheet;
+}
+
+function getUsersData() {
+  const sheet = getUsersSheet();
+  const data = sheet.getDataRange().getValues();
+  let list = [];
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][1]) {
+      list.push({
+        id: String(data[i][0]),
+        username: String(data[i][1]).trim(),
+        pin: String(data[i][2] || '').trim(),
+        jabatan: String(data[i][3] || 'Pengurus').trim(),
+        akses: String(data[i][4] || '').split(',').map(s => s.trim()).filter(Boolean)
+      });
+    }
+  }
+  return list;
+}
+
+function saveUserData(user) {
+  const sheet = getUsersSheet();
+  const data = sheet.getDataRange().getValues();
+  const aksesStr = Array.isArray(user.akses) ? user.akses.join(',') : String(user.akses || '');
+  if (user.id) {
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(user.id)) {
+        sheet.getRange(i + 1, 2, 1, 4).setValues([[user.username.trim(), user.pin.trim(), user.jabatan.trim(), aksesStr]]);
+        try { CacheService.getScriptCache().remove('FAST_LOGIN_DATA'); } catch (e) {}
+        return { success: true };
+      }
+    }
+  }
+  const newId = 'USR_' + new Date().getTime();
+  sheet.appendRow([newId, user.username.trim(), user.pin.trim(), user.jabatan.trim() || 'Pengurus', aksesStr]);
+  try { CacheService.getScriptCache().remove('FAST_LOGIN_DATA'); } catch (e) {}
+  return { success: true };
+}
+
+function deleteUserData(id) {
+  const sheet = getUsersSheet();
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(id)) {
+      sheet.deleteRow(i + 1);
+      try { CacheService.getScriptCache().remove('FAST_LOGIN_DATA'); } catch (e) {}
+      return { success: true };
+    }
+  }
+  return { success: false };
+}
+
+function getLoginData() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sMusyrif = ss.getSheetByName('Data_Musyrif');
+  let musyrifs = [];
+  if (sMusyrif) {
+    const data = sMusyrif.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0]) musyrifs.push({ nama: String(data[i][0]).trim(), kamar: String(data[i][1] || '').trim() });
+    }
+  }
+  const sPengajar = ss.getSheetByName('Data_Pengajar_Takhassus');
+  let pengajars = [];
+  if (sPengajar) {
+    const data = sPengajar.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][1] || data[i][0]) {
+        pengajars.push({
+          nama: String(data[i][1] || data[i][0]).trim(),
+          kelas: String(data[i][2] || '').trim(),
+          qismu: String(data[i][3] || '').trim()
+        });
+      }
+    }
+  }
+  const customUsers = getUsersData().map(u => ({ username: u.username, jabatan: u.jabatan }));
+  return { musyrifs, pengajars, customUsers };
+}
+
+function verifyLogin(role, name, pin) {
+  try {
+    const cleanName = String(name || '').trim();
+    const cleanPin = String(pin || '').trim();
+
+    if (role === 'admin') {
+      const settings = getAppSettings();
+      if (cleanName === settings.adminUsername && cleanPin === settings.adminPin) {
+        return { success: true, role: 'admin', name: settings.adminUsername, permissions: ['ALL'] };
+      }
+      return { success: false, message: 'Username atau Password Admin salah!' };
+    }
+
+    if (role === 'user') {
+      const users = getUsersData();
+      const found = users.find(u => u.username === cleanName && u.pin === cleanPin);
+      if (found) {
+        return {
+          success: true,
+          role: 'user',
+          name: found.username,
+          jabatan: found.jabatan,
+          permissions: Array.isArray(found.akses) ? found.akses : []
+        };
+      }
+      return { success: false, message: 'Username atau PIN User salah!' };
+    }
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (role === 'musyrif') {
+      const sMusyrif = ss.getSheetByName('Data_Musyrif');
+      if (sMusyrif) {
+        const data = sMusyrif.getDataRange().getValues();
+        for (let i = 1; i < data.length; i++) {
+          if (String(data[i][0]).trim() === cleanName && String(data[i][2] || '123456').trim() === cleanPin) {
+            return { success: true, role: 'musyrif', name: cleanName, kamar: String(data[i][1] || '').trim(), permissions: ['wb'] };
+          }
+        }
+      }
+    }
+
+    if (role === 'pengajar') {
+      const sPengajar = ss.getSheetByName('Data_Pengajar_Takhassus');
+      if (sPengajar) {
+        const data = sPengajar.getDataRange().getValues();
+        for (let i = 1; i < data.length; i++) {
+          const namaRow = String(data[i][1] || data[i][0]).trim();
+          const pinRow = String(data[i][4] || data[i][3] || '123456').trim();
+          if (namaRow === cleanName && pinRow === cleanPin) {
+            return {
+              success: true,
+              role: 'pengajar',
+              name: namaRow,
+              kelas: String(data[i][2] || '').trim(),
+              qismu: String(data[i][3] || '').trim(),
+              permissions: ['takhassus']
+            };
+          }
+        }
+      }
+    }
+
+    return { success: false, message: 'Nama atau PIN salah!' };
+  } catch (err) {
+    return { success: false, message: 'Gagal memverifikasi login: ' + err.message };
+  }
+}
+
+// ============================================================
+// 4. MASTER DATA & ABSENSI
+// ============================================================
+function getAppDataForRole() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let result = { santriWB: [], santriTakhassus: [], rooms: [], classes: [], musyrifs: [], pengajars: [] };
+  const sWB = ss.getSheetByName('Data_Wajib_Belajar');
+  if (sWB) {
+    const rows = sWB.getDataRange().getValues();
+    let roomSet = new Set();
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][0] && rows[i][1]) {
+        let kmr = String(rows[i][1]).trim();
+        roomSet.add(kmr);
+        result.santriWB.push({ nama: String(rows[i][0]).trim(), kamar: kmr });
+      }
+    }
+    result.rooms = Array.from(roomSet).sort();
+  }
+  const sTakh = ss.getSheetByName('Data_Santri_Takhassus');
+  if (sTakh) {
+    const rows = sTakh.getDataRange().getValues();
+    let classSet = new Set();
+    for (let i = 1; i < rows.length; i++) {
+      let nama = String(rows[i][1] || rows[i][0] || '').trim();
+      let kelas = String(rows[i][2] || rows[i][1] || '').trim();
+      let qismu = String(rows[i][3] || '').trim();
+      if (nama && kelas) {
+        classSet.add(kelas + (qismu ? ' - ' + qismu : ''));
+        result.santriTakhassus.push({ nama, kelas, qismu });
+      }
+    }
+    result.classes = Array.from(classSet).sort();
+  }
+  const sM = ss.getSheetByName('Data_Musyrif');
+  if (sM) {
+    const rows = sM.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) if (rows[i][0]) result.musyrifs.push(String(rows[i][0]).trim());
+  }
+  const sP = ss.getSheetByName('Data_Pengajar_Takhassus');
+  if (sP) {
+    const rows = sP.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) if (rows[i][1] || rows[i][0]) result.pengajars.push(String(rows[i][1] || rows[i][0]).trim());
+  }
+  return result;
+}
+
+function getMissingAttendance(tglSesi, selectedMonth) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let wbTargets = [], takhTargets = [];
+  let riwayatTunggakan = {};
+
+  let targetMonth = selectedMonth ? selectedMonth : tglSesi.substring(0, 7);
+  let partsMonth = targetMonth.split('-');
+  let year = parseInt(partsMonth[0]);
+  let month = parseInt(partsMonth[1]) - 1;
+
+  let sLogWB = ss.getSheetByName('Log_Absensi_WB');
+  let dataLogWB = sLogWB ? sLogWB.getDataRange().getValues() : [];
+  let sLogTakh = ss.getSheetByName('Log_Absensi_Takhassus');
+  let dataLogTakh = sLogTakh ? sLogTakh.getDataRange().getValues() : [];
+
+  let firstDateWB = new Date(2099, 0, 1); let firstDateTakh = new Date(2099, 0, 1);
+  let hasLogWB = false, hasLogTakh = false;
+
+  for (let i = 1; i < dataLogWB.length; i++) { let raw = dataLogWB[i][2]; if (raw) { let d = new Date(raw); d.setHours(0, 0, 0, 0); if (d < firstDateWB) { firstDateWB = d; hasLogWB = true; } } }
+  if (!hasLogWB) { firstDateWB = new Date(); firstDateWB.setHours(0, 0, 0, 0); }
+  for (let i = 1; i < dataLogTakh.length; i++) { let raw = dataLogTakh[i][2]; if (raw) { let d = new Date(raw); d.setHours(0, 0, 0, 0); if (d < firstDateTakh) { firstDateTakh = d; hasLogTakh = true; } } }
+  if (!hasLogTakh) { firstDateTakh = new Date(); firstDateTakh.setHours(0, 0, 0, 0); }
+
+  let validDatesWB = []; let validDatesTakh = []; let dateCursor = new Date(year, month, 1);
+  let partsToday = tglSesi.split('-'); let todayLimit = new Date(partsToday[0], partsToday[1] - 1, partsToday[2]); todayLimit.setHours(23, 59, 59, 999);
+  let isOktober2026 = (year === 2026 && month === 9); let batasMulaiManual = new Date(2026, 9, 14); batasMulaiManual.setHours(0, 0, 0, 0);
+
+  while (dateCursor.getMonth() === month) {
+    let dayOfWeek = dateCursor.getDay(); let tglStr = Utilities.formatDate(dateCursor, "Asia/Jakarta", "yyyy-MM-dd");
+    if (dateCursor <= todayLimit) {
+      let isValidDate = true; if (isOktober2026 && dateCursor < batasMulaiManual) { isValidDate = false; }
+      if (isValidDate) {
+        if (dayOfWeek >= 0 && dayOfWeek <= 4 && dateCursor >= firstDateWB) validDatesWB.push(tglStr);
+        if (dayOfWeek === 5 && dateCursor >= firstDateTakh) validDatesTakh.push(tglStr);
+      }
+    }
+    dateCursor.setDate(dateCursor.getDate() + 1);
+  }
+
+  let sWB = ss.getSheetByName('Data_Wajib_Belajar');
+  if (sWB) { let data = sWB.getDataRange().getValues(); let set = new Set(); for (let i = 1; i < data.length; i++) if (data[i][1]) { let kmr = String(data[i][1]).trim(); set.add(kmr); riwayatTunggakan[kmr] = []; } wbTargets = Array.from(set); }
+
+  validDatesWB.forEach(dateToScan => {
+    let roomsPresentOnDate = new Set();
+    for (let i = 1; i < dataLogWB.length; i++) { let rowDate = (dataLogWB[i][2] instanceof Date) ? Utilities.formatDate(dataLogWB[i][2], "Asia/Jakarta", "yyyy-MM-dd") : String(dataLogWB[i][2]).trim(); if (rowDate === dateToScan) roomsPresentOnDate.add(String(dataLogWB[i][7]).trim()); }
+    wbTargets.forEach(kmr => { if (!roomsPresentOnDate.has(kmr)) riwayatTunggakan[kmr].push(dateToScan); });
+  });
+
+  let isCurrentMonth = (partsToday[0] === String(year) && partsToday[1] === String(month + 1).padStart(2, '0'));
+  let daySesi = todayLimit.getDay(); let isWBDay = (daySesi >= 0 && daySesi <= 4); let isTakhDay = (daySesi === 5);
+
+  if (isCurrentMonth && isWBDay) {
+    for (let i = 1; i < dataLogWB.length; i++) { let rowDate = (dataLogWB[i][2] instanceof Date) ? Utilities.formatDate(dataLogWB[i][2], "Asia/Jakarta", "yyyy-MM-dd") : String(dataLogWB[i][2]).trim(); if (rowDate === tglSesi) { let idx = wbTargets.indexOf(String(dataLogWB[i][7]).trim()); if (idx > -1) wbTargets.splice(idx, 1); } }
+  } else { wbTargets = []; }
+
+  let sTakh = ss.getSheetByName('Data_Santri_Takhassus');
+  if (sTakh) { let data = sTakh.getDataRange().getValues(); let set = new Set(); for (let i = 1; i < data.length; i++) { let k = data[i][2] || data[i][1]; let q = data[i][3] || ''; if (k) { let trg = String(k + (q ? ' - ' + q : '')).trim(); set.add(trg); if (!riwayatTunggakan[trg]) riwayatTunggakan[trg] = []; } } takhTargets = Array.from(set); }
+
+  validDatesTakh.forEach(dateToScan => {
+    let roomsPresentOnDate = new Set();
+    for (let i = 1; i < dataLogTakh.length; i++) { let rowDate = (dataLogTakh[i][2] instanceof Date) ? Utilities.formatDate(dataLogTakh[i][2], "Asia/Jakarta", "yyyy-MM-dd") : String(dataLogTakh[i][2]).trim(); if (rowDate === dateToScan) roomsPresentOnDate.add(String(dataLogTakh[i][7]).trim()); }
+    takhTargets.forEach(kmr => { if (!roomsPresentOnDate.has(kmr)) riwayatTunggakan[kmr].push(dateToScan); });
+  });
+
+  if (isCurrentMonth && isTakhDay) {
+    for (let i = 1; i < dataLogTakh.length; i++) { let rowDate = (dataLogTakh[i][2] instanceof Date) ? Utilities.formatDate(dataLogTakh[i][2], "Asia/Jakarta", "yyyy-MM-dd") : String(dataLogTakh[i][2]).trim(); if (rowDate === tglSesi) { let idx = takhTargets.indexOf(String(dataLogTakh[i][7]).trim()); if (idx > -1) takhTargets.splice(idx, 1); } }
+  } else { takhTargets = []; }
+
+  return { wb: wbTargets.sort(), takhassus: takhTargets.sort(), riwayat: riwayatTunggakan, scannedMonth: targetMonth };
+}
+
+function getDbData(type) {
+  let sheetName = type === 'musyrif' ? 'Data_Musyrif' : type === 'pengajar' ? 'Data_Pengajar_Takhassus' : type === 'wb' ? 'Data_Wajib_Belajar' : 'Data_Santri_Takhassus';
+  let ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    if (type === 'musyrif') sheet.appendRow(['Nama', 'Kamar', 'PIN']);
+    else if (type === 'pengajar') sheet.appendRow(['No', 'Nama', 'Kelas', 'Qismu', 'PIN']);
+    else if (type === 'wb') sheet.appendRow(['Nama', 'Kamar']);
+    else if (type === 'takhassus') sheet.appendRow(['No', 'Nama', 'Kelas', 'Qismu']);
+  }
+  let data = sheet.getDataRange().getValues();
+  let result = [];
+  for (let i = 1; i < data.length; i++) {
+    let row = data[i];
+    if (type === 'musyrif') result.push({ idx: i + 1, f1: String(row[0] || ''), f2: String(row[1] || ''), f3: String(row[2] || '') });
+    else if (type === 'pengajar') result.push({ idx: i + 1, f1: String(row[1] || row[0] || ''), f2: String(row[2] || ''), f3: String(row[3] || ''), f4: String(row[4] || '') });
+    else if (type === 'wb') result.push({ idx: i + 1, f1: String(row[0] || ''), f2: String(row[1] || '') });
+    else if (type === 'takhassus') result.push({ idx: i + 1, f1: String(row[1] || row[0] || ''), f2: String(row[2] || ''), f3: String(row[3] || '') });
+  }
+  return result;
+}
+
+function saveDbData(type, index, obj) {
+  let sheetName = type === 'musyrif' ? 'Data_Musyrif' : type === 'pengajar' ? 'Data_Pengajar_Takhassus' : type === 'wb' ? 'Data_Wajib_Belajar' : 'Data_Santri_Takhassus';
+  let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  if (!index || index < 2) index = sheet.getLastRow() + 1;
+  if (type === 'musyrif') sheet.getRange(index, 1, 1, 3).setValues([[obj.f1, obj.f2, obj.f3]]);
+  else if (type === 'pengajar') sheet.getRange(index, 1, 1, 5).setValues([[index - 1, obj.f1, obj.f2, obj.f3, obj.f4]]);
+  else if (type === 'wb') sheet.getRange(index, 1, 1, 2).setValues([[obj.f1, obj.f2]]);
+  else if (type === 'takhassus') sheet.getRange(index, 1, 1, 4).setValues([[index - 1, obj.f1, obj.f2, obj.f3]]);
+  try { CacheService.getScriptCache().remove('FAST_LOGIN_DATA'); } catch (e) {}
+  return { success: true };
+}
+
+function deleteDbData(type, index) {
+  let sheetName = type === 'musyrif' ? 'Data_Musyrif' : type === 'pengajar' ? 'Data_Pengajar_Takhassus' : type === 'wb' ? 'Data_Wajib_Belajar' : 'Data_Santri_Takhassus';
+  SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName).deleteRow(index);
+  try { CacheService.getScriptCache().remove('FAST_LOGIN_DATA'); } catch (e) {}
+  return { success: true };
+}
+
+function checkExistingAbsensi(type, target, tglSesi) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(type === 'takhassus' ? 'Log_Absensi_Takhassus' : type === 'musyrif' ? 'Log_Absensi_Musyrif' : type === 'pengajar' ? 'Log_Absensi_Pengajar' : 'Log_Absensi_WB');
+  if (!sheet) return false;
+  const data = sheet.getDataRange().getValues();
+  let targetClean = String(target).trim().toLowerCase();
+  let tglClean = String(tglSesi).trim();
+  for (let i = 1; i < data.length; i++) {
+    let rowDate = (data[i][2] instanceof Date) ? Utilities.formatDate(data[i][2], "Asia/Jakarta", "yyyy-MM-dd") : String(data[i][2]).trim();
+    if (rowDate === tglClean && String(data[i][7]).trim().toLowerCase() === targetClean) return true;
+  }
+  return false;
+}
+
+function submitAbsensi(payload) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheetName = payload.type === 'takhassus' ? 'Log_Absensi_Takhassus' : payload.type === 'musyrif' ? 'Log_Absensi_Musyrif' : payload.type === 'pengajar' ? 'Log_Absensi_Pengajar' : 'Log_Absensi_WB';
+  if (checkExistingAbsensi(payload.type, payload.target, payload.tglSesi)) {
+    return { success: false, message: 'Sesi ini sudah diabsen hari ini dan Terkunci!' };
+  }
+  let sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    sheet.appendRow(['ID_Sesi', 'Timestamp', 'Tgl_Sesi', 'Tahun', 'Bulan', 'Role', 'Petugas', 'Target', 'Nama', 'Kehadiran', 'Pelanggaran/Keterangan', 'Poin']);
+  }
+  const timestamp = Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss");
+  const tglSesi = payload.tglSesi;
+  const idSesi = payload.target.replace(/\s+/g, '') + '_' + tglSesi;
+  let rowsToInsert = [];
+
+  payload.items.forEach(item => {
+    let poin = (payload.type === 'wb' || payload.type === 'takhassus') && item.pelanggaran ? item.pelanggaran.length : 0;
+    rowsToInsert.push([idSesi, timestamp, tglSesi, tglSesi.split('-')[0], tglSesi.split('-')[1], payload.role, payload.petugas, payload.target, item.nama, item.kehadiran, item.pelanggaran ? item.pelanggaran.join(', ') : '', poin]);
+  });
+
+  if (rowsToInsert.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, rowsToInsert.length, 12).setValues(rowsToInsert);
+    SpreadsheetApp.flush();
+  }
+  return { success: true, message: 'Absensi direkam!' };
+}
+
+function getRekapData(activity) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(activity === 'takhassus' ? 'Log_Absensi_Takhassus' : activity === 'musyrif' ? 'Log_Absensi_Musyrif' : activity === 'pengajar' ? 'Log_Absensi_Pengajar' : 'Log_Absensi_WB');
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  let list = [];
+  for (let i = 1; i < data.length; i++) {
+    if (!data[i][2]) continue;
+    list.push({
+      tanggal: (data[i][2] instanceof Date) ? Utilities.formatDate(data[i][2], "Asia/Jakarta", "yyyy-MM-dd") : String(data[i][2]).trim().substring(0, 10),
+      target: String(data[i][7] || '').trim(),
+      nama: String(data[i][8] || '').trim(),
+      kehadiran: String(data[i][9] || '').trim(),
+      pelanggaran: String(data[i][10] || '').trim(),
+      poin: Number(data[i][11]) || 0
+    });
+  }
+  return list;
+}
+
+// ============================================================
+// 5. KEUANGAN TERPISAH: DANA SIMPANAN (Keuangan) & DANA OPERASIONAL
+// ============================================================
+function getFinSheetName(category) {
+  return category === 'operasional' ? 'Dana_Operasional' : 'Keuangan';
+}
+
+function getFinancialData(category) {
+  const sheetName = getFinSheetName(category);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  let list = [];
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][1] || data[i][2]) {
+      list.push({
+        id: String(data[i][0] || ''),
+        tanggal: (data[i][1] instanceof Date) ? Utilities.formatDate(data[i][1], "Asia/Jakarta", "dd-MM-yyyy") : String(data[i][1] || ''),
+        keterangan: String(data[i][2] || ''),
+        jenis: String(data[i][3] || ''),
+        jumlah: Number(data[i][4]) || 0
+      });
+    }
+  }
+  return list;
+}
+
+function saveFinancialData(item, category) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetName = getFinSheetName(category || item.category);
+  let sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
+  if (sheet.getLastRow() === 0) sheet.appendRow(['ID', 'Tanggal', 'Keterangan', 'Jenis', 'Jumlah']);
+  const prefix = (category === 'operasional' || item.category === 'operasional') ? 'OPR_' : 'FIN_';
+  sheet.appendRow([prefix + new Date().getTime(), item.tanggal, item.keterangan, item.jenis, Number(item.jumlah) || 0]);
+  return { success: true };
+}
+
+function deleteFinancialData(id, category) {
+  const sheetName = getFinSheetName(category);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  if (!sheet) return { success: false };
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(id)) {
+      sheet.deleteRow(i + 1);
+      return { success: true };
+    }
+  }
+  return { success: false };
+}
+
+// ============================================================
+// 6. PENGUMUMAN, SARAN, SURAT
+// ============================================================
+function getPengumuman() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Pengumuman');
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  let list = [];
+  for (let i = data.length - 1; i >= 1; i--) {
+    list.push({
+      id: String(data[i][0] || ''),
+      tanggal: (data[i][1] instanceof Date) ? Utilities.formatDate(data[i][1], "Asia/Jakarta", "dd MMM yyyy HH:mm") : String(data[i][1] || ''),
+      isi: String(data[i][2] || ''),
+      penulis: String(data[i][3] || '')
+    });
+  }
+  return list;
+}
+
+function savePengumuman(isi, penulis, role) {
+  if (role !== 'admin') return { success: false, message: 'Akses ditolak!' };
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('Pengumuman') || ss.insertSheet('Pengumuman');
+  if (sheet.getLastRow() === 0) sheet.appendRow(['ID', 'Tanggal', 'Isi', 'Penulis']);
+  sheet.appendRow(['PGM_' + new Date().getTime(), Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss"), isi, penulis]);
+  SpreadsheetApp.flush();
+  try { CacheService.getScriptCache().remove('FAST_LOGIN_DATA'); } catch (e) {}
+  return { success: true };
+}
+
+function deletePengumuman(id, role) {
+  if (role !== 'admin') return { success: false, message: 'Akses ditolak!' };
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Pengumuman');
+  if (!sheet) return { success: false };
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(id)) {
+      sheet.deleteRow(i + 1);
+      SpreadsheetApp.flush();
+      try { CacheService.getScriptCache().remove('FAST_LOGIN_DATA'); } catch (e) {}
+      return { success: true };
+    }
+  }
+  return { success: false };
+}
+
+function getSaran() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Kotak_Saran');
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  let list = [];
+  for (let i = data.length - 1; i >= 1; i--) {
+    list.push({
+      id: String(data[i][0] || ''),
+      tanggal: (data[i][1] instanceof Date) ? Utilities.formatDate(data[i][1], "Asia/Jakarta", "dd MMM yyyy HH:mm") : String(data[i][1] || ''),
+      peran: String(data[i][2] || ''),
+      nama: String(data[i][3] || ''),
+      isi: String(data[i][4] || '')
+    });
+  }
+  return list;
+}
+
+function saveSaran(peran, nama, isi) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('Kotak_Saran') || ss.insertSheet('Kotak_Saran');
+  if (sheet.getLastRow() === 0) sheet.appendRow(['ID', 'Tanggal', 'Peran', 'Pengirim', 'Isi Saran']);
+  sheet.appendRow(['SRN_' + new Date().getTime(), Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss"), peran, nama, isi]);
+  return { success: true };
+}
+
+function deleteSaran(id) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Kotak_Saran');
+  if (!sheet) return { success: false };
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(id)) {
+      sheet.deleteRow(i + 1);
+      return { success: true };
+    }
+  }
+  return { success: false };
+}
+
+function getSurat() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Surat');
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  let list = [];
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][3] || data[i][4]) {
+      list.push({
+        id: String(data[i][0] || ''),
+        kategori: String(data[i][1] || ''),
+        sub: String(data[i][2] || ''),
+        nomor: String(data[i][3] || ''),
+        perihal: String(data[i][4] || ''),
+        tanggal: (data[i][5] instanceof Date) ? Utilities.formatDate(data[i][5], "Asia/Jakarta", "dd-MM-yyyy") : String(data[i][5] || ''),
+        tujuan: String(data[i][6] || '')
+      });
+    }
+  }
+  return list;
+}
+
+function saveSuratData(item) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('Surat') || ss.insertSheet('Surat');
+  if (sheet.getLastRow() === 0) sheet.appendRow(['ID', 'Kategori', 'SubKategori', 'Nomor', 'Perihal', 'Tanggal', 'Pihak Tujuan']);
+  const id = 'SRT_' + new Date().getTime();
+  sheet.appendRow([id, item.kategori, item.sub, item.nomor, item.perihal, item.tanggal || Utilities.formatDate(new Date(), "Asia/Jakarta", "dd-MM-yyyy"), item.tujuan]);
+  return { success: true, id: id };
+}
+
+function deleteSurat(id) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Surat');
+  if (!sheet) return { success: false };
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(id)) {
+      sheet.deleteRow(i + 1);
+      return { success: true };
+    }
+  }
+  return { success: false };
+}
+
+// ============================================================
+// 7. GALERI KEGIATAN SANTRI (TAMPIL LINTAS PENGGUNA)
+// ============================================================
+function getGaleriSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName('Galeri');
+  if (!sh) {
+    sh = ss.insertSheet('Galeri');
+    sh.appendRow(['ID', 'Penulis', 'Jabatan', 'Tanggal', 'Tag', 'Caption', 'ImageURL', 'Likes', 'LikedBy']);
+  }
+  return sh;
+}
+
+function saveGaleriData(item) {
+  const sh = getGaleriSheet_();
+  const id = String(item.id || ('g' + Date.now()));
+  const publicUrl = saveImageToDrive_(item.imageUrl, 'galeri_' + Date.now() + '.jpg');
+  const tglStr = item.tanggal ? String(item.tanggal) : Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyy-MM-dd");
+
+  // Simpan tanggal sebagai string murni (diawali tanda petik tunggal) agar tidak berubah jadi objek Date
+  sh.appendRow([
+    id,
+    String(item.penulis || 'Petugas'),
+    String(item.jabatan || ''),
+    "'" + tglStr,
+    String(item.tag || ''),
+    String(item.caption || ''),
+    publicUrl,
+    0,
+    '[]'
+  ]);
+  SpreadsheetApp.flush();
+  return { success: true, id: id, imageUrl: publicUrl };
+}
+
+function getGaleriData() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName('Galeri');
+  if (!sh || sh.getLastRow() < 2) return [];
+
+  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, 9).getValues();
+  const result = [];
+
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const r = rows[i];
+    if (!r[0] && !r[6]) continue;
+
+    // Pastikan tanggal selalu berupa String agar tidak mematahkan serialisasi google.script.run
+    const tglFormatted = (r[3] instanceof Date)
+      ? Utilities.formatDate(r[3], "Asia/Jakarta", "yyyy-MM-dd")
+      : String(r[3] || '');
+
+    let likedArr = [];
+    try {
+      likedArr = r[8] ? JSON.parse(String(r[8])) : [];
+      if (!Array.isArray(likedArr)) likedArr = [];
+    } catch (e) {
+      likedArr = [];
+    }
+
+    result.push({
+      id: String(r[0] || ''),
+      penulis: String(r[1] || 'Petugas'),
+      jabatan: String(r[2] || ''),
+      tanggal: tglFormatted,
+      tag: String(r[4] || ''),
+      caption: String(r[5] || ''),
+      imageUrl: String(r[6] || ''),
+      likes: Number(r[7]) || 0,
+      likedBy: likedArr
+    });
+  }
+  return result;
+}
+
+function toggleGaleriLike(id, userName) {
+  const sh = getGaleriSheet_();
+  if (sh.getLastRow() < 2) return { success: false };
+  const data = sh.getDataRange().getValues();
+  const targetId = String(id);
+  const cleanUser = String(userName || 'Guest').trim();
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === targetId) {
+      let likedBy = [];
+      try {
+        likedBy = data[i][8] ? JSON.parse(String(data[i][8])) : [];
+        if (!Array.isArray(likedBy)) likedBy = [];
+      } catch (e) {
+        likedBy = [];
+      }
+
+      const idx = likedBy.indexOf(cleanUser);
+      if (idx >= 0) {
+        likedBy.splice(idx, 1);
+      } else {
+        likedBy.push(cleanUser);
+      }
+
+      sh.getRange(i + 1, 8, 1, 2).setValues([[likedBy.length, JSON.stringify(likedBy)]]);
+      SpreadsheetApp.flush();
+      return { success: true, likes: likedBy.length, likedBy: likedBy };
+    }
+  }
+  return { success: false };
+}
+
+function deleteGaleriData(id) {
+  const sh = getGaleriSheet_();
+  if (sh.getLastRow() < 2) return { success: false };
+  const data = sh.getDataRange().getValues();
+  const targetId = String(id);
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === targetId) {
+      sh.deleteRow(i + 1);
+      SpreadsheetApp.flush();
+      return { success: true };
+    }
+  }
+  return { success: false };
+}
+
+// ============================================================
+// 8. ADAPTER API NATIVE (DO POST — MENDUKUNG PWA NETLIFY & LAMA)
+// ============================================================
+function doPost_old(e) {
+  try {
+    var payload = JSON.parse(e.postData.contents);
+    var fnName = payload.fn || payload.action;
+    var res;
+
+    if (Array.isArray(payload.args)) {
+      res = dispatchApiCall_(fnName, payload.args);
+    } else if (fnName === 'verifyLogin') {
+      res = verifyLogin(payload.role, payload.name, payload.pin);
+    } else if (fnName === 'submitAbsensi') {
+      res = submitAbsensi(payload);
+    } else if (fnName === 'saveFinancialData') {
+      res = saveFinancialData(payload.item, payload.category || 'simpanan');
+    } else if (fnName === 'saveSuratData') {
+      res = saveSuratData(payload.item);
+    } else {
+      res = dispatchApiCall_(fnName, payload.payload !== undefined ? [payload.payload] : []);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify(res)).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, message: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
+}

@@ -10,6 +10,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.pwa.AttendanceVoiceAnnouncer
 import com.example.pwa.NfcController
 import com.example.pwa.PwaViewModel
 import com.example.pwa.PwaWebViewScreen
@@ -26,11 +27,14 @@ class MainActivity : ComponentActivity() {
   private val _nfcTagEvents = MutableSharedFlow<String>(extraBufferCapacity = 8)
   private val _nfcStatusState = MutableStateFlow("{\"supported\":false,\"enabled\":false,\"locked\":false,\"mode\":\"idle\"}")
   private lateinit var nfcController: NfcController
+  private lateinit var voiceAnnouncer: AttendanceVoiceAnnouncer
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     ensureWebViewCacheDirectories()
     enableEdgeToEdge()
+
+    voiceAnnouncer = AttendanceVoiceAnnouncer(applicationContext)
 
     nfcController =
       NfcController(
@@ -60,6 +64,7 @@ class MainActivity : ComponentActivity() {
           onGetNfcStatus = { nfcController.getStatusJson() },
           onOpenNfcSettings = { nfcController.openNfcSettings() },
           onVibrateFeedback = { ms -> nfcController.vibrateFeedback(ms) },
+          onSpeakAnnouncement = { text -> voiceAnnouncer.speak(text) },
         )
       }
     }
@@ -77,6 +82,13 @@ class MainActivity : ComponentActivity() {
       nfcController.onPause()
     }
     super.onPause()
+  }
+
+  override fun onDestroy() {
+    if (::voiceAnnouncer.isInitialized) {
+      voiceAnnouncer.shutdown()
+    }
+    super.onDestroy()
   }
 
   override fun onNewIntent(intent: Intent) {
