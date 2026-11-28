@@ -30,12 +30,134 @@ const TIMEZONE_WIB = 'Asia/Jakarta';
 const SYNC_LOG_SHEET_NAME = 'SyncLog';
 const IZIN_DIGITAL_SHEET_NAME = 'IzinDigital';
 const TINDAKAN_SANTRI_SHEET_NAME = 'TindakanSantri';
+const WALI_SANTRI_SHEET_NAME = 'Akun_Wali_Santri';
+const PROFILE_PHOTO_SHEET_NAME = 'Foto_Profil';
 
 const WALI_SANTRI_PROP_KEY = 'ALRIFAIE_WALI_SANTRI_USERS_V1';
 const DRIVE_CONFIG_PROP_KEY = 'ALRIFAIE_DRIVE_BACKUP_CONFIG_V1';
 const SURAT_DRIVE_MAP_PROP_KEY = 'ALRIFAIE_SURAT_DRIVE_MAP_V1';
 const PROFILE_PHOTO_PROP_KEY = 'ALRIFAIE_USER_PROFILE_PHOTOS_V1';
 const DEFAULT_DRIVE_ROOT_FOLDER = 'Arsip_Departemen_Pendidikan_AlRifaie';
+const SCHEMA_READY_CACHE_KEY = 'ALRIFAIE_SCHEMA_READY_V22';
+
+// Skema lengkap semua sheet & kolom wajib aplikasi (otomatis dibuat jika belum ada)
+const APP_SHEET_SCHEMAS_ = {
+  Settings: {
+    headers: ['Key', 'Value'],
+    extra: []
+  },
+  Data_Users: {
+    headers: ['ID', 'Username', 'PIN', 'Jabatan', 'Akses_Fitur'],
+    extra: []
+  },
+  Akun_Wali_Santri: {
+    headers: ['ID', 'Username', 'NamaWali', 'NamaSantri', 'Akses', 'SharedSingle', 'Salt', 'PasswordHash', 'CreatedAt', 'UpdatedAt'],
+    extra: ['SharedSingle', 'Salt', 'PasswordHash', 'CreatedAt', 'UpdatedAt']
+  },
+  Foto_Profil: {
+    headers: ['UserKey', 'Nama', 'Peran', 'PhotoURL', 'UpdatedAt'],
+    extra: ['Nama', 'Peran', 'PhotoURL', 'UpdatedAt']
+  },
+  Data_Wajib_Belajar: {
+    headers: ['Nama', 'Kamar', 'NFC Code', 'QR Code'],
+    extra: ['NFC Code', 'QR Code']
+  },
+  Data_Santri_Takhassus: {
+    headers: ['No', 'Nama', 'Kelas', 'Qismu', 'NFC Code', 'QR Code'],
+    extra: ['NFC Code', 'QR Code']
+  },
+  Data_Musyrif: {
+    headers: ['Nama', 'Kamar', 'PIN', 'NFC Code', 'QR Code'],
+    extra: ['PIN', 'NFC Code', 'QR Code']
+  },
+  Data_Pengajar_Takhassus: {
+    headers: ['No', 'Nama', 'Kelas', 'Qismu', 'PIN', 'NFC Code', 'QR Code'],
+    extra: ['PIN', 'NFC Code', 'QR Code']
+  },
+  Log_Absensi_WB: {
+    headers: [
+      'ID_Sesi', 'Timestamp', 'Tgl_Sesi', 'Tahun', 'Bulan',
+      'Role', 'Petugas', 'Target', 'Nama', 'Kehadiran',
+      'Pelanggaran/Keterangan', 'Poin', 'NFC Code', 'QR Code', 'Metode', 'Waktu_Scan'
+    ],
+    extra: ['NFC Code', 'QR Code', 'Metode', 'Waktu_Scan']
+  },
+  Log_Absensi_Takhassus: {
+    headers: [
+      'ID_Sesi', 'Timestamp', 'Tgl_Sesi', 'Tahun', 'Bulan',
+      'Role', 'Petugas', 'Target', 'Nama', 'Kehadiran',
+      'Pelanggaran/Keterangan', 'Poin', 'NFC Code', 'QR Code', 'Metode', 'Waktu_Scan'
+    ],
+    extra: ['NFC Code', 'QR Code', 'Metode', 'Waktu_Scan']
+  },
+  Log_Absensi_Musyrif: {
+    headers: [
+      'ID_Sesi', 'Timestamp', 'Tgl_Sesi', 'Tahun', 'Bulan',
+      'Role', 'Petugas', 'Target', 'Nama', 'Kehadiran',
+      'Pelanggaran/Keterangan', 'Poin', 'NFC Code', 'QR Code', 'Metode', 'Waktu_Scan'
+    ],
+    extra: ['NFC Code', 'QR Code', 'Metode', 'Waktu_Scan']
+  },
+  Log_Absensi_Pengajar: {
+    headers: [
+      'ID_Sesi', 'Timestamp', 'Tgl_Sesi', 'Tahun', 'Bulan',
+      'Role', 'Petugas', 'Target', 'Nama', 'Kehadiran',
+      'Pelanggaran/Keterangan', 'Poin', 'NFC Code', 'QR Code', 'Metode', 'Waktu_Scan'
+    ],
+    extra: ['NFC Code', 'QR Code', 'Metode', 'Waktu_Scan']
+  },
+  Keuangan: {
+    headers: ['ID', 'Tanggal', 'Keterangan', 'Jenis', 'Jumlah'],
+    extra: []
+  },
+  Dana_Operasional: {
+    headers: ['ID', 'Tanggal', 'Keterangan', 'Jenis', 'Jumlah'],
+    extra: []
+  },
+  Pengumuman: {
+    headers: ['ID', 'Tanggal', 'Isi', 'Penulis'],
+    extra: []
+  },
+  Kotak_Saran: {
+    headers: ['ID', 'Tanggal', 'Peran', 'Pengirim', 'Isi Saran'],
+    extra: []
+  },
+  Surat: {
+    headers: ['ID', 'Kategori', 'SubKategori', 'Nomor', 'Perihal', 'Tanggal', 'Pihak Tujuan', 'Drive_URL', 'Drive_File_ID'],
+    extra: ['Drive_URL', 'Drive_File_ID']
+  },
+  Galeri: {
+    headers: ['ID', 'Penulis', 'Jabatan', 'Tanggal', 'Tag', 'Caption', 'ImageURL', 'Likes', 'LikedBy', 'Drive_URL', 'Drive_File_ID'],
+    extra: ['Likes', 'LikedBy', 'Drive_URL', 'Drive_File_ID']
+  },
+  IzinDigital: {
+    headers: [
+      'ID', 'NamaSantri', 'KamarKelas', 'Jenis', 'Mulai', 'Selesai',
+      'Alasan', 'Pengaju', 'PeranPengaju', 'Status', 'DiprosesOleh', 'CatatanAdmin', 'CreatedAt'
+    ],
+    extra: ['CatatanAdmin', 'CreatedAt']
+  },
+  TindakanSantri: {
+    headers: ['ID', 'Tanggal', 'NamaSantri', 'KamarKelas', 'Tindakan', 'Catatan', 'Petugas', 'PeranPetugas'],
+    extra: []
+  },
+  SyncLog: {
+    headers: ['ClientOpId', 'Action', 'Status', 'SyncedAt'],
+    extra: []
+  }
+};
+
+const HEADER_ALIASES_ = {
+  'nfc code': ['nfc code', 'nfc_code', 'nfc', 'kode nfc', 'uid nfc', 'id nfc'],
+  'qr code': ['qr code', 'qr_code', 'qr', 'kode qr', 'id qr'],
+  'pin': ['pin', 'pin login', 'password', 'sandi', 'kode pin'],
+  'metode': ['metode', 'metode_absen', 'metode absen', 'method'],
+  'waktu_scan': ['waktu_scan', 'waktu scan', 'jam_scan', 'jam scan'],
+  'drive_url': ['drive_url', 'drive url', 'link_drive', 'link drive'],
+  'drive_file_id': ['drive_file_id', 'drive file id', 'file_id']
+};
+
+let SCRIPT_LOCK_DEPTH_ = 0;
 
 // =========================================================================
 // 0. ENTRY POINT HTTP (doGet & doPost) + OFFLINE-FIRST BATCH SYNC
@@ -47,10 +169,12 @@ function doGet(e) {
       return createJsonOutput_({
         ok: true,
         status: 'online',
-        version: 'v21-unified',
+        version: 'v22-unified-autoschema',
         serverTime: new Date().toISOString()
       });
     }
+
+    ensureAllSheetsAndColumns_(false);
 
     if (e && e.parameter && e.parameter.payload) {
       const req = JSON.parse(e.parameter.payload);
@@ -104,6 +228,8 @@ function doPost(e) {
     const fnName = String(body.fn || body.action || '').trim();
     const clientOpId = String(body.clientOpId || '').trim();
 
+    ensureAllSheetsAndColumns_(false);
+
     if (fnName === 'syncOfflineBatch') {
       const batchItems = Array.isArray(body.args) && Array.isArray(body.args[0])
         ? body.args[0]
@@ -156,20 +282,37 @@ function tryAcquireLock_(lock, waitMs) {
   }
 }
 
+function withScriptLock_(waitMs, callbackFn) {
+  if (SCRIPT_LOCK_DEPTH_ > 0) {
+    SCRIPT_LOCK_DEPTH_++;
+    try {
+      return callbackFn();
+    } finally {
+      SCRIPT_LOCK_DEPTH_--;
+    }
+  }
+  const lock = LockService.getScriptLock();
+  if (!tryAcquireLock_(lock, waitMs || 15000)) {
+    return {
+      success: false,
+      busy: true,
+      message: 'Server sedang sibuk, silakan coba beberapa detik lagi.'
+    };
+  }
+  SCRIPT_LOCK_DEPTH_ = 1;
+  try {
+    return callbackFn();
+  } finally {
+    SCRIPT_LOCK_DEPTH_ = 0;
+    try { lock.releaseLock(); } catch (e) {}
+  }
+}
+
 /**
  * Memproses antrean data offline secara berurutan (FIFO) dengan LockService & SyncLog.
  */
 function syncOfflineBatch(items) {
-  const lock = LockService.getScriptLock();
-  if (!tryAcquireLock_(lock, 15000)) {
-    return {
-      success: false,
-      busy: true,
-      batchHandled: false,
-      message: 'Server sedang sibuk memproses antrean lain. Aplikasi akan mencoba ulang otomatis.'
-    };
-  }
-  try {
+  const lockedRes = withScriptLock_(15000, function () {
     const list = Array.isArray(items) ? items : [];
     const results = [];
     let syncedCount = 0;
@@ -241,29 +384,24 @@ function syncOfflineBatch(items) {
       serverTime: new Date().toISOString(),
       results: results
     };
-  } finally {
-    try { lock.releaseLock(); } catch (e) {}
+  });
+
+  if (lockedRes && lockedRes.busy && typeof lockedRes.batchHandled === 'undefined') {
+    lockedRes.batchHandled = false;
   }
+  return lockedRes;
 }
 
 function routeApiRequest_(fnName, args, clientOpId) {
   if (fnName === 'ping') {
-    return { ok: true, status: 'online', serverTime: new Date().toISOString() };
+    return { ok: true, status: 'online', version: 'v22-unified-autoschema', serverTime: new Date().toISOString() };
   }
 
   if (!clientOpId) {
     return dispatchApiCall_(fnName, args);
   }
 
-  const lock = LockService.getScriptLock();
-  if (!tryAcquireLock_(lock, 15000)) {
-    return {
-      success: false,
-      busy: true,
-      message: 'Server sedang sibuk, silakan coba beberapa detik lagi.'
-    };
-  }
-  try {
+  return withScriptLock_(15000, function () {
     if (isOpAlreadySynced_(clientOpId)) {
       return { success: true, duplicate: true, message: 'Data sudah tersinkron sebelumnya.' };
     }
@@ -273,23 +411,28 @@ function routeApiRequest_(fnName, args, clientOpId) {
       recordSyncedOp_(clientOpId, fnName, 'OK');
     }
     return result;
-  } finally {
-    try { lock.releaseLock(); } catch (e) {}
-  }
+  });
 }
 
 function dispatchApiCall_(fnName, args) {
   const safeArgs = Array.isArray(args) ? args : [];
   const allowedFns = {
-    // Core & Auth
+    // Core, Setup & Auth
     getFastLoginData: getFastLoginData,
     getInitialBundle: getInitialBundle,
+    getLoginData: getLoginData,
+    getAppDataForRole: getAppDataForRole,
+    getAppSettings: getAppSettings,
     verifyLogin: verifyLogin,
     updateAdminCredentials: updateAdminCredentials,
     updateAppSettings: updateAppSettings,
+    setupSemuaSheetDanKolom: setupSemuaSheetDanKolom,
+    testAuthorizationAndSetup: testAuthorizationAndSetup,
     // Absensi, Rekap & Tunggakan
     submitAbsensi: submitAbsensi,
+    checkExistingAbsensi: checkExistingAbsensi,
     getRekapData: getRekapData,
+    getTodayAttendanceSnapshot: getTodayAttendanceSnapshot,
     getMissingAttendance: getMissingAttendance,
     // Keuangan
     getFinancialData: getFinancialData,
@@ -328,6 +471,7 @@ function dispatchApiCall_(fnName, args) {
     deleteIzinDigital: deleteIzinDigital,
     getSantriTindakan: getSantriTindakan,
     saveSantriTindakan: saveSantriTindakan,
+    deleteSantriTindakan: deleteSantriTindakan,
     // Google Drive Backup & Foto Profil
     uploadHdImage: uploadHdImage,
     getDriveBackupStatus: getDriveBackupStatus,
@@ -394,33 +538,174 @@ function formatRowDateWib_(val) {
 function findHeaderColMap_(headerRow) {
   const map = {};
   (headerRow || []).forEach(function (h, idx) {
-    const clean = String(h || '').trim().toLowerCase();
-    if (clean) map[clean] = idx;
+    const clean = String(h || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    if (clean && typeof map[clean] === 'undefined') map[clean] = idx;
   });
   return map;
 }
 
-function ensureExtraHeaders_(sheet, headerNames) {
-  const lastCol = Math.max(1, sheet.getLastColumn());
-  const existing = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) {
-    return String(h || '').trim();
-  });
-  const colMap = {};
-  let nextCol = lastCol;
+function findHeaderColIndex_(headerMap, canonicalName) {
+  const key = String(canonicalName || '').trim().toLowerCase();
+  if (typeof headerMap[key] === 'number') return headerMap[key];
+  const aliases = HEADER_ALIASES_[key];
+  if (Array.isArray(aliases)) {
+    for (let i = 0; i < aliases.length; i++) {
+      if (typeof headerMap[aliases[i]] === 'number') return headerMap[aliases[i]];
+    }
+  }
+  return -1;
+}
 
-  headerNames.forEach(function (name) {
-    const idx = existing.findIndex(function (h) {
-      return h.toLowerCase() === name.toLowerCase();
+function styleHeaderRange_(range) {
+  try {
+    range.setFontWeight('bold').setBackground('#EEF2FF').setFontColor('#1E1B4B');
+  } catch (e) {}
+}
+
+function ensureExtraHeaders_(sheet, headerNames) {
+  if (!sheet || !Array.isArray(headerNames) || headerNames.length === 0) return {};
+  const lastRow = sheet.getLastRow();
+  const lastCol = Math.max(0, sheet.getLastColumn());
+  let existing = [];
+  if (lastRow > 0 && lastCol > 0) {
+    existing = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) {
+      return String(h || '').trim();
     });
-    if (idx !== -1) {
-      colMap[name] = idx + 1;
+  }
+  const hMap = findHeaderColMap_(existing);
+  const colMap = {};
+  let nextCol = existing.length;
+  // Pangkas trailing kolom kosong di header agar kolom baru rapi tepat setelah kolom terakhir terisi
+  while (nextCol > 0 && !existing[nextCol - 1]) {
+    nextCol--;
+  }
+
+  let addedAny = false;
+  headerNames.forEach(function (name) {
+    const foundIdx = findHeaderColIndex_(hMap, name);
+    if (foundIdx !== -1) {
+      colMap[name] = foundIdx + 1;
     } else {
       nextCol++;
-      sheet.getRange(1, nextCol).setValue(name);
+      const cell = sheet.getRange(1, nextCol);
+      cell.setValue(name);
+      styleHeaderRange_(cell);
+      hMap[String(name).trim().toLowerCase()] = nextCol - 1;
       colMap[name] = nextCol;
+      addedAny = true;
     }
   });
+  if (addedAny) {
+    try {
+      if (sheet.getFrozenRows() < 1) sheet.setFrozenRows(1);
+    } catch (e) {}
+  }
   return colMap;
+}
+
+let __verifiedSheetsThisExec_ = {};
+let __schemaCacheReadyMemo_ = null;
+
+function isSchemaCacheReady_() {
+  if (__schemaCacheReadyMemo_ !== null) return __schemaCacheReadyMemo_;
+  try {
+    __schemaCacheReadyMemo_ = CacheService.getScriptCache().get(SCHEMA_READY_CACHE_KEY) === '1';
+  } catch (e) {
+    __schemaCacheReadyMemo_ = false;
+  }
+  return __schemaCacheReadyMemo_;
+}
+
+/**
+ * Memastikan 1 sheet tertentu ada beserta seluruh header & kolom tambahannya (NFC Code, QR Code, dll.).
+ * Fast-path: bila sheet sudah ada & skema sudah terverifikasi di CacheService (6 jam), langsung kembalikan sheet
+ * tanpa mengulang RPC getLastRow/getRange header pada setiap request harian.
+ */
+function ensureSheetReady_(sheetName, ssOpt, forceHeaderCheck) {
+  const ss = ssOpt || SpreadsheetApp.getActiveSpreadsheet();
+  const schema = APP_SHEET_SCHEMAS_[sheetName];
+  let sheet = ss.getSheetByName(sheetName);
+  let createdSheet = false;
+
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    createdSheet = true;
+    __schemaCacheReadyMemo_ = false;
+  }
+
+  if (!createdSheet && !forceHeaderCheck && (__verifiedSheetsThisExec_[sheetName] || isSchemaCacheReady_())) {
+    __verifiedSheetsThisExec_[sheetName] = true;
+    return sheet;
+  }
+
+  if (schema && Array.isArray(schema.headers) && schema.headers.length > 0) {
+    if (sheet.getLastRow() === 0) {
+      if (sheetName === 'Settings') {
+        sheet.getRange(1, 1, 7, 2).setValues([
+          ['Key', 'Value'],
+          ['appName', 'Departemen Pendidikan'],
+          ['logoUrl', ''],
+          ['bannerUrl', ''],
+          ['suratTemplateId', ''],
+          ['adminUsername', 'Amir Ganteng'],
+          ['adminPin', '1312']
+        ]);
+        styleHeaderRange_(sheet.getRange(1, 1, 1, 2));
+      } else {
+        sheet.getRange(1, 1, 1, schema.headers.length).setValues([schema.headers]);
+        styleHeaderRange_(sheet.getRange(1, 1, 1, schema.headers.length));
+      }
+      try { sheet.setFrozenRows(1); } catch (e) {}
+    } else if (Array.isArray(schema.extra) && schema.extra.length > 0) {
+      ensureExtraHeaders_(sheet, schema.extra);
+    }
+  } else if (createdSheet) {
+    try { sheet.setFrozenRows(1); } catch (e) {}
+  }
+
+  __verifiedSheetsThisExec_[sheetName] = true;
+  return sheet;
+}
+
+/**
+ * Otomatis membuat semua sheet & kolom wajib yang belum ada di Spreadsheet.
+ * Menggunakan CacheService (6 jam) agar hanya berjalan sekali dan tidak memperlambat request harian.
+ */
+function ensureAllSheetsAndColumns_(force) {
+  const cache = CacheService.getScriptCache();
+  if (!force) {
+    try {
+      if (cache.get(SCHEMA_READY_CACHE_KEY) === '1') {
+        return { skipped: true };
+      }
+    } catch (e) {}
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const report = {
+    createdSheets: [],
+    updatedSheets: [],
+    totalSheetsChecked: 0
+  };
+
+  Object.keys(APP_SHEET_SCHEMAS_).forEach(function (sheetName) {
+    report.totalSheetsChecked++;
+    const existed = Boolean(ss.getSheetByName(sheetName));
+    const prevLastCol = existed ? ss.getSheetByName(sheetName).getLastColumn() : 0;
+    const sheet = ensureSheetReady_(sheetName, ss, true);
+    if (!existed) {
+      report.createdSheets.push(sheetName);
+    } else if (sheet.getLastColumn() > prevLastCol) {
+      report.updatedSheets.push(sheetName);
+    }
+  });
+
+  try {
+    cache.put(SCHEMA_READY_CACHE_KEY, '1', 21600);
+    __schemaCacheReadyMemo_ = true;
+  } catch (e) {}
+
+  return report;
 }
 
 function trackCacheKey_(scriptCache, listKey, cacheKey) {
@@ -450,22 +735,89 @@ function clearTrackedCacheKeys_(scriptCache, listKey) {
   } catch (e) {}
 }
 
+const CACHE_CHUNK_SIZE_ = 78000;
+const CACHE_MAX_CHUNKS_ = 8;
+
+function putChunkedCache_(baseKey, obj, ttlSec) {
+  try {
+    const cache = CacheService.getScriptCache();
+    const str = JSON.stringify(obj);
+    if (!str) return false;
+    const ttl = ttlSec || 120;
+    if (str.length <= CACHE_CHUNK_SIZE_) {
+      cache.putAll({ [baseKey + '__meta']: '1', [baseKey + '__c0']: str }, ttl);
+      return true;
+    }
+    const count = Math.ceil(str.length / CACHE_CHUNK_SIZE_);
+    if (count > CACHE_MAX_CHUNKS_) return false;
+    const entries = {};
+    entries[baseKey + '__meta'] = String(count);
+    for (let i = 0; i < count; i++) {
+      entries[baseKey + '__c' + i] = str.substring(i * CACHE_CHUNK_SIZE_, (i + 1) * CACHE_CHUNK_SIZE_);
+    }
+    cache.putAll(entries, ttl);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function getChunkedCache_(baseKey) {
+  try {
+    const cache = CacheService.getScriptCache();
+    const meta = cache.get(baseKey + '__meta');
+    if (!meta) return null;
+    const count = parseInt(meta, 10);
+    if (!count || count < 1 || count > CACHE_MAX_CHUNKS_) return null;
+    if (count === 1) {
+      const s0 = cache.get(baseKey + '__c0');
+      return s0 ? JSON.parse(s0) : null;
+    }
+    const keys = [];
+    for (let i = 0; i < count; i++) keys.push(baseKey + '__c' + i);
+    const map = cache.getAll(keys);
+    let combined = '';
+    for (let i = 0; i < count; i++) {
+      const part = map[baseKey + '__c' + i];
+      if (typeof part !== 'string') return null;
+      combined += part;
+    }
+    return combined ? JSON.parse(combined) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function removeChunkedCache_(cache, baseKey) {
+  try {
+    const keys = [baseKey + '__meta'];
+    for (let i = 0; i < CACHE_MAX_CHUNKS_; i++) keys.push(baseKey + '__c' + i);
+    cache.removeAll(keys);
+  } catch (e) {}
+}
+
 function invalidateCaches_(scope) {
   try {
     const cache = CacheService.getScriptCache();
     if (scope === 'absensi' || scope === 'all') {
       clearTrackedCacheKeys_(cache, 'MISSING_ATT_V2_KEYS');
+      clearTrackedCacheKeys_(cache, 'TODAY_SNAP_KEYS');
       cache.removeAll([
         'REKAP_CACHE_wb',
         'REKAP_CACHE_takhassus',
         'REKAP_CACHE_musyrif',
         'REKAP_CACHE_pengajar'
       ]);
+      ['wb', 'takhassus', 'musyrif', 'pengajar'].forEach(function (act) {
+        removeChunkedCache_(cache, 'REKAP_CHUNK_' + act);
+      });
     }
     if (scope === 'master' || scope === 'settings' || scope === 'pengumuman' || scope === 'galeri' || scope === 'all') {
       cache.remove('FAST_LOGIN_DATA');
       cache.remove('GALERI_CACHE_V1');
-      if (scope === 'master') {
+      removeChunkedCache_(cache, 'INITIAL_BUNDLE_V1');
+      if (scope === 'master' || scope === 'all') {
+        removeChunkedCache_(cache, 'CORE_DATA_V1');
         clearTrackedCacheKeys_(cache, 'MISSING_ATT_V2_KEYS');
       }
     }
@@ -473,14 +825,7 @@ function invalidateCaches_(scope) {
 }
 
 function getOrCreateSyncLogSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(SYNC_LOG_SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.insertSheet(SYNC_LOG_SHEET_NAME);
-    sheet.appendRow(['ClientOpId', 'Action', 'Status', 'SyncedAt']);
-    sheet.setFrozenRows(1);
-  }
-  return sheet;
+  return ensureSheetReady_(SYNC_LOG_SHEET_NAME);
 }
 
 function isOpAlreadySynced_(clientOpId) {
@@ -766,47 +1111,104 @@ function backupSuratPdfToDrive(payload) {
 // 2. FOTO PROFIL PENGGUNA (TERSIMPAN DI DRIVE + SINKRON LINTAS PERANGKAT)
 // =========================================================================
 
+function readProfilePhotoMap_() {
+  const map = {};
+  try {
+    const raw = PropertiesService.getScriptProperties().getProperty(PROFILE_PHOTO_PROP_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    if (parsed && typeof parsed === 'object') {
+      Object.keys(parsed).forEach(function (k) {
+        if (parsed[k]) map[String(k).trim().toLowerCase()] = String(parsed[k]);
+      });
+    }
+  } catch (e) {}
+
+  try {
+    const sh = ensureSheetReady_(PROFILE_PHOTO_SHEET_NAME);
+    if (sh.getLastRow() > 1) {
+      const rows = sh.getRange(2, 1, sh.getLastRow() - 1, Math.max(4, sh.getLastColumn())).getValues();
+      rows.forEach(function (r) {
+        const k = String(r[0] || '').trim().toLowerCase();
+        const url = String(r[3] || '').trim();
+        if (k && url) map[k] = url;
+      });
+    }
+  } catch (e) {}
+  return map;
+}
+
 function getUserProfilePhoto(userKey) {
   try {
     const key = String(userKey || '').trim().toLowerCase();
     if (!key) return { success: true, photoUrl: '' };
-    const raw = PropertiesService.getScriptProperties().getProperty(PROFILE_PHOTO_PROP_KEY);
-    const map = raw ? JSON.parse(raw) : {};
-    return { success: true, photoUrl: (map && map[key]) ? String(map[key]) : '' };
+    const map = readProfilePhotoMap_();
+    return { success: true, photoUrl: map[key] ? String(map[key]) : '' };
   } catch (e) {
     return { success: false, photoUrl: '' };
   }
 }
 
 function saveUserProfilePhoto(payload) {
-  try {
-    const d = payload && typeof payload === 'object' ? payload : {};
-    const key = String(d.userKey || '').trim().toLowerCase();
-    if (!key) return { success: false, message: 'Kunci pengguna tidak valid.' };
-    const raw = PropertiesService.getScriptProperties().getProperty(PROFILE_PHOTO_PROP_KEY);
-    const map = raw ? JSON.parse(raw) : {};
+  return withScriptLock_(15000, function () {
+    try {
+      const d = payload && typeof payload === 'object' ? payload : {};
+      const key = String(d.userKey || '').trim().toLowerCase();
+      if (!key) return { success: false, message: 'Kunci pengguna tidak valid.' };
 
-    if (d.remove === true || !d.dataUrl) {
-      delete map[key];
-      PropertiesService.getScriptProperties().setProperty(PROFILE_PHOTO_PROP_KEY, JSON.stringify(map));
-      return { success: true, photoUrl: '' };
-    }
+      const sh = ensureSheetReady_(PROFILE_PHOTO_SHEET_NAME);
+      const raw = PropertiesService.getScriptProperties().getProperty(PROFILE_PHOTO_PROP_KEY);
+      const map = raw ? JSON.parse(raw) : {};
+      const nowIso = new Date().toISOString();
 
-    let finalUrl = String(d.dataUrl);
-    if (finalUrl.indexOf('data:image/') === 0) {
-      try {
-        const saved = saveHdImageToDrive_(finalUrl, 'profil_' + key.replace(/[^a-z0-9]/g, '_').slice(0, 24), 'Profil_Pengguna');
-        finalUrl = saved.url;
-      } catch (drvErr) {
-        Logger.log('Fallback simpan foto profil: ' + drvErr);
+      let finalUrl = '';
+      if (d.remove === true || !d.dataUrl) {
+        delete map[key];
+      } else {
+        finalUrl = String(d.dataUrl);
+        if (finalUrl.indexOf('data:image/') === 0) {
+          try {
+            const saved = saveHdImageToDrive_(finalUrl, 'profil_' + key.replace(/[^a-z0-9]/g, '_').slice(0, 24), 'Profil_Pengguna');
+            finalUrl = saved.url;
+          } catch (drvErr) {
+            Logger.log('Fallback simpan foto profil: ' + drvErr);
+          }
+        }
+        map[key] = finalUrl;
       }
+
+      try {
+        PropertiesService.getScriptProperties().setProperty(PROFILE_PHOTO_PROP_KEY, JSON.stringify(map));
+      } catch (propErr) {}
+
+      // Sinkronkan juga ke Sheet Foto_Profil agar mudah dipantau/backup di Spreadsheet
+      const lastRow = sh.getLastRow();
+      let foundRow = -1;
+      if (lastRow > 1) {
+        const keys = sh.getRange(2, 1, lastRow - 1, 1).getValues();
+        for (let i = 0; i < keys.length; i++) {
+          if (String(keys[i][0] || '').trim().toLowerCase() === key) {
+            foundRow = i + 2;
+            break;
+          }
+        }
+      }
+
+      if (!finalUrl) {
+        if (foundRow >= 2) sh.deleteRow(foundRow);
+      } else {
+        const rowVals = [key, safeSheetCell_(d.name || '', 120), safeSheetCell_(d.role || '', 40), finalUrl, nowIso];
+        if (foundRow >= 2) {
+          sh.getRange(foundRow, 1, 1, 5).setValues([rowVals]);
+        } else {
+          sh.appendRow(rowVals);
+        }
+      }
+      SpreadsheetApp.flush();
+      return { success: true, photoUrl: finalUrl };
+    } catch (err) {
+      return { success: false, error: err && err.message ? err.message : String(err) };
     }
-    map[key] = finalUrl;
-    PropertiesService.getScriptProperties().setProperty(PROFILE_PHOTO_PROP_KEY, JSON.stringify(map));
-    return { success: true, photoUrl: finalUrl };
-  } catch (err) {
-    return { success: false, error: err && err.message ? err.message : String(err) };
-  }
+  });
 }
 
 // =========================================================================
@@ -815,19 +1217,7 @@ function saveUserProfilePhoto(payload) {
 
 function getAppSettings() {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName('Settings') || ss.insertSheet('Settings');
-    if (sheet.getLastRow() === 0) {
-      sheet.getRange(1, 1, 7, 2).setValues([
-        ['Key', 'Value'],
-        ['appName', 'Departemen Pendidikan'],
-        ['logoUrl', ''],
-        ['bannerUrl', ''],
-        ['suratTemplateId', ''],
-        ['adminUsername', 'Amir Ganteng'],
-        ['adminPin', '1312']
-      ]);
-    }
+    const sheet = ensureSheetReady_('Settings');
     const data = sheet.getDataRange().getValues();
     const settings = {};
     for (let i = 1; i < data.length; i++) {
@@ -869,8 +1259,7 @@ function buildPublicSettings_(rawSettings) {
 }
 
 function updateAppSettings(newSettings) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName('Settings') || ss.insertSheet('Settings');
+  const sheet = ensureSheetReady_('Settings');
   const current = getAppSettings();
 
   const payload = Object.assign({}, newSettings || {});
@@ -936,14 +1325,19 @@ function updateAdminCredentials(newUsername, newPin) {
 }
 
 function getInitialBundle() {
+  const cached = getChunkedCache_('INITIAL_BUNDLE_V1');
+  if (cached) return cached;
+
   const settings = getAppSettings();
-  return {
+  const bundle = {
     settings: buildPublicSettings_(settings),
     loginData: getLoginData(),
     coreData: getAppDataForRole(),
     pengumuman: getPengumuman(),
     galeri: getGaleriData()
   };
+  putChunkedCache_('INITIAL_BUNDLE_V1', bundle, 120);
+  return bundle;
 }
 
 function getFastLoginData() {
@@ -972,13 +1366,7 @@ function getFastLoginData() {
 // =========================================================================
 
 function getUsersSheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName('Data_Users');
-  if (!sheet) {
-    sheet = ss.insertSheet('Data_Users');
-    sheet.appendRow(['ID', 'Username', 'PIN', 'Jabatan', 'Akses_Fitur']);
-  }
-  return sheet;
+  return ensureSheetReady_('Data_Users');
 }
 
 function getUsersData() {
@@ -1048,13 +1436,13 @@ function deleteUserData(id) {
 
 function getLoginData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sMusyrif = ss.getSheetByName('Data_Musyrif');
+  const sMusyrif = ensureSheetReady_('Data_Musyrif', ss);
   const musyrifs = [];
-  if (sMusyrif) {
+  if (sMusyrif && sMusyrif.getLastRow() > 1) {
     const data = sMusyrif.getDataRange().getValues();
     const hMap = findHeaderColMap_(data[0]);
-    const nfcCol = hMap['nfc code'] !== undefined ? hMap['nfc code'] : -1;
-    const qrCol = hMap['qr code'] !== undefined ? hMap['qr code'] : -1;
+    const nfcCol = findHeaderColIndex_(hMap, 'nfc code');
+    const qrCol = findHeaderColIndex_(hMap, 'qr code');
     for (let i = 1; i < data.length; i++) {
       if (data[i][0]) {
         musyrifs.push({
@@ -1066,13 +1454,13 @@ function getLoginData() {
       }
     }
   }
-  const sPengajar = ss.getSheetByName('Data_Pengajar_Takhassus');
+  const sPengajar = ensureSheetReady_('Data_Pengajar_Takhassus', ss);
   const pengajars = [];
-  if (sPengajar) {
+  if (sPengajar && sPengajar.getLastRow() > 1) {
     const data = sPengajar.getDataRange().getValues();
     const hMap = findHeaderColMap_(data[0]);
-    const nfcCol = hMap['nfc code'] !== undefined ? hMap['nfc code'] : -1;
-    const qrCol = hMap['qr code'] !== undefined ? hMap['qr code'] : -1;
+    const nfcCol = findHeaderColIndex_(hMap, 'nfc code');
+    const qrCol = findHeaderColIndex_(hMap, 'qr code');
     for (let i = 1; i < data.length; i++) {
       if (data[i][1] || data[i][0]) {
         pengajars.push({
@@ -1156,11 +1544,14 @@ function verifyLogin(role, name, pin) {
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     if (cleanRole === 'musyrif') {
-      const sMusyrif = ss.getSheetByName('Data_Musyrif');
-      if (sMusyrif) {
+      const sMusyrif = ensureSheetReady_('Data_Musyrif', ss);
+      if (sMusyrif && sMusyrif.getLastRow() > 1) {
         const data = sMusyrif.getDataRange().getValues();
+        const hMap = findHeaderColMap_(data[0]);
+        const pinCol = findHeaderColIndex_(hMap, 'pin');
         for (let i = 1; i < data.length; i++) {
-          if (String(data[i][0]).trim() === cleanName && String(data[i][2] || '123456').trim() === cleanPin) {
+          const pinCell = pinCol >= 0 ? data[i][pinCol] : data[i][2];
+          if (String(data[i][0]).trim() === cleanName && String(pinCell || '123456').trim() === cleanPin) {
             return {
               success: true,
               role: 'musyrif',
@@ -1175,12 +1566,15 @@ function verifyLogin(role, name, pin) {
     }
 
     if (cleanRole === 'pengajar') {
-      const sPengajar = ss.getSheetByName('Data_Pengajar_Takhassus');
-      if (sPengajar) {
+      const sPengajar = ensureSheetReady_('Data_Pengajar_Takhassus', ss);
+      if (sPengajar && sPengajar.getLastRow() > 1) {
         const data = sPengajar.getDataRange().getValues();
+        const hMap = findHeaderColMap_(data[0]);
+        const pinCol = findHeaderColIndex_(hMap, 'pin');
         for (let i = 1; i < data.length; i++) {
           const namaRow = String(data[i][1] || data[i][0]).trim();
-          const pinRow = String(data[i][4] || data[i][3] || '123456').trim();
+          const pinCell = pinCol >= 0 ? data[i][pinCol] : (data[i][4] || data[i][3]);
+          const pinRow = String(pinCell || '123456').trim();
           if (namaRow === cleanName && pinRow === cleanPin) {
             return {
               success: true,
@@ -1206,16 +1600,74 @@ function verifyLogin(role, name, pin) {
 
 function readWaliSantriStore_() {
   try {
+    const sh = ensureSheetReady_(WALI_SANTRI_SHEET_NAME);
+    if (sh.getLastRow() > 1) {
+      const rows = sh.getRange(2, 1, sh.getLastRow() - 1, Math.max(10, sh.getLastColumn())).getValues();
+      const fromSheet = [];
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r[0] && !r[1]) continue;
+        fromSheet.push({
+          id: String(r[0] || ('ws_' + (i + 1))),
+          username: String(r[1] || '').trim(),
+          namaWali: String(r[2] || '').trim(),
+          namaSantri: String(r[3] || '').trim(),
+          akses: String(r[4] || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean),
+          sharedSingle: String(r[5]).toLowerCase() === 'true' || r[5] === true || String(r[0]) === 'wali_shared_main',
+          salt: String(r[6] || '').trim(),
+          passwordHash: String(r[7] || '').trim(),
+          createdAt: String(r[8] || ''),
+          updatedAt: String(r[9] || '')
+        });
+      }
+      if (fromSheet.length > 0) return fromSheet;
+    }
+  } catch (sheetErr) {
+    Logger.log('Info baca Sheet Akun_Wali_Santri: ' + sheetErr);
+  }
+
+  // Migrasi otomatis dari PropertiesService jika sebelumnya tersimpan di sana
+  try {
     const raw = PropertiesService.getScriptProperties().getProperty(WALI_SANTRI_PROP_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (e) {
-    return [];
-  }
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      try { writeWaliSantriSheetOnly_(parsed); } catch (mErr) {}
+      return parsed;
+    }
+  } catch (e) {}
+  return [];
+}
+
+function writeWaliSantriSheetOnly_(list) {
+  const sh = ensureSheetReady_(WALI_SANTRI_SHEET_NAME);
+  const headers = APP_SHEET_SCHEMAS_[WALI_SANTRI_SHEET_NAME].headers;
+  const rows = [headers];
+  (list || []).forEach(function (u) {
+    rows.push([
+      String(u.id || ''),
+      String(u.username || '').trim(),
+      String(u.namaWali || '').trim(),
+      String(u.namaSantri || '').trim(),
+      Array.isArray(u.akses) ? u.akses.join(',') : String(u.akses || ''),
+      Boolean(u.sharedSingle) ? 'TRUE' : 'FALSE',
+      String(u.salt || ''),
+      String(u.passwordHash || ''),
+      String(u.createdAt || ''),
+      String(u.updatedAt || new Date().toISOString())
+    ]);
+  });
+  sh.clearContents();
+  sh.getRange(1, 1, rows.length, headers.length).setValues(rows);
+  styleHeaderRange_(sh.getRange(1, 1, 1, headers.length));
+  SpreadsheetApp.flush();
 }
 
 function writeWaliSantriStore_(list) {
-  PropertiesService.getScriptProperties().setProperty(WALI_SANTRI_PROP_KEY, JSON.stringify(list || []));
+  const safeList = Array.isArray(list) ? list : [];
+  try {
+    PropertiesService.getScriptProperties().setProperty(WALI_SANTRI_PROP_KEY, JSON.stringify(safeList));
+  } catch (e) {}
+  writeWaliSantriSheetOnly_(safeList);
 }
 
 function computeSaltedSha256_(password, salt) {
@@ -1257,18 +1709,14 @@ function getWaliSantriUsers() {
 }
 
 function saveWaliSantriUser(payload) {
-  const lock = LockService.getScriptLock();
-  if (!tryAcquireLock_(lock, 15000)) {
-    return { success: false, busy: true, message: 'Server sedang sibuk, silakan coba sesaat lagi.' };
-  }
-  try {
+  return withScriptLock_(15000, function () {
     const data = payload && typeof payload === 'object' ? payload : {};
     const id = String(data.id || '').trim();
     const username = String(data.username || '').trim();
     const password = String(data.password || '');
     const namaWali = String(data.namaWali || '').trim();
     const namaSantri = String(data.namaSantri || '').trim();
-    const sharedSingle = Boolean(data.sharedSingle);
+    const sharedSingle = Boolean(data.sharedSingle) || id === 'wali_shared_main';
     const allowedPermKeys = ['wb', 'takhassus', 'musyrif', 'pengajar', 'rekap', 'tunggakan', 'simpanan', 'operasional', 'surat', 'saranAdmin', 'database', 'admin'];
     const akses = Array.isArray(data.akses)
       ? data.akses.map(function (x) { return String(x); }).filter(function (k) { return allowedPermKeys.indexOf(k) !== -1; })
@@ -1294,9 +1742,6 @@ function saveWaliSantriUser(payload) {
         nextSalt = String(data.salt);
         nextHash = String(data.passwordHash);
       }
-      if (!nextHash || !nextSalt) {
-        return { success: false, message: 'Password wajib diisi untuk akun bersama Wali Santri.' };
-      }
       const sharedId = 'wali_shared_main';
       writeWaliSantriStore_([{
         id: sharedId,
@@ -1320,12 +1765,12 @@ function saveWaliSantriUser(payload) {
       return { success: false, message: 'Username sudah digunakan oleh akun Wali Santri lain.' };
     }
 
-    if (id) {
-      const idx = list.findIndex(function (x) { return String(x.id) === id; });
-      if (idx === -1) {
-        return { success: false, message: 'Akun Wali Santri tidak ditemukan.' };
-      }
-      const existing = list[idx];
+    const existingIdx = id
+      ? list.findIndex(function (x) { return String(x.id) === id; })
+      : -1;
+
+    if (existingIdx !== -1) {
+      const existing = list[existingIdx];
       let nextSalt = existing.salt || '';
       let nextHash = existing.passwordHash || '';
       if (password) {
@@ -1336,7 +1781,7 @@ function saveWaliSantriUser(payload) {
         nextSalt = String(data.salt);
         nextHash = String(data.passwordHash);
       }
-      list[idx] = {
+      list[existingIdx] = {
         id: existing.id,
         username: username,
         namaWali: namaWali || username,
@@ -1344,6 +1789,7 @@ function saveWaliSantriUser(payload) {
         akses: akses,
         salt: nextSalt,
         passwordHash: nextHash,
+        sharedSingle: false,
         createdAt: existing.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -1351,16 +1797,17 @@ function saveWaliSantriUser(payload) {
       return { success: true, id: existing.id };
     }
 
-    if (!password && !(data.passwordHash && data.salt)) {
-      return { success: false, message: 'Password wajib diisi untuk akun Wali Santri baru.' };
-    }
+    // Upsert akun baru (termasuk yang dibuat offline dengan ID lokal)
     if (password && password.length < 4) {
       return { success: false, message: 'Password minimal 4 karakter.' };
     }
-
-    const newId = 'ws_' + Date.now() + '_' + Utilities.getUuid().slice(0, 6);
-    const salt = password ? Utilities.getUuid().replace(/-/g, '').slice(0, 16) : String(data.salt);
-    const passwordHash = password ? computeSaltedSha256_(password, salt) : String(data.passwordHash);
+    const newId = id || ('ws_' + Date.now() + '_' + Utilities.getUuid().slice(0, 6));
+    const salt = password
+      ? Utilities.getUuid().replace(/-/g, '').slice(0, 16)
+      : String(data.salt || '');
+    const passwordHash = password
+      ? computeSaltedSha256_(password, salt)
+      : String(data.passwordHash || '');
 
     list.push({
       id: newId,
@@ -1370,29 +1817,23 @@ function saveWaliSantriUser(payload) {
       akses: akses,
       salt: salt,
       passwordHash: passwordHash,
-      createdAt: new Date().toISOString()
+      sharedSingle: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     });
     writeWaliSantriStore_(list);
     return { success: true, id: newId };
-  } finally {
-    try { lock.releaseLock(); } catch (e) {}
-  }
+  });
 }
 
 function deleteWaliSantriUser(id) {
-  const lock = LockService.getScriptLock();
-  if (!tryAcquireLock_(lock, 15000)) {
-    return { success: false, busy: true, message: 'Server sedang sibuk, silakan coba sesaat lagi.' };
-  }
-  try {
+  return withScriptLock_(15000, function () {
     const targetId = String(id || '').trim();
     if (!targetId) return { success: false, message: 'ID akun tidak valid.' };
     const list = readWaliSantriStore_().filter(function (x) { return String(x.id) !== targetId; });
     writeWaliSantriStore_(list);
     return { success: true };
-  } finally {
-    try { lock.releaseLock(); } catch (e) {}
-  }
+  });
 }
 
 function verifyWaliSantriLogin(username, password) {
@@ -1437,6 +1878,9 @@ function verifyWaliSantriLogin(username, password) {
 // =========================================================================
 
 function getAppDataForRole() {
+  const cached = getChunkedCache_('CORE_DATA_V1');
+  if (cached) return cached;
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const result = {
     santriWB: [],
@@ -1447,12 +1891,12 @@ function getAppDataForRole() {
     pengajars: []
   };
 
-  const sWB = ss.getSheetByName('Data_Wajib_Belajar');
-  if (sWB) {
+  const sWB = ensureSheetReady_('Data_Wajib_Belajar', ss);
+  if (sWB && sWB.getLastRow() > 1) {
     const rows = sWB.getDataRange().getValues();
     const hMap = findHeaderColMap_(rows[0]);
-    const nfcCol = hMap['nfc code'] !== undefined ? hMap['nfc code'] : -1;
-    const qrCol = hMap['qr code'] !== undefined ? hMap['qr code'] : -1;
+    const nfcCol = findHeaderColIndex_(hMap, 'nfc code');
+    const qrCol = findHeaderColIndex_(hMap, 'qr code');
     const roomSet = new Set();
     for (let i = 1; i < rows.length; i++) {
       if (rows[i][0] && rows[i][1]) {
@@ -1469,12 +1913,12 @@ function getAppDataForRole() {
     result.rooms = Array.from(roomSet).sort();
   }
 
-  const sTakh = ss.getSheetByName('Data_Santri_Takhassus');
-  if (sTakh) {
+  const sTakh = ensureSheetReady_('Data_Santri_Takhassus', ss);
+  if (sTakh && sTakh.getLastRow() > 1) {
     const rows = sTakh.getDataRange().getValues();
     const hMap = findHeaderColMap_(rows[0]);
-    const nfcCol = hMap['nfc code'] !== undefined ? hMap['nfc code'] : -1;
-    const qrCol = hMap['qr code'] !== undefined ? hMap['qr code'] : -1;
+    const nfcCol = findHeaderColIndex_(hMap, 'nfc code');
+    const qrCol = findHeaderColIndex_(hMap, 'qr code');
     const classSet = new Set();
     for (let i = 1; i < rows.length; i++) {
       const nama = String(rows[i][1] || rows[i][0] || '').trim();
@@ -1494,12 +1938,12 @@ function getAppDataForRole() {
     result.classes = Array.from(classSet).sort();
   }
 
-  const sM = ss.getSheetByName('Data_Musyrif');
-  if (sM) {
+  const sM = ensureSheetReady_('Data_Musyrif', ss);
+  if (sM && sM.getLastRow() > 1) {
     const rows = sM.getDataRange().getValues();
     const hMap = findHeaderColMap_(rows[0]);
-    const nfcCol = hMap['nfc code'] !== undefined ? hMap['nfc code'] : -1;
-    const qrCol = hMap['qr code'] !== undefined ? hMap['qr code'] : -1;
+    const nfcCol = findHeaderColIndex_(hMap, 'nfc code');
+    const qrCol = findHeaderColIndex_(hMap, 'qr code');
     for (let i = 1; i < rows.length; i++) {
       if (rows[i][0]) {
         result.musyrifs.push({
@@ -1512,12 +1956,12 @@ function getAppDataForRole() {
     }
   }
 
-  const sP = ss.getSheetByName('Data_Pengajar_Takhassus');
-  if (sP) {
+  const sP = ensureSheetReady_('Data_Pengajar_Takhassus', ss);
+  if (sP && sP.getLastRow() > 1) {
     const rows = sP.getDataRange().getValues();
     const hMap = findHeaderColMap_(rows[0]);
-    const nfcCol = hMap['nfc code'] !== undefined ? hMap['nfc code'] : -1;
-    const qrCol = hMap['qr code'] !== undefined ? hMap['qr code'] : -1;
+    const nfcCol = findHeaderColIndex_(hMap, 'nfc code');
+    const qrCol = findHeaderColIndex_(hMap, 'qr code');
     for (let i = 1; i < rows.length; i++) {
       if (rows[i][1] || rows[i][0]) {
         result.pengajars.push({
@@ -1531,6 +1975,7 @@ function getAppDataForRole() {
     }
   }
 
+  putChunkedCache_('CORE_DATA_V1', result, 180);
   return result;
 }
 
@@ -1543,21 +1988,14 @@ function getDbSheetName_(type) {
 
 function getDbData(type) {
   const sheetName = getDbSheetName_(type);
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(sheetName);
-  if (!sheet) {
-    sheet = ss.insertSheet(sheetName);
-    if (type === 'musyrif') sheet.appendRow(['Nama', 'Kamar', 'PIN', 'NFC Code', 'QR Code']);
-    else if (type === 'pengajar') sheet.appendRow(['No', 'Nama', 'Kelas', 'Qismu', 'PIN', 'NFC Code', 'QR Code']);
-    else if (type === 'wb') sheet.appendRow(['Nama', 'Kamar', 'NFC Code', 'QR Code']);
-    else sheet.appendRow(['No', 'Nama', 'Kelas', 'Qismu', 'NFC Code', 'QR Code']);
-  }
+  const sheet = ensureSheetReady_(sheetName);
 
   const data = sheet.getDataRange().getValues();
   if (data.length <= 1) return [];
   const hMap = findHeaderColMap_(data[0]);
-  const nfcCol = hMap['nfc code'] !== undefined ? hMap['nfc code'] : -1;
-  const qrCol = hMap['qr code'] !== undefined ? hMap['qr code'] : -1;
+  const nfcCol = findHeaderColIndex_(hMap, 'nfc code');
+  const qrCol = findHeaderColIndex_(hMap, 'qr code');
+  const pinCol = findHeaderColIndex_(hMap, 'pin');
 
   const result = [];
   for (let i = 1; i < data.length; i++) {
@@ -1567,24 +2005,25 @@ function getDbData(type) {
 
     if (type === 'musyrif') {
       if (!row[0]) continue;
-      // Kolom C adalah PIN; kirim di f4 agar sesuai input "PIN Login" di modal APK
+      const pinVal = pinCol >= 0 ? String(row[pinCol] || '').trim() : String(row[2] || '').trim();
       result.push({
         idx: i + 1,
         f1: String(row[0] || '').trim(),
         f2: String(row[1] || '').trim(),
         f3: '',
-        f4: String(row[2] || '').trim(),
+        f4: pinVal,
         nfcCode: nfcCode,
         qrCode: qrCode
       });
     } else if (type === 'pengajar') {
       if (!row[1] && !row[0]) continue;
+      const pinVal = pinCol >= 0 ? String(row[pinCol] || '').trim() : String(row[4] || '').trim();
       result.push({
         idx: i + 1,
         f1: String(row[1] || row[0] || '').trim(),
         f2: String(row[2] || '').trim(),
         f3: String(row[3] || '').trim(),
-        f4: String(row[4] || '').trim(),
+        f4: pinVal,
         nfcCode: nfcCode,
         qrCode: qrCode
       });
@@ -1616,53 +2055,42 @@ function getDbData(type) {
 }
 
 function saveDbData(type, index, obj) {
-  const lock = LockService.getScriptLock();
-  if (!tryAcquireLock_(lock, 12000)) {
-    return { success: false, busy: true, message: 'Server sedang sibuk, coba sebentar lagi.' };
-  }
-  try {
+  return withScriptLock_(12000, function () {
     const sheetName = getDbSheetName_(type);
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName(sheetName);
-    if (!sheet) {
-      getDbData(type);
-      sheet = ss.getSheetByName(sheetName);
-    }
+    const sheet = ensureSheetReady_(sheetName);
 
     const d = obj && typeof obj === 'object' ? obj : {};
     let targetRow = parseInt(index, 10);
     if (!targetRow || targetRow < 2) targetRow = sheet.getLastRow() + 1;
 
     if (type === 'musyrif') {
-      // Kompatibel penuh dengan kolom existing [Nama, Kamar, PIN] sekaligus input APK (f4 = PIN)
       const pinVal = String(d.f4 || d.f3 || '123456').trim();
-      sheet.getRange(targetRow, 1, 1, 3).setValues([[String(d.f1 || '').trim(), String(d.f2 || '').trim(), pinVal]]);
+      const colMapPin = ensureExtraHeaders_(sheet, ['PIN', 'NFC Code', 'QR Code']);
+      sheet.getRange(targetRow, 1, 1, 2).setValues([[String(d.f1 || '').trim(), String(d.f2 || '').trim()]]);
+      sheet.getRange(targetRow, colMapPin['PIN']).setValue(pinVal);
     } else if (type === 'pengajar') {
-      sheet.getRange(targetRow, 1, 1, 5).setValues([[targetRow - 1, String(d.f1 || '').trim(), String(d.f2 || '').trim(), String(d.f3 || '').trim(), String(d.f4 || '123456').trim()]]);
+      const colMapPin = ensureExtraHeaders_(sheet, ['PIN', 'NFC Code', 'QR Code']);
+      sheet.getRange(targetRow, 1, 1, 4).setValues([[targetRow - 1, String(d.f1 || '').trim(), String(d.f2 || '').trim(), String(d.f3 || '').trim()]]);
+      sheet.getRange(targetRow, colMapPin['PIN']).setValue(String(d.f4 || '123456').trim());
     } else if (type === 'wb') {
       sheet.getRange(targetRow, 1, 1, 2).setValues([[String(d.f1 || '').trim(), String(d.f2 || '').trim()]]);
     } else {
       sheet.getRange(targetRow, 1, 1, 4).setValues([[targetRow - 1, String(d.f1 || '').trim(), String(d.f2 || '').trim(), String(d.f3 || '').trim()]]);
     }
 
-    // Simpan kolom NFC Code & QR Code secara dinamis tanpa merusak kolom existing
-    const hasNfcOrQr = typeof d.nfcCode !== 'undefined' || typeof d.qrCode !== 'undefined';
-    if (hasNfcOrQr) {
-      const colMap = ensureExtraHeaders_(sheet, ['NFC Code', 'QR Code']);
-      if (typeof d.nfcCode !== 'undefined') {
-        sheet.getRange(targetRow, colMap['NFC Code']).setValue(String(d.nfcCode || '').trim());
-      }
-      if (typeof d.qrCode !== 'undefined') {
-        sheet.getRange(targetRow, colMap['QR Code']).setValue(String(d.qrCode || '').trim());
-      }
+    // Pastikan kolom NFC Code & QR Code selalu ada otomatis dan simpan nilainya
+    const colMap = ensureExtraHeaders_(sheet, ['NFC Code', 'QR Code']);
+    if (typeof d.nfcCode !== 'undefined') {
+      sheet.getRange(targetRow, colMap['NFC Code']).setValue(String(d.nfcCode || '').trim());
+    }
+    if (typeof d.qrCode !== 'undefined') {
+      sheet.getRange(targetRow, colMap['QR Code']).setValue(String(d.qrCode || '').trim());
     }
 
     SpreadsheetApp.flush();
     invalidateCaches_('master');
     return { success: true, idx: targetRow };
-  } finally {
-    try { lock.releaseLock(); } catch (e) {}
-  }
+  });
 }
 
 function deleteDbData(type, index) {
@@ -1711,30 +2139,15 @@ function checkExistingAbsensi(type, target, tglSesi) {
  *   yang sebagian santrinya sudah masuk lewat scan NFC/QR!
  */
 function submitAbsensi(payload) {
-  const lock = LockService.getScriptLock();
-  if (!tryAcquireLock_(lock, 15000)) {
-    return { success: false, busy: true, message: 'Server sedang sibuk menyimpan absensi, silakan coba sebentar lagi.' };
-  }
-  try {
+  return withScriptLock_(15000, function () {
     const p = payload && typeof payload === 'object' ? payload : {};
     const items = Array.isArray(p.items) ? p.items : [];
     if (items.length === 0) {
       return { success: false, message: 'Daftar absensi kosong.' };
     }
 
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheetName = getAttendanceSheetName_(p.type);
-    let sheet = ss.getSheetByName(sheetName);
-    if (!sheet) {
-      sheet = ss.insertSheet(sheetName);
-      sheet.appendRow([
-        'ID_Sesi', 'Timestamp', 'Tgl_Sesi', 'Tahun', 'Bulan',
-        'Role', 'Petugas', 'Target', 'Nama', 'Kehadiran',
-        'Pelanggaran/Keterangan', 'Poin', 'NFC Code', 'QR Code', 'Metode', 'Waktu_Scan'
-      ]);
-      sheet.setFrozenRows(1);
-    }
-
+    const sheet = ensureSheetReady_(sheetName);
     const colMap = ensureExtraHeaders_(sheet, ['NFC Code', 'QR Code', 'Metode', 'Waktu_Scan']);
     const totalCols = Math.max(12, sheet.getLastColumn(), colMap['NFC Code'], colMap['QR Code'], colMap['Metode'], colMap['Waktu_Scan']);
 
@@ -1748,16 +2161,20 @@ function submitAbsensi(payload) {
     const targetNorm = normGroupKey_(targetLabel);
     const idSesi = targetLabel.replace(/\s+/g, '') + '_' + tglSesi;
 
-    // Indeks baris existing pada (Tgl_Sesi, Target) hari ini -> map[normName] = rowNumber (1-based)
     const existingRowByName = {};
+    const existingRowDataByNum = {};
     const lastRow = sheet.getLastRow();
     if (lastRow > 1) {
-      const existingData = sheet.getRange(2, 1, lastRow - 1, 10).getValues();
+      const existingData = sheet.getRange(2, 1, lastRow - 1, totalCols).getValues();
       for (let i = 0; i < existingData.length; i++) {
         const rDate = formatRowDateWib_(existingData[i][2]);
         if (rDate === tglSesi && normGroupKey_(existingData[i][7]) === targetNorm) {
           const rNameNorm = normKey_(existingData[i][8]);
-          if (rNameNorm) existingRowByName[rNameNorm] = i + 2;
+          if (rNameNorm) {
+            const rowNum = i + 2;
+            existingRowByName[rNameNorm] = rowNum;
+            existingRowDataByNum[rowNum] = existingData[i];
+          }
         }
       }
     }
@@ -1784,17 +2201,21 @@ function submitAbsensi(payload) {
       const keyName = normKey_(nama);
       const existingRowNum = existingRowByName[keyName];
 
-      if (existingRowNum) {
-        // Perbarui baris yang sudah ada (mis. edit pelanggaran lewat scan ulang NFC/QR atau ubah status)
-        sheet.getRange(existingRowNum, 2).setValue(timestamp);
-        sheet.getRange(existingRowNum, 7).setValue(String(p.petugas || '').trim());
-        sheet.getRange(existingRowNum, 10, 1, 3).setValues([[kehadiran, pelStr, poin]]);
-        if (nfcCode) sheet.getRange(existingRowNum, colMap['NFC Code']).setValue(nfcCode);
-        if (qrCode) sheet.getRange(existingRowNum, colMap['QR Code']).setValue(qrCode);
-        if (metode) sheet.getRange(existingRowNum, colMap['Metode']).setValue(metode);
-        if (waktuScan) sheet.getRange(existingRowNum, colMap['Waktu_Scan']).setValue(waktuScan);
+      if (existingRowNum && existingRowNum > 0) {
+        const rowArr = (existingRowDataByNum[existingRowNum] || new Array(totalCols).fill('')).slice();
+        while (rowArr.length < totalCols) rowArr.push('');
+        rowArr[1] = timestamp;
+        rowArr[6] = String(p.petugas || '').trim();
+        rowArr[9] = kehadiran;
+        rowArr[10] = pelStr;
+        rowArr[11] = poin;
+        if (nfcCode) rowArr[colMap['NFC Code'] - 1] = nfcCode;
+        if (qrCode) rowArr[colMap['QR Code'] - 1] = qrCode;
+        if (metode) rowArr[colMap['Metode'] - 1] = metode;
+        if (waktuScan) rowArr[colMap['Waktu_Scan'] - 1] = waktuScan;
+        sheet.getRange(existingRowNum, 1, 1, totalCols).setValues([rowArr]);
         updatedCount++;
-      } else {
+      } else if (!existingRowNum) {
         const newRow = new Array(totalCols).fill('');
         newRow[0] = idSesi;
         newRow[1] = timestamp;
@@ -1813,7 +2234,6 @@ function submitAbsensi(payload) {
         newRow[colMap['Metode'] - 1] = metode;
         newRow[colMap['Waktu_Scan'] - 1] = waktuScan;
         rowsToInsert.push(newRow);
-        // Catat agar duplikat dalam payload yang sama tidak dobel
         existingRowByName[keyName] = -1;
       }
     });
@@ -1822,7 +2242,6 @@ function submitAbsensi(payload) {
       sheet.getRange(sheet.getLastRow() + 1, 1, rowsToInsert.length, totalCols).setValues(rowsToInsert);
     }
 
-    SpreadsheetApp.flush();
     invalidateCaches_('absensi');
 
     return {
@@ -1833,29 +2252,24 @@ function submitAbsensi(payload) {
         ? 'Data absensi & pelanggaran berhasil diperbarui!'
         : 'Absensi direkam!'
     };
-  } finally {
-    try { lock.releaseLock(); } catch (e) {}
-  }
+  });
 }
 
 function getRekapData(activity) {
   const act = String(activity || 'wb').trim().toLowerCase();
-  const cacheKey = 'REKAP_CACHE_' + act;
-  const cache = CacheService.getScriptCache();
-  try {
-    const hit = cache.get(cacheKey);
-    if (hit) return JSON.parse(hit);
-  } catch (e) {}
+  const chunkKey = 'REKAP_CHUNK_' + act;
+  const hit = getChunkedCache_(chunkKey);
+  if (Array.isArray(hit)) return hit;
 
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(getAttendanceSheetName_(act));
+  const sheet = ensureSheetReady_(getAttendanceSheetName_(act));
   if (!sheet || sheet.getLastRow() <= 1) return [];
 
   const data = sheet.getDataRange().getValues();
   const hMap = findHeaderColMap_(data[0]);
-  const nfcCol = hMap['nfc code'] !== undefined ? hMap['nfc code'] : -1;
-  const qrCol = hMap['qr code'] !== undefined ? hMap['qr code'] : -1;
-  const metCol = hMap['metode'] !== undefined ? hMap['metode'] : -1;
-  const jamCol = hMap['waktu_scan'] !== undefined ? hMap['waktu_scan'] : -1;
+  const nfcCol = findHeaderColIndex_(hMap, 'nfc code');
+  const qrCol = findHeaderColIndex_(hMap, 'qr code');
+  const metCol = findHeaderColIndex_(hMap, 'metode');
+  const jamCol = findHeaderColIndex_(hMap, 'waktu_scan');
 
   const list = [];
   for (let i = 1; i < data.length; i++) {
@@ -1875,11 +2289,39 @@ function getRekapData(activity) {
     list.push(rec);
   }
 
-  try {
-    const ser = JSON.stringify(list);
-    if (ser && ser.length < 95000) cache.put(cacheKey, ser, 60);
-  } catch (e) {}
+  putChunkedCache_(chunkKey, list, 90);
   return list;
+}
+
+/**
+ * Snapshot ringan khusus kehadiran 1 tanggal tertentu (default: hari ini WIB)
+ * agar modul NFC/QR cepat mengetahui siapa saja yang SUDAH DIABSEN lintas perangkat.
+ */
+function getTodayAttendanceSnapshot(activity, tglSesi) {
+  const act = String(activity || 'wb').trim().toLowerCase();
+  const targetDate = String(tglSesi || Utilities.formatDate(new Date(), TIMEZONE_WIB, 'yyyy-MM-dd')).trim().slice(0, 10);
+  const cacheKey = 'TODAY_SNAP_' + act + '_' + targetDate;
+  const cache = CacheService.getScriptCache();
+  try {
+    const hit = cache.get(cacheKey);
+    if (hit) return JSON.parse(hit);
+  } catch (e) {}
+
+  const allRows = getRekapData(act);
+  const filtered = [];
+  for (let i = 0; i < allRows.length; i++) {
+    if (allRows[i].tanggal === targetDate) {
+      filtered.push(allRows[i]);
+    }
+  }
+  try {
+    const ser = JSON.stringify(filtered);
+    if (ser && ser.length < 95000) {
+      cache.put(cacheKey, ser, 45);
+      trackCacheKey_(cache, 'TODAY_SNAP_KEYS', cacheKey);
+    }
+  } catch (e) {}
+  return filtered;
 }
 
 /**
@@ -2063,7 +2505,7 @@ function getFinSheetName(category) {
 
 function getFinancialData(category) {
   const sheetName = getFinSheetName(category);
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  const sheet = ensureSheetReady_(sheetName);
   if (!sheet || sheet.getLastRow() <= 1) return [];
   const data = sheet.getDataRange().getValues();
   const list = [];
@@ -2082,12 +2524,10 @@ function getFinancialData(category) {
 }
 
 function saveFinancialData(item, category) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
   const it = item && typeof item === 'object' ? item : {};
   const cat = category || it.category || 'simpanan';
   const sheetName = getFinSheetName(cat);
-  let sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
-  if (sheet.getLastRow() === 0) sheet.appendRow(['ID', 'Tanggal', 'Keterangan', 'Jenis', 'Jumlah']);
+  const sheet = ensureSheetReady_(sheetName);
   const prefix = cat === 'operasional' ? 'OPR_' : 'FIN_';
   const id = prefix + new Date().getTime();
   sheet.appendRow([id, it.tanggal, safeSheetCell_(it.keterangan, 300), it.jenis, Number(it.jumlah) || 0]);
@@ -2115,7 +2555,7 @@ function deleteFinancialData(id, category) {
 // =========================================================================
 
 function getPengumuman() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Pengumuman');
+  const sheet = ensureSheetReady_('Pengumuman');
   if (!sheet || sheet.getLastRow() <= 1) return [];
   const data = sheet.getDataRange().getValues();
   const list = [];
@@ -2132,9 +2572,7 @@ function getPengumuman() {
 
 function savePengumuman(isi, penulis, role) {
   if (role !== 'admin') return { success: false, message: 'Akses ditolak!' };
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName('Pengumuman') || ss.insertSheet('Pengumuman');
-  if (sheet.getLastRow() === 0) sheet.appendRow(['ID', 'Tanggal', 'Isi', 'Penulis']);
+  const sheet = ensureSheetReady_('Pengumuman');
   const id = 'PGM_' + new Date().getTime();
   sheet.appendRow([id, Utilities.formatDate(new Date(), TIMEZONE_WIB, 'yyyy-MM-dd HH:mm:ss'), safeSheetCell_(isi, 1000), safeSheetCell_(penulis, 120)]);
   SpreadsheetApp.flush();
@@ -2159,7 +2597,7 @@ function deletePengumuman(id, role) {
 }
 
 function getSaran() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Kotak_Saran');
+  const sheet = ensureSheetReady_('Kotak_Saran');
   if (!sheet || sheet.getLastRow() <= 1) return [];
   const data = sheet.getDataRange().getValues();
   const list = [];
@@ -2176,9 +2614,7 @@ function getSaran() {
 }
 
 function saveSaran(peran, nama, isi) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName('Kotak_Saran') || ss.insertSheet('Kotak_Saran');
-  if (sheet.getLastRow() === 0) sheet.appendRow(['ID', 'Tanggal', 'Peran', 'Pengirim', 'Isi Saran']);
+  const sheet = ensureSheetReady_('Kotak_Saran');
   const id = 'SRN_' + new Date().getTime();
   sheet.appendRow([id, Utilities.formatDate(new Date(), TIMEZONE_WIB, 'yyyy-MM-dd HH:mm:ss'), safeSheetCell_(peran, 60), safeSheetCell_(nama, 120), safeSheetCell_(isi, 1000)]);
   SpreadsheetApp.flush();
@@ -2200,12 +2636,12 @@ function deleteSaran(id) {
 }
 
 function getSurat() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Surat');
+  const sheet = ensureSheetReady_('Surat');
   if (!sheet || sheet.getLastRow() <= 1) return [];
   const data = sheet.getDataRange().getValues();
   const hMap = findHeaderColMap_(data[0]);
-  const driveUrlCol = hMap['drive_url'] !== undefined ? hMap['drive_url'] : -1;
-  const driveIdCol = hMap['drive_file_id'] !== undefined ? hMap['drive_file_id'] : -1;
+  const driveUrlCol = findHeaderColIndex_(hMap, 'drive_url');
+  const driveIdCol = findHeaderColIndex_(hMap, 'drive_file_id');
   const suratMap = readSuratDriveMap_();
 
   const list = [];
@@ -2243,49 +2679,46 @@ function getSurat() {
 }
 
 function saveSuratData(item) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName('Surat') || ss.insertSheet('Surat');
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(['ID', 'Kategori', 'SubKategori', 'Nomor', 'Perihal', 'Tanggal', 'Pihak Tujuan', 'Drive_URL', 'Drive_File_ID']);
-  }
+  return withScriptLock_(15000, function () {
+    const sheet = ensureSheetReady_('Surat');
+    const it = item && typeof item === 'object' ? item : {};
+    const id = String(it.id || ('SRT_' + new Date().getTime()));
+    const htmlSnap = String(it.driveHtmlSnapshot || '');
+    const colMap = ensureExtraHeaders_(sheet, ['Drive_URL', 'Drive_File_ID']);
+    const totalCols = Math.max(7, sheet.getLastColumn(), colMap['Drive_URL'], colMap['Drive_File_ID']);
 
-  const it = item && typeof item === 'object' ? item : {};
-  const id = String(it.id || ('SRT_' + new Date().getTime()));
-  const htmlSnap = String(it.driveHtmlSnapshot || '');
-  const colMap = ensureExtraHeaders_(sheet, ['Drive_URL', 'Drive_File_ID']);
-  const totalCols = Math.max(7, sheet.getLastColumn(), colMap['Drive_URL'], colMap['Drive_File_ID']);
-
-  let driveMeta = null;
-  const driveCfg = getDriveBackupConfig_();
-  if (driveCfg.enabled && driveCfg.backupSurat) {
-    try {
-      driveMeta = backupSuratHtmlToDriveInternal_(it, htmlSnap, id);
-    } catch (drvErr) {
-      Logger.log('Info backup Drive surat: ' + drvErr);
+    let driveMeta = null;
+    const driveCfg = getDriveBackupConfig_();
+    if (driveCfg.enabled && driveCfg.backupSurat) {
+      try {
+        driveMeta = backupSuratHtmlToDriveInternal_(it, htmlSnap, id);
+      } catch (drvErr) {
+        Logger.log('Info backup Drive surat: ' + drvErr);
+      }
     }
-  }
 
-  const row = new Array(totalCols).fill('');
-  row[0] = id;
-  row[1] = String(it.kategori || 'Lainnya');
-  row[2] = String(it.sub || '');
-  row[3] = String(it.nomor || '-');
-  row[4] = String(it.perihal || '');
-  row[5] = String(it.tanggal || Utilities.formatDate(new Date(), TIMEZONE_WIB, 'dd-MM-yyyy'));
-  row[6] = String(it.tujuan || '');
-  row[colMap['Drive_URL'] - 1] = driveMeta ? driveMeta.viewUrl : String(it.driveUrl || '');
-  row[colMap['Drive_File_ID'] - 1] = driveMeta ? driveMeta.fileId : String(it.driveFileId || '');
+    const row = new Array(totalCols).fill('');
+    row[0] = id;
+    row[1] = String(it.kategori || 'Lainnya');
+    row[2] = String(it.sub || '');
+    row[3] = String(it.nomor || '-');
+    row[4] = String(it.perihal || '');
+    row[5] = String(it.tanggal || Utilities.formatDate(new Date(), TIMEZONE_WIB, 'dd-MM-yyyy'));
+    row[6] = String(it.tujuan || '');
+    row[colMap['Drive_URL'] - 1] = driveMeta ? driveMeta.viewUrl : String(it.driveUrl || '');
+    row[colMap['Drive_File_ID'] - 1] = driveMeta ? driveMeta.fileId : String(it.driveFileId || '');
 
-  sheet.getRange(sheet.getLastRow() + 1, 1, 1, totalCols).setValues([row]);
-  SpreadsheetApp.flush();
+    sheet.getRange(sheet.getLastRow() + 1, 1, 1, totalCols).setValues([row]);
+    SpreadsheetApp.flush();
 
-  return {
-    success: true,
-    id: id,
-    driveBackedUp: Boolean(driveMeta && driveMeta.viewUrl),
-    driveFileId: driveMeta ? driveMeta.fileId : '',
-    driveUrl: driveMeta ? driveMeta.viewUrl : ''
-  };
+    return {
+      success: true,
+      id: id,
+      driveBackedUp: Boolean(driveMeta && driveMeta.viewUrl),
+      driveFileId: driveMeta ? driveMeta.fileId : '',
+      driveUrl: driveMeta ? driveMeta.viewUrl : ''
+    };
+  });
 }
 
 function deleteSurat(id) {
@@ -2307,56 +2740,57 @@ function deleteSurat(id) {
 // =========================================================================
 
 function getGaleriSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sh = ss.getSheetByName('Galeri');
-  if (!sh) {
-    sh = ss.insertSheet('Galeri');
-    sh.appendRow(['ID', 'Penulis', 'Jabatan', 'Tanggal', 'Tag', 'Caption', 'ImageURL', 'Likes', 'LikedBy']);
-  }
-  return sh;
+  return ensureSheetReady_('Galeri');
 }
 
 function saveGaleriData(item) {
-  const sh = getGaleriSheet_();
-  const it = item && typeof item === 'object' ? item : {};
-  const id = String(it.id || ('g' + Date.now()));
-  const tglStr = it.tanggal ? String(it.tanggal) : Utilities.formatDate(new Date(), TIMEZONE_WIB, 'yyyy-MM-dd');
+  return withScriptLock_(15000, function () {
+    const sh = getGaleriSheet_();
+    const colMap = ensureExtraHeaders_(sh, ['Likes', 'LikedBy', 'Drive_URL', 'Drive_File_ID']);
+    const totalCols = Math.max(9, sh.getLastColumn(), colMap['Drive_URL'], colMap['Drive_File_ID']);
+    const it = item && typeof item === 'object' ? item : {};
+    const id = String(it.id || ('g' + Date.now()));
+    const tglStr = it.tanggal ? String(it.tanggal) : Utilities.formatDate(new Date(), TIMEZONE_WIB, 'yyyy-MM-dd');
 
-  let publicUrl = String(it.imageUrl || '');
-  let driveMeta = null;
-  const driveCfg = getDriveBackupConfig_();
-  if (publicUrl.indexOf('data:image/') === 0 && driveCfg.enabled && driveCfg.backupGaleri) {
-    try {
-      driveMeta = saveHdImageToDrive_(publicUrl, 'galeri_santri', 'Galeri_Santri');
-      if (driveMeta && driveMeta.url) publicUrl = driveMeta.url;
-    } catch (drvErr) {
-      Logger.log('Fallback galeri Drive: ' + drvErr);
-      publicUrl = saveImageToDrive_(publicUrl, 'galeri_' + Date.now() + '.jpg', 'Galeri_Santri');
+    let publicUrl = String(it.imageUrl || '');
+    let driveMeta = null;
+    const driveCfg = getDriveBackupConfig_();
+    if (publicUrl.indexOf('data:image/') === 0 && driveCfg.enabled && driveCfg.backupGaleri) {
+      try {
+        driveMeta = saveHdImageToDrive_(publicUrl, 'galeri_santri', 'Galeri_Santri');
+        if (driveMeta && driveMeta.url) publicUrl = driveMeta.url;
+      } catch (drvErr) {
+        Logger.log('Fallback galeri Drive: ' + drvErr);
+        publicUrl = saveImageToDrive_(publicUrl, 'galeri_' + Date.now() + '.jpg', 'Galeri_Santri');
+      }
     }
-  }
 
-  sh.appendRow([
-    id,
-    String(it.penulis || 'Petugas'),
-    String(it.jabatan || ''),
-    "'" + tglStr,
-    String(it.tag || ''),
-    String(it.caption || ''),
-    publicUrl,
-    0,
-    '[]'
-  ]);
-  SpreadsheetApp.flush();
-  invalidateCaches_('galeri');
+    const row = new Array(totalCols).fill('');
+    row[0] = id;
+    row[1] = String(it.penulis || 'Petugas');
+    row[2] = String(it.jabatan || '');
+    row[3] = "'" + tglStr;
+    row[4] = String(it.tag || '');
+    row[5] = String(it.caption || '');
+    row[6] = publicUrl;
+    row[colMap['Likes'] - 1] = 0;
+    row[colMap['LikedBy'] - 1] = '[]';
+    row[colMap['Drive_URL'] - 1] = driveMeta ? driveMeta.viewUrl : '';
+    row[colMap['Drive_File_ID'] - 1] = driveMeta ? driveMeta.fileId : '';
 
-  return {
-    success: true,
-    id: id,
-    imageUrl: publicUrl,
-    driveBackedUp: Boolean(driveMeta && driveMeta.viewUrl),
-    driveFileId: driveMeta ? driveMeta.fileId : '',
-    driveUrl: driveMeta ? driveMeta.viewUrl : ''
-  };
+    sh.getRange(sh.getLastRow() + 1, 1, 1, totalCols).setValues([row]);
+    SpreadsheetApp.flush();
+    invalidateCaches_('galeri');
+
+    return {
+      success: true,
+      id: id,
+      imageUrl: publicUrl,
+      driveBackedUp: Boolean(driveMeta && driveMeta.viewUrl),
+      driveFileId: driveMeta ? driveMeta.fileId : '',
+      driveUrl: driveMeta ? driveMeta.viewUrl : ''
+    };
+  });
 }
 
 function getGaleriData() {
@@ -2366,15 +2800,17 @@ function getGaleriData() {
     if (hit) return JSON.parse(hit);
   } catch (e) {}
 
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sh = ss.getSheetByName('Galeri');
+  const sh = getGaleriSheet_();
   if (!sh || sh.getLastRow() < 2) return [];
 
-  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, 9).getValues();
+  const allVals = sh.getDataRange().getValues();
+  const hMap = findHeaderColMap_(allVals[0]);
+  const driveUrlCol = findHeaderColIndex_(hMap, 'drive_url');
+  const driveIdCol = findHeaderColIndex_(hMap, 'drive_file_id');
   const result = [];
 
-  for (let i = rows.length - 1; i >= 0; i--) {
-    const r = rows[i];
+  for (let i = allVals.length - 1; i >= 1; i--) {
+    const r = allVals[i];
     if (!r[0] && !r[6]) continue;
 
     const tglFormatted = (r[3] instanceof Date)
@@ -2398,7 +2834,9 @@ function getGaleriData() {
       caption: String(r[5] || ''),
       imageUrl: String(r[6] || ''),
       likes: Number(r[7]) || 0,
-      likedBy: likedArr
+      likedBy: likedArr,
+      driveUrl: driveUrlCol >= 0 ? String(r[driveUrlCol] || '').trim() : '',
+      driveFileId: driveIdCol >= 0 ? String(r[driveIdCol] || '').trim() : ''
     });
   }
 
@@ -2461,17 +2899,7 @@ function deleteGaleriData(id) {
 // =========================================================================
 
 function getOrCreateIzinSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sh = ss.getSheetByName(IZIN_DIGITAL_SHEET_NAME);
-  if (!sh) {
-    sh = ss.insertSheet(IZIN_DIGITAL_SHEET_NAME);
-    sh.appendRow([
-      'ID', 'NamaSantri', 'KamarKelas', 'Jenis', 'Mulai', 'Selesai',
-      'Alasan', 'Pengaju', 'PeranPengaju', 'Status', 'DiprosesOleh', 'CatatanAdmin', 'CreatedAt'
-    ]);
-    sh.setFrozenRows(1);
-  }
-  return sh;
+  return ensureSheetReady_(IZIN_DIGITAL_SHEET_NAME);
 }
 
 function getIzinDigital() {
@@ -2479,7 +2907,7 @@ function getIzinDigital() {
     const sh = getOrCreateIzinSheet_();
     const lastRow = sh.getLastRow();
     if (lastRow <= 1) return [];
-    const rows = sh.getRange(2, 1, lastRow - 1, 13).getValues();
+    const rows = sh.getRange(2, 1, lastRow - 1, Math.max(13, sh.getLastColumn())).getValues();
     const out = [];
     for (let i = rows.length - 1; i >= 0; i--) {
       const r = rows[i];
@@ -2507,13 +2935,9 @@ function getIzinDigital() {
 }
 
 function saveIzinDigital(payload) {
-  const lock = LockService.getScriptLock();
-  if (!tryAcquireLock_(lock, 15000)) {
-    return { success: false, busy: true, message: 'Server sedang sibuk, silakan coba sesaat lagi.' };
-  }
-  try {
+  return withScriptLock_(15000, function () {
     const d = payload && typeof payload === 'object' ? payload : {};
-    const namaPemohon = safeSheetCell_(d.namaSantri || d.namaPemohon, 120);
+    const namaPemohon = safeSheetCell_(d.namaSantri || d.namaPemohon || d.pengaju, 120);
     const unitTugas = safeSheetCell_(d.kamarKelas || d.unitTugas, 100);
     const allowedJenis = ['Sakit', 'Keperluan Keluarga', 'Tugas Luar / Dinas', 'Izin Pribadi', 'Pulang', 'Dispensasi'];
     const jenis = allowedJenis.indexOf(String(d.jenis || '')) !== -1 ? String(d.jenis) : 'Izin Pribadi';
@@ -2521,10 +2945,10 @@ function saveIzinDigital(payload) {
     const endDate = String(d.endDate || startDate).trim().slice(0, 10);
     const alasan = safeSheetCell_(d.alasan, 400);
     const pengaju = safeSheetCell_(d.pengaju || namaPemohon, 100);
-    const peranPengaju = String(d.peranPengaju || '').trim().toLowerCase();
+    const peranPengaju = String(d.peranPengaju || 'musyrif').trim().toLowerCase();
 
-    if (['musyrif', 'pengajar', 'admin'].indexOf(peranPengaju) === -1) {
-      return { success: false, message: 'Izin Digital hanya diperuntukkan bagi Musyrif, Pengajar, atau Admin.' };
+    if (['musyrif', 'pengajar', 'admin', 'user'].indexOf(peranPengaju) === -1) {
+      return { success: false, message: 'Izin Digital hanya diperuntukkan bagi Musyrif, Pengajar, Pengurus, atau Admin.' };
     }
     if (!namaPemohon || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate < startDate) {
       return { success: false, message: 'Nama pemohon dan rentang tanggal izin wajib valid.' };
@@ -2532,21 +2956,29 @@ function saveIzinDigital(payload) {
 
     const sh = getOrCreateIzinSheet_();
     const id = String(d.id || ('iz_' + Date.now() + '_' + Utilities.getUuid().slice(0, 6))).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60);
+
+    // Gunakan waktu pengajuan asli (untuk sinkronisasi offline) bila valid dan tidak di masa depan
+    let refDate = new Date();
+    if (d.createdAt) {
+      const parsedCreated = new Date(String(d.createdAt));
+      if (!isNaN(parsedCreated.getTime()) && parsedCreated.getTime() <= Date.now() + 300000) {
+        refDate = parsedCreated;
+      }
+    }
+
     let initialStatus = (peranPengaju === 'admin') ? 'Disetujui' : 'Menunggu';
     let diprosesOleh = (peranPengaju === 'admin') ? pengaju : '';
     let catatanAdmin = safeSheetCell_(d.catatanAdmin || '', 300);
     let autoRejected = false;
 
-    // Otomatis tertolak jika pengajuan melewati batas waktu Izin Digital yang diatur Admin (WIB)
     if (peranPengaju !== 'admin') {
       try {
         const rawDl = PropertiesService.getScriptProperties().getProperty('ALRIFAIE_ATTENDANCE_DEADLINES');
         const dlCfg = rawDl ? JSON.parse(rawDl) : null;
         const izinCfg = dlCfg && dlCfg.izinDigital ? dlCfg.izinDigital : { enabled: true, time: '16:00' };
         if (izinCfg && izinCfg.enabled && /^\d{2}:\d{2}$/.test(String(izinCfg.time || ''))) {
-          const nowDate = new Date();
-          const todayWib = Utilities.formatDate(nowDate, TIMEZONE_WIB, 'yyyy-MM-dd');
-          const nowTimeWib = Utilities.formatDate(nowDate, TIMEZONE_WIB, 'HH:mm');
+          const todayWib = Utilities.formatDate(refDate, TIMEZONE_WIB, 'yyyy-MM-dd');
+          const nowTimeWib = Utilities.formatDate(refDate, TIMEZONE_WIB, 'HH:mm');
           if (startDate < todayWib || (startDate === todayWib && nowTimeWib > String(izinCfg.time))) {
             initialStatus = 'Ditolak';
             diprosesOleh = 'Sistem (Otomatis)';
@@ -2559,8 +2991,26 @@ function saveIzinDigital(payload) {
       }
     }
 
-    const createdAt = new Date().toISOString();
-    sh.appendRow([id, namaPemohon, unitTugas, jenis, "'" + startDate, "'" + endDate, alasan, pengaju, peranPengaju, initialStatus, diprosesOleh, catatanAdmin, createdAt]);
+    const createdAt = refDate.toISOString();
+    const rowValues = [id, namaPemohon, unitTugas, jenis, "'" + startDate, "'" + endDate, alasan, pengaju, peranPengaju, initialStatus, diprosesOleh, catatanAdmin, createdAt];
+
+    // Upsert berdasarkan ID agar retry antrean offline tidak pernah membuat baris ganda
+    let existingRow = -1;
+    const lastRow = sh.getLastRow();
+    if (lastRow > 1) {
+      const ids = sh.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (let i = 0; i < ids.length; i++) {
+        if (String(ids[i][0]) === id) {
+          existingRow = i + 2;
+          break;
+        }
+      }
+    }
+    if (existingRow >= 2) {
+      sh.getRange(existingRow, 1, 1, rowValues.length).setValues([rowValues]);
+    } else {
+      sh.appendRow(rowValues);
+    }
     SpreadsheetApp.flush();
 
     return {
@@ -2571,17 +3021,11 @@ function saveIzinDigital(payload) {
       diprosesOleh: diprosesOleh,
       catatanAdmin: catatanAdmin
     };
-  } finally {
-    try { lock.releaseLock(); } catch (e) {}
-  }
+  });
 }
 
 function updateIzinDigitalStatus(id, nextStatus, approverName, catatanAdmin) {
-  const lock = LockService.getScriptLock();
-  if (!tryAcquireLock_(lock, 15000)) {
-    return { success: false, busy: true, message: 'Server sedang sibuk, silakan coba sesaat lagi.' };
-  }
-  try {
+  return withScriptLock_(15000, function () {
     const targetId = String(id || '').trim();
     const allowedStatuses = ['Menunggu', 'Disetujui', 'Ditolak'];
     if (!targetId || allowedStatuses.indexOf(String(nextStatus || '')) === -1) {
@@ -2604,17 +3048,11 @@ function updateIzinDigitalStatus(id, nextStatus, approverName, catatanAdmin) {
       }
     }
     return { success: false, message: 'Data izin tidak ditemukan.' };
-  } finally {
-    try { lock.releaseLock(); } catch (e) {}
-  }
+  });
 }
 
 function deleteIzinDigital(id) {
-  const lock = LockService.getScriptLock();
-  if (!tryAcquireLock_(lock, 15000)) {
-    return { success: false, busy: true, message: 'Server sedang sibuk, silakan coba sesaat lagi.' };
-  }
-  try {
+  return withScriptLock_(15000, function () {
     const targetId = String(id || '').trim();
     if (!targetId) return { success: false, message: 'ID izin tidak valid.' };
     const sh = getOrCreateIzinSheet_();
@@ -2629,20 +3067,11 @@ function deleteIzinDigital(id) {
       }
     }
     return { success: true };
-  } finally {
-    try { lock.releaseLock(); } catch (e) {}
-  }
+  });
 }
 
 function getOrCreateTindakanSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sh = ss.getSheetByName(TINDAKAN_SANTRI_SHEET_NAME);
-  if (!sh) {
-    sh = ss.insertSheet(TINDAKAN_SANTRI_SHEET_NAME);
-    sh.appendRow(['ID', 'Tanggal', 'NamaSantri', 'KamarKelas', 'Tindakan', 'Catatan', 'Petugas', 'PeranPetugas']);
-    sh.setFrozenRows(1);
-  }
-  return sh;
+  return ensureSheetReady_(TINDAKAN_SANTRI_SHEET_NAME);
 }
 
 function getSantriTindakan() {
@@ -2650,7 +3079,7 @@ function getSantriTindakan() {
     const sh = getOrCreateTindakanSheet_();
     const lastRow = sh.getLastRow();
     if (lastRow <= 1) return [];
-    const rows = sh.getRange(2, 1, lastRow - 1, 8).getValues();
+    const rows = sh.getRange(2, 1, lastRow - 1, Math.max(8, sh.getLastColumn())).getValues();
     const out = [];
     for (let i = rows.length - 1; i >= 0; i--) {
       const r = rows[i];
@@ -2673,11 +3102,7 @@ function getSantriTindakan() {
 }
 
 function saveSantriTindakan(payload) {
-  const lock = LockService.getScriptLock();
-  if (!tryAcquireLock_(lock, 15000)) {
-    return { success: false, busy: true, message: 'Server sedang sibuk, silakan coba sesaat lagi.' };
-  }
-  try {
+  return withScriptLock_(15000, function () {
     const d = payload && typeof payload === 'object' ? payload : {};
     const namaSantri = safeSheetCell_(d.namaSantri, 120);
     const tindakan = safeSheetCell_(d.tindakan, 120);
@@ -2688,7 +3113,7 @@ function saveSantriTindakan(payload) {
     const id = String(d.id || ('tnd_' + Date.now() + '_' + Utilities.getUuid().slice(0, 6))).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60);
     const rawDate = String(d.tanggal || '').trim().slice(0, 10);
     const tanggal = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : Utilities.formatDate(new Date(), TIMEZONE_WIB, 'yyyy-MM-dd');
-    sh.appendRow([
+    const rowValues = [
       id,
       "'" + tanggal,
       namaSantri,
@@ -2697,29 +3122,75 @@ function saveSantriTindakan(payload) {
       safeSheetCell_(d.catatan, 400),
       safeSheetCell_(d.petugas, 100),
       safeSheetCell_(d.peranPetugas, 40)
-    ]);
+    ];
+
+    let existingRow = -1;
+    const lastRow = sh.getLastRow();
+    if (lastRow > 1) {
+      const ids = sh.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (let i = 0; i < ids.length; i++) {
+        if (String(ids[i][0]) === id) {
+          existingRow = i + 2;
+          break;
+        }
+      }
+    }
+    if (existingRow >= 2) {
+      sh.getRange(existingRow, 1, 1, rowValues.length).setValues([rowValues]);
+    } else {
+      sh.appendRow(rowValues);
+    }
     SpreadsheetApp.flush();
     return { success: true, id: id };
-  } finally {
-    try { lock.releaseLock(); } catch (e) {}
-  }
+  });
+}
+
+function deleteSantriTindakan(id) {
+  return withScriptLock_(15000, function () {
+    const targetId = String(id || '').trim();
+    if (!targetId) return { success: false };
+    const sh = getOrCreateTindakanSheet_();
+    const lastRow = sh.getLastRow();
+    if (lastRow <= 1) return { success: true };
+    const ids = sh.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (let i = ids.length - 1; i >= 0; i--) {
+      if (String(ids[i][0]) === targetId) {
+        sh.deleteRow(i + 2);
+        SpreadsheetApp.flush();
+        return { success: true };
+      }
+    }
+    return { success: true };
+  });
 }
 
 // =========================================================================
-// 11. HELPER OTORISASI AWAL (JALANKAN SEKALI DI EDITOR APPS SCRIPT)
+// 11. HELPER OTORISASI & AUTO-SETUP SEMUA SHEET + KOLOM (NFC, QR, DRIVE, DLL.)
 // =========================================================================
 
-function testAuthorizationAndSetup() {
+function setupSemuaSheetDanKolom() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const driveStatus = getDriveBackupStatus();
-  getOrCreateSyncLogSheet_();
-  getOrCreateIzinSheet_();
-  getOrCreateTindakanSheet_();
-  Logger.log('Spreadsheet terhubung: ' + ss.getName());
-  Logger.log('Google Drive status: ' + JSON.stringify(driveStatus));
+  const schemaReport = ensureAllSheetsAndColumns_(true);
+  // Migrasi otomatis data lama Wali Santri (jika pernah tersimpan di PropertiesService) ke Sheet Akun_Wali_Santri
+  try { readWaliSantriStore_(); } catch (e) {}
+  SpreadsheetApp.flush();
   return {
     success: true,
     spreadsheet: ss.getName(),
+    schema: schemaReport
+  };
+}
+
+function testAuthorizationAndSetup() {
+  const setupRes = setupSemuaSheetDanKolom();
+  const driveStatus = getDriveBackupStatus();
+  Logger.log('Spreadsheet terhubung: ' + setupRes.spreadsheet);
+  Logger.log('Hasil auto-setup sheet & kolom: ' + JSON.stringify(setupRes.schema));
+  Logger.log('Google Drive status: ' + JSON.stringify(driveStatus));
+  return {
+    success: true,
+    spreadsheet: setupRes.spreadsheet,
+    schema: setupRes.schema,
     drive: driveStatus
   };
 }

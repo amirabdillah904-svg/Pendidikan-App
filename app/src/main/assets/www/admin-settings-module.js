@@ -608,7 +608,7 @@
       akses: akses,
       sharedSingle: true
     };
-    if (!existing || password) {
+    if ((!existing || password || (existing && existing.localOnly)) && salt && passwordHash) {
       serverPayload.salt = salt;
       serverPayload.passwordHash = passwordHash;
     }
@@ -774,7 +774,7 @@
       namaSantri: namaSantri,
       akses: akses
     };
-    if (!id || password) {
+    if ((!id || password || (existing && existing.localOnly)) && salt && passwordHash) {
       serverPayload.salt = salt;
       serverPayload.passwordHash = passwordHash;
     }

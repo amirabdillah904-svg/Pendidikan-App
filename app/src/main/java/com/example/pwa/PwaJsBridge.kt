@@ -348,10 +348,15 @@ class PwaJsBridge(
 
         // === OFFLINE-FIRST & REAL-TIME INFORMATION NOTIFICATION INTERCEPTOR ===
         var READ_FNS = [
-          'getFastLoginData', 'getInitialBundle', 'getRekapData', 'getMissingAttendance',
+          'getFastLoginData', 'getInitialBundle', 'getRekapData', 'getTodayAttendanceSnapshot', 'getMissingAttendance',
           'getFinancialData', 'getUsersData', 'getWaliSantriUsers', 'getPengumuman', 'getGaleriData',
           'getSaran', 'getSurat', 'getDbData', 'getIzinDigital', 'getSantriTindakan',
           'getDriveBackupStatus', 'getUserProfilePhoto'
+        ];
+        var SWR_FNS = [
+          'getRekapData', 'getTodayAttendanceSnapshot', 'getMissingAttendance',
+          'getFinancialData', 'getUsersData', 'getWaliSantriUsers', 'getPengumuman', 'getGaleriData',
+          'getSaran', 'getSurat', 'getDbData', 'getIzinDigital', 'getSantriTindakan'
         ];
         var WRITE_FNS = [
           'submitAbsensi', 'saveFinancialData', 'deleteFinancialData',
@@ -471,19 +476,30 @@ class PwaJsBridge(
 
                   if (isRead) {
                     var cacheKey = fnName + '|' + JSON.stringify(args || []);
-                    var tryServeCache = function() {
-                      try {
-                        if (window.AndroidBridge && typeof window.AndroidBridge.getCachedGasRead === 'function') {
-                          var cachedStr = window.AndroidBridge.getCachedGasRead(cacheKey);
-                          if (cachedStr) {
-                            var parsed = JSON.parse(cachedStr);
-                            if (typeof onSuccess === 'function') {
-                              setTimeout(function() { onSuccess(parsed); }, 10);
-                            }
-                            return true;
+                    var cachedStrRaw = null;
+                    var cachedParsed = null;
+                    try {
+                      if (window.AndroidBridge && typeof window.AndroidBridge.getCachedGasRead === 'function') {
+                        cachedStrRaw = window.AndroidBridge.getCachedGasRead(cacheKey);
+                        if (cachedStrRaw) {
+                          var tmpParsed = JSON.parse(cachedStrRaw);
+                          if (isValidGasReadPayload(fnName, tmpParsed)) {
+                            cachedParsed = tmpParsed;
+                          } else {
+                            cachedStrRaw = null;
                           }
                         }
-                      } catch (e) {}
+                      }
+                    } catch (e) { cachedStrRaw = null; cachedParsed = null; }
+
+                    var servedInstant = false;
+                    var tryServeCache = function() {
+                      if (cachedParsed !== null) {
+                        if (typeof onSuccess === 'function') {
+                          setTimeout(function() { onSuccess(cachedParsed); }, 6);
+                        }
+                        return true;
+                      }
                       return false;
                     };
 
@@ -491,17 +507,28 @@ class PwaJsBridge(
                       return;
                     }
 
+                    // Stale-While-Revalidate (SWR): tampilkan data cache Room secara instan (~6ms),
+                    // lalu segarkan diam-diam dari server di latar belakang bila ada perubahan data!
+                    if (cachedParsed !== null && SWR_FNS.indexOf(fnName) !== -1) {
+                      servedInstant = true;
+                      if (typeof onSuccess === 'function') {
+                        setTimeout(function() { onSuccess(cachedParsed); }, 6);
+                      }
+                    }
+
                     rawGasRun
                       .withSuccessHandler(function(res) {
                         if (!isValidGasReadPayload(fnName, res)) {
-                          if (!tryServeCache() && typeof onFailure === 'function') {
+                          if (!servedInstant && !tryServeCache() && typeof onFailure === 'function') {
                             onFailure(new Error((res && res.error) ? String(res.error) : 'Respons server tidak valid.'));
                           }
                           return;
                         }
+                        var freshStr = '';
                         try {
+                          freshStr = JSON.stringify(res);
                           if (window.AndroidBridge && typeof window.AndroidBridge.cacheGasRead === 'function') {
-                            window.AndroidBridge.cacheGasRead(cacheKey, fnName, JSON.stringify(res));
+                            window.AndroidBridge.cacheGasRead(cacheKey, fnName, freshStr);
                           }
                           if (fnName === 'getFastLoginData' || fnName === 'getInitialBundle') {
                             checkRealtimeAnnouncement(res);
@@ -512,10 +539,12 @@ class PwaJsBridge(
                             checkRealtimeGallery(res);
                           }
                         } catch (e) {}
-                        if (typeof onSuccess === 'function') onSuccess(res);
+                        if (!servedInstant || !cachedStrRaw || freshStr !== cachedStrRaw) {
+                          if (typeof onSuccess === 'function') onSuccess(res);
+                        }
                       })
                       .withFailureHandler(function(err) {
-                        if (!tryServeCache() && typeof onFailure === 'function') {
+                        if (!servedInstant && !tryServeCache() && typeof onFailure === 'function') {
                           onFailure(err);
                         }
                       })[fnName].apply(null, args);

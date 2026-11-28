@@ -347,6 +347,21 @@ class OfflineSyncRepository(
         "deleteDbData" -> "Hapus Database (${args.optString(0)})"
         "saveUserData" -> "Simpan Data User"
         "deleteUserData" -> "Hapus Data User"
+        "saveWaliSantriUser" -> "Akun Wali Santri"
+        "deleteWaliSantriUser" -> "Hapus Akun Wali Santri"
+        "saveIzinDigital" -> {
+          val nm = firstObj?.optString("namaSantri").orEmpty()
+          if (nm.isNotBlank()) "Izin Digital • $nm" else "Pengajuan Izin Digital"
+        }
+        "updateIzinDigitalStatus" -> "Persetujuan Izin Digital"
+        "deleteIzinDigital" -> "Hapus Izin Digital"
+        "saveSantriTindakan" -> {
+          val nm = firstObj?.optString("namaSantri").orEmpty()
+          if (nm.isNotBlank()) "Tindakan Santri • $nm" else "Catat Tindakan Santri"
+        }
+        "saveUserProfilePhoto" -> "Foto Profil Pengguna"
+        "saveDriveBackupConfig" -> "Pengaturan Cadangan Drive"
+        "backupSuratPdfToDrive" -> "Cadangkan PDF Surat ke Drive"
         "updateAppSettings" -> "Perbarui Setelan Aplikasi"
         else -> "Data ($fnName)"
       }

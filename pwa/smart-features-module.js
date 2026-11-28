@@ -1498,7 +1498,7 @@
 
   // ===================== 5. BERANDA ADAPTIF PERAN (SOFT BENTO + PERINGATAN + WALI SANTRI) =====================
   function resolveStaffAssignment(sess) {
-    if (!sess) return { type: '', label: '', targets: [], memberNamesSet: new Set() };
+    if (!sess) return { type: '', label: '', targets: [], memberNamesSet: new Set(), memberTargetMap: new Map() };
     const nameNorm = normText(sess.name);
     const md = global.masterData || {};
     const cd = global.coreData || {};
@@ -1506,7 +1506,7 @@
     if (sess.role === 'musyrif') {
       const roomsSet = new Map();
       const pushRoom = (raw) => {
-        String(raw || '').split(',').forEach(part => {
+        String(raw || '').split(/[,;\n]+/).forEach(part => {
           const clean = part.trim();
           if (!clean) return;
           const tok = normalizeTargetToken(clean);
@@ -1520,18 +1520,22 @@
 
       const rooms = Array.from(roomsSet.values());
       const memberNamesSet = new Set();
+      const memberTargetMap = new Map();
       if (rooms.length && Array.isArray(cd.santriWB)) {
         cd.santriWB.forEach(s => {
           if (s && typeof s === 'object' && targetMatchesAny(s.kamar, rooms)) {
             const nm = normText(s.nama);
-            if (nm) memberNamesSet.add(nm);
+            if (nm) {
+              memberNamesSet.add(nm);
+              memberTargetMap.set(nm, { nama: String(s.nama || '').trim(), target: String(s.kamar || '').trim() });
+            }
           }
         });
       }
       const label = rooms.length
         ? rooms.map(r => /^kamar\s+/i.test(r) ? r : ('Kamar ' + r)).join(', ')
         : 'Kamar Belum Tertaut';
-      return { type: 'wb', label: label, targets: rooms, memberNamesSet: memberNamesSet };
+      return { type: 'wb', label: label, targets: rooms, memberNamesSet: memberNamesSet, memberTargetMap: memberTargetMap };
     }
 
     if (sess.role === 'pengajar') {
@@ -1544,8 +1548,8 @@
       };
       // Prioritaskan kelas & qismu langsung dari sesi login Pengajar (persis seperti dropdown absensi)
       if (sess.kelas) {
-        const kArr = String(sess.kelas).split(',').map(k => k.trim()).filter(Boolean);
-        const qArr = sess.qismu ? String(sess.qismu).split(',').map(q => q.trim()).filter(Boolean) : [];
+        const kArr = String(sess.kelas).split(/[,;\n]+/).map(k => k.trim()).filter(Boolean);
+        const qArr = sess.qismu ? String(sess.qismu).split(/[,;\n]+/).map(q => q.trim()).filter(Boolean) : [];
         kArr.forEach((k, i) => {
           const q = qArr[i] || qArr[0] || '';
           pushClass(q ? `${k} - ${q}` : k);
@@ -1554,8 +1558,8 @@
       const list = (md.pengajars || []).concat(cd.pengajars || []);
       list.filter(p => p && normText(p.nama) === nameNorm).forEach(p => {
         if (p.kelas) {
-          const kArr = String(p.kelas).split(',').map(k => k.trim()).filter(Boolean);
-          const qArr = p.qismu ? String(p.qismu).split(',').map(q => q.trim()).filter(Boolean) : [];
+          const kArr = String(p.kelas).split(/[,;\n]+/).map(k => k.trim()).filter(Boolean);
+          const qArr = p.qismu ? String(p.qismu).split(/[,;\n]+/).map(q => q.trim()).filter(Boolean) : [];
           kArr.forEach((k, i) => {
             const q = qArr[i] || qArr[0] || '';
             pushClass(q ? `${k} - ${q}` : k);
@@ -1565,22 +1569,250 @@
 
       const classes = Array.from(classSet.values());
       const memberNamesSet = new Set();
+      const memberTargetMap = new Map();
       if (classes.length && Array.isArray(cd.santriTakhassus)) {
         cd.santriTakhassus.forEach(s => {
           if (s && typeof s === 'object') {
             const fullCls = [s.kelas, s.qismu].filter(Boolean).join(' - ').trim();
             if (targetMatchesAny(fullCls, classes) || targetMatchesAny(s.kelas, classes)) {
               const nm = normText(s.nama);
-              if (nm) memberNamesSet.add(nm);
+              if (nm) {
+                memberNamesSet.add(nm);
+                memberTargetMap.set(nm, { nama: String(s.nama || '').trim(), target: fullCls || String(s.kelas || '').trim() });
+              }
             }
           }
         });
       }
       const label = classes.length ? classes.join(', ') : 'Kelas Belum Tertaut';
-      return { type: 'takhassus', label: label, targets: classes, memberNamesSet: memberNamesSet };
+      return { type: 'takhassus', label: label, targets: classes, memberNamesSet: memberNamesSet, memberTargetMap: memberTargetMap };
     }
 
-    return { type: '', label: '', targets: [], memberNamesSet: new Set() };
+    return { type: '', label: '', targets: [], memberNamesSet: new Set(), memberTargetMap: new Map() };
+  }
+
+  function parsePelanggaranTokens(rawPel) {
+    const ignored = new Set(['', '-', '–', '—', 'tidak ada', 'nihil', 'none', 'kosong', '0']);
+    return String(rawPel || '')
+      .split(/[,;\n]+/)
+      .map(s => s.trim())
+      .filter(s => s && !ignored.has(s.toLowerCase()));
+  }
+
+  function normalizeKehadiranStatus(rawKeh) {
+    const k = normText(rawKeh);
+    if (!k) return '';
+    if (k === 'hadir' || k === 'h' || k === 'masuk') return 'Hadir';
+    if (k === 'izin' || k === 'i' || k === 'sakit' || k === 's' || k === 'dispensasi') return 'Izin';
+    if (k === 'alpa' || k === 'alpha' || k === 'a' || k === 'tidak hadir' || k === 'bolos') return 'Alpa';
+    return '';
+  }
+
+  /**
+   * Menghitung daftar santri bermasalah secara VALID & TERKUNCI KETAT ke kamar/kelas binaan:
+   * 1. Hanya anggota aktif di kamar/kelas musyrif/pengajar (berdasarkan master roster bila tersedia).
+   * 2. Deduplikasi per (nama, tanggal): bila 1 santri tercatat ganda di tanggal sama, status Hadir/Izin
+   *    memperbaiki catatan Alpa lama dan data scan NFC/QR hari ini ikut digabung secara realtime.
+   * 3. Hanya menghitung status Alpa eksplisit & pelanggaran valid (mengabaikan sel kosong / "nihil").
+   */
+  let lastStaffProblemList = [];
+  let lastStaffProblemMeta = { roleTitle: 'Musyrif', assignLabel: '', monthLabel: '' };
+  let lastStaffRekapSyncAt = 0;
+
+  function computeValidStaffProblematicList(assign, actType, todayYm) {
+    if (!assign || !assign.targets || !assign.targets.length) return [];
+    const today = getTodayWib();
+    const rekRows = (global.rekCache && Array.isArray(global.rekCache[actType])) ? global.rekCache[actType] : [];
+    const hasRoster = Boolean(assign.memberNamesSet && assign.memberNamesSet.size > 0);
+
+    // Kumpulkan data harian per santri (key = normName -> dateMap[YYYY-MM-DD] = { status, pelSet, poin, target, nama })
+    const byStudent = new Map();
+
+    const ingestRecord = (rawNama, rawTarget, rawDate, rawKeh, rawPel, rawPoin, priorityOverride) => {
+      const tgl = String(rawDate || '').trim().slice(0, 10);
+      if (!tgl || !tgl.startsWith(todayYm)) return;
+      const namaClean = String(rawNama || '').trim();
+      const nameNorm = normText(namaClean);
+      if (!nameNorm) return;
+
+      // Kunci ketat ke anggota aktif kamar/kelas musyrif/pengajar ini
+      if (hasRoster) {
+        if (!assign.memberNamesSet.has(nameNorm)) return;
+      } else {
+        if (!targetMatchesAny(rawTarget, assign.targets)) return;
+      }
+
+      const rosterInfo = assign.memberTargetMap ? assign.memberTargetMap.get(nameNorm) : null;
+      const displayName = (rosterInfo && rosterInfo.nama) ? rosterInfo.nama : namaClean;
+      const displayTarget = (rosterInfo && rosterInfo.target) ? rosterInfo.target : String(rawTarget || assign.label).trim();
+
+      if (!byStudent.has(nameNorm)) {
+        byStudent.set(nameNorm, {
+          nama: displayName,
+          kamar: displayTarget,
+          days: new Map()
+        });
+      }
+      const entry = byStudent.get(nameNorm);
+      const prevDay = entry.days.get(tgl) || { status: '', pelSet: new Set(), poin: 0 };
+      const statusNorm = normalizeKehadiranStatus(rawKeh);
+
+      // Resolusi konflik di tanggal yang sama:
+      // - Scan lokal hari ini (priorityOverride=true) selalu terbaru
+      // - Hadir/Izin selalu mengalahkan Alpa lama di hari yang sama (koreksi absensi)
+      if (statusNorm) {
+        if (priorityOverride || !prevDay.status || (prevDay.status === 'Alpa' && statusNorm !== 'Alpa') || prevDay.status === statusNorm) {
+          prevDay.status = statusNorm;
+        }
+      }
+
+      const pelTokens = parsePelanggaranTokens(rawPel);
+      if (priorityOverride) {
+        prevDay.pelSet = new Set(pelTokens);
+        prevDay.poin = pelTokens.length;
+      } else {
+        pelTokens.forEach(tok => prevDay.pelSet.add(tok));
+        const numPoin = Number(rawPoin) || 0;
+        if (numPoin > prevDay.poin) prevDay.poin = numPoin;
+      }
+
+      entry.days.set(tgl, prevDay);
+    };
+
+    // 1. Serap data log absensi server (bulan berjalan)
+    rekRows.forEach(r => {
+      if (!r) return;
+      ingestRecord(r.nama, r.target, r.tanggal, r.kehadiran, r.pelanggaran, r.poin, false);
+    });
+
+    // 2. Gabungkan data scan NFC/QR & Izin/Alpa hari ini secara langsung (realtime)
+    try {
+      if (global.AlRifaieAttendance && typeof global.AlRifaieAttendance.getVerifiedSnapshotForDate === 'function') {
+        const localToday = global.AlRifaieAttendance.getVerifiedSnapshotForDate(today, actType);
+        (localToday || []).forEach(v => {
+          const rosterInfo = assign.memberTargetMap ? assign.memberTargetMap.get(v.namaNorm) : null;
+          const nm = (rosterInfo && rosterInfo.nama) ? rosterInfo.nama : v.namaNorm;
+          ingestRecord(nm, v.target, v.tanggal, v.kehadiran, v.pelanggaran, 0, true);
+        });
+      }
+    } catch (e) {}
+
+    // 3. Rekapitulasi valid per santri
+    const result = [];
+    byStudent.forEach(st => {
+      const alpaDates = [];
+      const pelCounts = new Map();
+      const pelDates = [];
+      let totalPelCount = 0;
+      let totalPoin = 0;
+      let hadirCount = 0;
+      let izinCount = 0;
+      let lastIncidentDate = '';
+
+      const sortedDates = Array.from(st.days.keys()).sort();
+      sortedDates.forEach(tgl => {
+        const d = st.days.get(tgl);
+        if (d.status === 'Hadir') hadirCount++;
+        else if (d.status === 'Izin') izinCount++;
+        else if (d.status === 'Alpa') {
+          alpaDates.push(tgl);
+          if (tgl > lastIncidentDate) lastIncidentDate = tgl;
+        }
+        const dayPels = Array.from(d.pelSet);
+        if (dayPels.length > 0) {
+          totalPelCount += dayPels.length;
+          totalPoin += Math.max(d.poin || 0, dayPels.length);
+          pelDates.push(tgl);
+          if (tgl > lastIncidentDate) lastIncidentDate = tgl;
+          dayPels.forEach(tok => {
+            pelCounts.set(tok, (pelCounts.get(tok) || 0) + 1);
+          });
+        }
+      });
+
+      if (alpaDates.length === 0 && totalPelCount === 0) return;
+
+      const pelSummaryList = Array.from(pelCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([k, cnt]) => (cnt > 1 ? `${k} (${cnt}x)` : k));
+
+      const isUrgent = alpaDates.length >= 2 || totalPelCount >= 3 || (alpaDates.length >= 1 && totalPelCount >= 1);
+      const score = (alpaDates.length * 3) + (totalPelCount * 2) + (totalPoin * 0.5);
+
+      result.push({
+        nama: st.nama,
+        kamar: st.kamar,
+        alpa: alpaDates.length,
+        hadir: hadirCount,
+        izin: izinCount,
+        alpaDates: alpaDates,
+        pelCount: totalPelCount,
+        pelList: pelSummaryList,
+        totalPoin: totalPoin,
+        lastIncidentDate: lastIncidentDate,
+        isUrgent: isUrgent,
+        severityLabel: isUrgent ? 'Prioritas Tinggi' : 'Perlu Peringatan',
+        score: score
+      });
+    });
+
+    return result.sort((a, b) =>
+      b.score - a.score ||
+      String(b.lastIncidentDate || '').localeCompare(String(a.lastIncidentDate || '')) ||
+      a.nama.localeCompare(b.nama)
+    );
+  }
+
+  function openStaffWarningDetailSheet() {
+    const list = lastStaffProblemList || [];
+    const { roleTitle, assignLabel, monthLabel } = lastStaffProblemMeta;
+    const bodyHtml = !list.length
+      ? `<div class="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/35 text-center text-xs font-bold text-emerald-700 dark:text-emerald-300">Alhamdulillah, tidak ada santri bermasalah pada ${escHtml(assignLabel)} bulan ini.</div>`
+      : `<div class="space-y-2.5">
+          <div class="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 text-[11px] font-semibold text-amber-900 dark:text-amber-200 flex items-start gap-2">
+            <i class="fa-solid fa-bell text-amber-600 mt-0.5 shrink-0"></i>
+            <span>Pemberitahuan valid bulan ${escHtml(monthLabel)} khusus <b>${escHtml(assignLabel)}</b>. Mohon kepada ${escHtml(roleTitle)} agar memberi peringatan langsung kepada santri di bawah ini.</span>
+          </div>
+          <div class="space-y-2">
+            ${list.map((p, idx) => {
+              const latestDates = p.alpaDates.slice(-3).reverse().map(d => d.slice(5)).join(', ');
+              return `<div class="p-3 rounded-2xl bg-white dark:bg-slate-900 border ${p.isUrgent ? 'border-red-300 dark:border-red-900/70' : 'border-amber-200 dark:border-amber-900/60'} space-y-1">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-xs font-extrabold text-slate-900 dark:text-white truncate">${idx + 1}. ${escHtml(p.nama)}</span>
+                  <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold shrink-0 ${p.isUrgent ? 'bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300' : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300'}">${escHtml(p.severityLabel)}</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-1.5 text-[10px]">
+                  <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold">${escHtml(p.kamar)}</span>
+                  ${p.alpa > 0 ? `<span class="px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 font-bold">${p.alpa}x Alpa${latestDates ? ' (' + escHtml(latestDates) + ')' : ''}</span>` : ''}
+                  ${p.pelCount > 0 ? `<span class="px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold">${p.pelCount}x Pelanggaran</span>` : ''}
+                  <span class="text-slate-400">Hadir ${p.hadir} • Izin ${p.izin}</span>
+                </div>
+                ${p.pelList.length > 0 ? `<div class="text-[10.5px] text-amber-700 dark:text-amber-300 font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1 text-[9px]"></i>${escHtml(p.pelList.slice(0, 4).join(', '))}</div>` : ''}
+                <div class="text-[10px] font-semibold text-rose-700 dark:text-rose-300"><i class="fa-solid fa-circle-info mr-1 text-[9px]"></i>Mohon segera diberi peringatan oleh ${escHtml(roleTitle.toLowerCase())}.</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+
+    openBottomSheet(
+      `Peringatan untuk ${roleTitle} (${list.length} Santri)`,
+      `${assignLabel} • Data Valid Bulan ${monthLabel}`,
+      bodyHtml,
+      `<button type="button" onclick="window.AlRifaieSmart.closeBottomSheet()" class="w-full py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold">Tutup</button>`
+    );
+  }
+
+  function refreshStaffWarningData(forceFetch) {
+    const sess = global.session;
+    if (!sess || (sess.role !== 'musyrif' && sess.role !== 'pengajar')) return;
+    const actType = sess.role === 'musyrif' ? 'wb' : 'takhassus';
+    if (!forceFetch && (Date.now() - lastStaffRekapSyncAt) < 45000 && global.rekCache && Array.isArray(global.rekCache[actType]) && global.rekCache[actType].length > 0) {
+      renderRoleBentoDashboard();
+      return;
+    }
+    lastStaffRekapSyncAt = Date.now();
+    if (forceFetch && global.rekCache) delete global.rekCache[actType];
+    fetchRekapCached(actType).then(() => renderRoleBentoDashboard());
   }
 
   function computeDeadlineCountdown(actType) {
@@ -2022,72 +2254,56 @@
 
       const canViewRekap = typeof global.hasPerm === 'function' ? global.hasPerm('rekap') : true;
 
-      root.innerHTML = `<div class="space-y-3">
-        <!-- Kartu Pencarian Nama Anak (Berlaku untuk 1 Akun Bersama Wali Santri) -->
-        <div class="bento-card p-4 border border-emerald-200/80 dark:border-emerald-900/50 bg-gradient-to-br from-emerald-50/75 via-white to-teal-50/40 dark:from-emerald-950/35 dark:via-slate-900 dark:to-teal-950/20 space-y-3">
+      root.innerHTML = `<div class="space-y-2">
+        <!-- Kartu Pencarian Nama Anak (Ringkas) -->
+        <div class="bento-card p-3 border border-emerald-200/80 dark:border-emerald-900/50 bg-gradient-to-br from-emerald-50/75 via-white to-teal-50/40 dark:from-emerald-950/35 dark:via-slate-900 dark:to-teal-950/20 space-y-2">
           <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2.5 min-w-0">
-              <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-sm shrink-0">
-                <i class="fa-solid fa-magnifying-glass text-xs"></i>
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-xs shrink-0 text-[11px]">
+                <i class="fa-solid fa-magnifying-glass"></i>
               </div>
               <div class="min-w-0">
-                <h3 class="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">Cari Nama Putra / Putri Anda</h3>
-                <p class="text-[10.5px] text-slate-500 dark:text-slate-400">Ketik nama santri untuk memantau kehadiran &amp; catatan pembinaan (${dir.length} santri terdaftar)</p>
+                <h3 class="text-xs font-extrabold text-slate-900 dark:text-white truncate">Cari Putra / Putri (${dir.length})</h3>
               </div>
             </div>
-            ${hasSelectedChild ? `<button type="button" onclick="window.AlRifaieSmart.clearWaliChildSelection()" class="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10.5px] font-bold text-slate-600 dark:text-slate-300 hover:text-emerald-600 shrink-0"><i class="fa-solid fa-rotate mr-1"></i>Ganti Anak</button>` : ''}
+            ${hasSelectedChild ? `<button type="button" onclick="window.AlRifaieSmart.clearWaliChildSelection()" class="px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300 shrink-0"><i class="fa-solid fa-rotate mr-1"></i>Ganti</button>` : ''}
           </div>
           <div class="relative">
-            <i class="fa-solid fa-user-graduate text-emerald-500 text-xs absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-            <input type="text" id="waliChildSearchInput" value="${escHtml(hasSelectedChild ? '' : waliChildSearchQuery)}" oninput="window.AlRifaieSmart.onWaliChildSearchInput(this.value)" placeholder="Ketik nama anak (misal: Ahmad, Muhammad, Fauzan)..." autocomplete="off" class="clean-input w-full pl-9 pr-9 py-2.5 text-xs font-semibold">
-            <button type="button" onclick="window.AlRifaieSmart.onWaliChildSearchInput(''); const el=document.getElementById('waliChildSearchInput'); if(el){el.value=''; el.focus();}" aria-label="Bersihkan pencarian" class="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 flex items-center justify-center"><i class="fa-solid fa-xmark text-xs"></i></button>
+            <i class="fa-solid fa-user-graduate text-emerald-500 text-xs absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            <input type="text" id="waliChildSearchInput" value="${escHtml(hasSelectedChild ? '' : waliChildSearchQuery)}" oninput="window.AlRifaieSmart.onWaliChildSearchInput(this.value)" placeholder="Ketik nama santri (min. 2 huruf)..." autocomplete="off" class="clean-input w-full pl-8 pr-8 py-2 text-xs font-semibold">
+            <button type="button" onclick="window.AlRifaieSmart.onWaliChildSearchInput(''); const el=document.getElementById('waliChildSearchInput'); if(el){el.value=''; el.focus();}" aria-label="Bersihkan pencarian" class="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 flex items-center justify-center"><i class="fa-solid fa-xmark text-xs"></i></button>
           </div>
-          <div id="waliChildSearchResults" class="space-y-1.5"></div>
+          <div id="waliChildSearchResults" class="space-y-1"></div>
         </div>
 
-        ${hasSelectedChild ? `<div class="bento-card p-4 border-l-4 border-l-emerald-600 space-y-3.5">
-          <div class="flex items-start justify-between gap-3 flex-wrap">
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-lg shadow-md shrink-0">
-                <i class="fa-solid fa-user-graduate"></i>
-              </div>
-              <div class="min-w-0">
-                <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Monitoring Santri Bulan Ini</span>
-                <h3 class="text-sm font-extrabold text-slate-900 dark:text-white truncate">${escHtml(displayChildName)}</h3>
-                <p class="text-[11px] text-slate-500 truncate">${escHtml(childMeta)}</p>
-              </div>
+        ${hasSelectedChild ? `<div class="bento-card p-3 border-l-4 border-l-emerald-600 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <h3 class="text-xs font-extrabold text-slate-900 dark:text-white truncate">${escHtml(displayChildName)}</h3>
+              <p class="text-[10px] text-slate-500 truncate">${escHtml(childMeta)}</p>
             </div>
-            ${canViewRekap ? `<button type="button" onclick="window.AlRifaieSmart.openRekapForWaliChild('${escJsAttr(displayChildName)}')" class="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold hover:bg-emerald-100 inline-flex items-center gap-1.5 shrink-0"><i class="fa-solid fa-chart-pie text-[10px]"></i><span>Lihat Rekap Lengkap</span></button>` : ''}
-          </div>
-
-          <div class="grid grid-cols-3 gap-2">
-            <div class="p-2.5 rounded-2xl bg-emerald-50/90 dark:bg-emerald-950/40 text-center">
-              <div class="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase">Hadir</div>
-              <div class="text-lg font-extrabold text-emerald-800 dark:text-emerald-200">${cH}</div>
-            </div>
-            <div class="p-2.5 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 text-center">
-              <div class="text-[10px] font-bold text-amber-700 dark:text-amber-300 uppercase">Izin</div>
-              <div class="text-lg font-extrabold text-amber-800 dark:text-amber-200">${cI}</div>
-            </div>
-            <div class="p-2.5 rounded-2xl bg-red-50/90 dark:bg-red-950/40 text-center">
-              <div class="text-[10px] font-bold text-red-700 dark:text-red-300 uppercase">Alpa</div>
-              <div class="text-lg font-extrabold text-red-800 dark:text-red-200">${cA}</div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button type="button" onclick="const c=document.getElementById('waliMiniCalWrap'); if(c) c.classList.toggle('hidden');" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-[10px] font-bold"><i class="fa-solid fa-calendar-days mr-1"></i>Kalender</button>
+              ${canViewRekap ? `<button type="button" onclick="window.AlRifaieSmart.openRekapForWaliChild('${escJsAttr(displayChildName)}')" class="px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">Rekap</button>` : ''}
             </div>
           </div>
-
-          ${buildWaliMiniCalendarHtml(allChildRecs)}
-
-          ${pelNotes.length ? `<div class="p-2.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/50 text-[11px] space-y-1">
-            <div class="font-bold text-amber-800 dark:text-amber-300"><i class="fa-solid fa-note-sticky mr-1"></i>Catatan Pembinaan Terbaru:</div>
-            ${pelNotes.slice(0, 3).map(p => `<div class="text-slate-700 dark:text-slate-200">&bull; <b>${escHtml(p.tanggal)}</b>: ${escHtml(p.ket)}</div>`).join('')}
-          </div>` : ''}
-        </div>` : `<div class="bento-card p-5 text-center space-y-2 border border-dashed border-emerald-300/80 dark:border-emerald-800/60">
-          <div class="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto text-lg">
-            <i class="fa-solid fa-magnifying-glass-chart"></i>
+          <div class="grid grid-cols-3 gap-1.5">
+            <div class="py-1.5 px-2 rounded-xl bg-emerald-50/90 dark:bg-emerald-950/40 text-center">
+              <div class="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 uppercase">Hadir</div>
+              <div class="text-base font-extrabold text-emerald-800 dark:text-emerald-200 leading-tight">${cH}</div>
+            </div>
+            <div class="py-1.5 px-2 rounded-xl bg-amber-50/90 dark:bg-amber-950/40 text-center">
+              <div class="text-[9px] font-bold text-amber-700 dark:text-amber-300 uppercase">Izin</div>
+              <div class="text-base font-extrabold text-amber-800 dark:text-amber-200 leading-tight">${cI}</div>
+            </div>
+            <div class="py-1.5 px-2 rounded-xl bg-red-50/90 dark:bg-red-950/40 text-center">
+              <div class="text-[9px] font-bold text-red-700 dark:text-red-300 uppercase">Alpa</div>
+              <div class="text-base font-extrabold text-red-800 dark:text-red-200 leading-tight">${cA}</div>
+            </div>
           </div>
-          <div class="text-xs font-bold text-slate-800 dark:text-slate-200">Silakan Cari Nama Putra / Putri Anda di Atas</div>
-          <p class="text-[11px] text-slate-500 max-w-sm mx-auto">Ketik minimal 2 huruf nama santri lalu pilih dari daftar hasil pencarian untuk melihat kehadiran bulan ini, kalender harian, dan catatan pembinaan.</p>
-        </div>`}
+          <div id="waliMiniCalWrap" class="hidden pt-1">${buildWaliMiniCalendarHtml(allChildRecs)}</div>
+          ${pelNotes.length ? `<div class="px-2.5 py-1.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/70 text-[10px] text-amber-800 dark:text-amber-200 truncate"><i class="fa-solid fa-note-sticky mr-1"></i><b>${escHtml(pelNotes[0].tanggal)}:</b> ${escHtml(pelNotes[0].ket)}</div>` : ''}
+        </div>` : ''}
       </div>`;
 
       if (!hasSelectedChild && waliChildSearchQuery) {
@@ -2096,54 +2312,21 @@
       return;
     }
 
-    // ===== 2. BERANDA MUSYRIF & PENGAJAR (TERKUNCI KETAT KE KAMAR/KELAS & HANYA INFORMASI SANTRI BERMASALAH) =====
+    // ===== 2. BERANDA MUSYRIF & PENGAJAR (RINGKAS + PERINGATAN VALID TERKUNCI KETAT PER KAMAR/KELAS) =====
     if (role === 'musyrif' || role === 'pengajar') {
       const assign = resolveStaffAssignment(sess);
       const actType = assign.type || (role === 'musyrif' ? 'wb' : 'takhassus');
       const primaryTarget = assign.targets[0] || '';
       const dlInfo = computeDeadlineCountdown(actType);
-      const rekRows = (global.rekCache && global.rekCache[actType]) || [];
-      const monthRows = rekRows.filter(r => String(r.tanggal || '').startsWith(todayYm));
-
-      // TERKUNCI KETAT: Hanya menampilkan santri di kamar/kelas yang dipegang oleh musyrif/pengajar ini (TIDAK pernah menampilkan semua santri)
       const hasLockedAssignment = assign.targets.length > 0;
-      const scopedRows = hasLockedAssignment
-        ? monthRows.filter(r => {
-            const byTarget = targetMatchesAny(r.target, assign.targets);
-            const byMember = assign.memberNamesSet && assign.memberNamesSet.size > 0 && assign.memberNamesSet.has(normText(r.nama));
-            return byTarget || byMember;
-          })
-        : [];
-
-      const problemMap = {};
-      scopedRows.forEach(r => {
-        const nama = String(r.nama || '').trim();
-        if (!nama) return;
-        const keh = String(r.kehadiran || '').toLowerCase();
-        const pel = String(r.pelanggaran || '').trim();
-        const isAlpa = keh === 'alpa' || (keh !== 'hadir' && keh !== 'izin' && keh !== '');
-        if (!isAlpa && !pel) return;
-        const key = normText(nama);
-        if (!problemMap[key]) {
-          problemMap[key] = {
-            nama: nama,
-            kamar: String(r.target || assign.label).trim(),
-            alpa: 0,
-            alpaDates: [],
-            pelList: []
-          };
-        }
-        if (isAlpa) {
-          problemMap[key].alpa++;
-          if (r.tanggal) problemMap[key].alpaDates.push(String(r.tanggal).slice(0, 10));
-        }
-        if (pel) problemMap[key].pelList.push(pel);
-      });
-
-      const problematicList = Object.values(problemMap)
-        .sort((a, b) => (b.alpa * 2 + b.pelList.length) - (a.alpa * 2 + a.pelList.length) || a.nama.localeCompare(b.nama));
-
+      const problematicList = hasLockedAssignment ? computeValidStaffProblematicList(assign, actType, todayYm) : [];
       const roleTitle = role === 'musyrif' ? 'Musyrif' : 'Pengajar';
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      const mParts = todayYm.split('-');
+      const monthLabel = `${monthNames[Math.max(0, (parseInt(mParts[1], 10) || 1) - 1)]} ${mParts[0] || ''}`;
+
+      lastStaffProblemList = problematicList;
+      lastStaffProblemMeta = { roleTitle: roleTitle, assignLabel: assign.label, monthLabel: monthLabel };
 
       if (hasLockedAssignment && problematicList.length > 0) {
         notifyStaffProblematicSantriAlert(role, sess.name || roleTitle, assign.label, problematicList);
@@ -2151,65 +2334,57 @@
 
       let alertHtml = '';
       if (!hasLockedAssignment) {
-        alertHtml = `<div class="bento-card p-3.5 flex items-center gap-3 border border-amber-200/80 dark:border-amber-900/60 bg-amber-50/60 dark:bg-amber-950/25">
-          <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0"><i class="fa-solid fa-lock text-sm"></i></div>
+        alertHtml = `<div class="bento-card px-3 py-2 flex items-center gap-2.5 border border-amber-200/80 dark:border-amber-900/60 bg-amber-50/60 dark:bg-amber-950/25">
+          <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0"><i class="fa-solid fa-lock text-xs"></i></div>
           <div class="min-w-0">
-            <div class="text-xs font-bold text-amber-800 dark:text-amber-300">${role === 'musyrif' ? 'Kamar Binaan' : 'Kelas Binaan'} Belum Tertaut</div>
-            <div class="text-[11px] text-slate-500">Pemberitahuan santri bermasalah terkunci otomatis per ${role === 'musyrif' ? 'kamar' : 'kelas'}. Hubungi Admin jika belum muncul.</div>
+            <div class="text-[11px] font-bold text-amber-800 dark:text-amber-300 truncate">${role === 'musyrif' ? 'Kamar Binaan' : 'Kelas Binaan'} Belum Tertaut</div>
+            <div class="text-[10px] text-slate-500 truncate">Hubungi Admin untuk menautkan ${role === 'musyrif' ? 'kamar' : 'kelas'} Anda.</div>
           </div>
         </div>`;
       } else if (problematicList.length) {
-        alertHtml = `<div class="bento-card p-4 border-l-4 border-l-red-500 bg-gradient-to-br from-red-50/80 via-white to-amber-50/45 dark:from-red-950/35 dark:via-slate-900 dark:to-amber-950/20 space-y-3">
-          <div class="flex items-start justify-between gap-2 flex-wrap">
-            <div class="flex items-center gap-2.5 min-w-0">
-              <div class="w-10 h-10 rounded-2xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                <i class="fa-solid fa-bell text-sm"></i>
+        const urgentCnt = problematicList.filter(p => p.isUrgent).length;
+        alertHtml = `<div class="bento-card p-2.5 border-l-4 border-l-red-500 bg-gradient-to-r from-red-50/85 via-white to-amber-50/45 dark:from-red-950/35 dark:via-slate-900 dark:to-amber-950/20 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-7 h-7 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <i class="fa-solid fa-bell text-[11px]"></i>
               </div>
               <div class="min-w-0">
-                <h3 class="text-xs sm:text-sm font-extrabold text-red-700 dark:text-red-300">Peringatan untuk ${roleTitle} (${problematicList.length} Santri)</h3>
-                <p class="text-[11px] text-slate-600 dark:text-slate-300">Mohon segera berikan peringatan dan pembinaan kepada santri binaan di bawah ini.</p>
+                <div class="text-[11.5px] font-extrabold text-red-700 dark:text-red-300 truncate">Peringatan ${roleTitle}: ${problematicList.length} Santri${urgentCnt ? ` (${urgentCnt} Prioritas)` : ''}</div>
+                <div class="text-[9.5px] text-slate-500 dark:text-slate-400 truncate">${escHtml(assign.label)} &bull; Mohon segera diberi peringatan</div>
               </div>
             </div>
-            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/60 inline-flex items-center gap-1 shrink-0">
-              <i class="fa-solid fa-lock text-[9px]"></i>
-              <span>${escHtml(assign.label)}</span>
-            </span>
+            <button type="button" onclick="window.AlRifaieSmart.openStaffWarningDetailSheet()" class="px-2.5 py-1.5 rounded-lg bg-red-100/90 dark:bg-red-950/70 text-red-700 dark:text-red-300 text-[10px] font-extrabold shrink-0 whitespace-nowrap hover:bg-red-200/80 transition-colors">
+              Detail (${problematicList.length})
+            </button>
           </div>
-          <div class="px-3 py-2 rounded-xl bg-amber-100/80 dark:bg-amber-950/50 border border-amber-300/70 dark:border-amber-800/60 text-[11px] font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-2">
-            <i class="fa-solid fa-triangle-exclamation text-amber-600 dark:text-amber-400 shrink-0"></i>
-            <span>Kepada ${roleTitle}, harap segera memberi peringatan secara langsung kepada santri berikut agar lebih tertib dan tidak mengulangi pelanggaran.</span>
-          </div>
-          <div class="space-y-2 max-h-72 overflow-y-auto pr-0.5">
-            ${problematicList.map(p => {
-              const latestDates = p.alpaDates.slice(-3).reverse().join(', ');
-              return `<div class="p-3 rounded-2xl bg-white/95 dark:bg-slate-900/85 border border-red-200/75 dark:border-red-900/55 space-y-1">
-                <div class="flex items-center justify-between gap-2">
-                  <span class="text-xs font-extrabold text-slate-900 dark:text-white truncate">${escHtml(p.nama)}</span>
-                  <div class="flex items-center gap-1 shrink-0">
-                    ${p.alpa > 0 ? `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-red-100 dark:bg-red-950/70 text-red-700 dark:text-red-300">${p.alpa}x Alpa</span>` : ''}
-                    ${p.pelList.length > 0 ? `<span class="px-2 py-0.5 rounded-full text-[9.5px] font-extrabold bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300">${p.pelList.length} Pelanggaran</span>` : ''}
-                  </div>
+          <div class="flex gap-2 overflow-x-auto no-scrollbar snap-x pb-0.5">
+            ${problematicList.slice(0, 10).map(p => {
+              const lastDt = p.alpaDates.length ? p.alpaDates[p.alpaDates.length - 1].slice(5) : '';
+              return `<div onclick="window.AlRifaieSmart.openStaffWarningDetailSheet()" class="snap-start shrink-0 w-[188px] p-2 rounded-xl bg-white/95 dark:bg-slate-900/90 border ${p.isUrgent ? 'border-red-300/90 dark:border-red-900/70' : 'border-amber-200/90 dark:border-amber-900/60'} cursor-pointer space-y-1">
+                <div class="flex items-center justify-between gap-1">
+                  <span class="text-[11px] font-extrabold text-slate-900 dark:text-white truncate">${escHtml(p.nama)}</span>
+                  <span class="w-2 h-2 rounded-full shrink-0 ${p.isUrgent ? 'bg-red-500' : 'bg-amber-500'}"></span>
                 </div>
-                <div class="text-[10.5px] text-slate-500 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span><i class="fa-solid fa-door-open mr-1 text-[9px]"></i>${escHtml(p.kamar)}</span>
-                  ${latestDates ? `<span>&bull; Tgl Alpa: <b>${escHtml(latestDates)}</b></span>` : ''}
+                <div class="flex flex-wrap items-center gap-1">
+                  ${p.alpa > 0 ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300">${p.alpa}x Alpa${lastDt ? ' (' + escHtml(lastDt) + ')' : ''}</span>` : ''}
+                  ${p.pelCount > 0 ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300">${p.pelCount} Pelanggaran</span>` : ''}
                 </div>
-                ${p.pelList.length > 0 ? `<div class="text-[10.5px] text-amber-700 dark:text-amber-300 font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1 text-[9px]"></i>${escHtml(p.pelList.slice(0, 3).join(', '))}</div>` : ''}
-                <div class="text-[10.5px] font-semibold text-rose-700 dark:text-rose-300 pt-0.5"><i class="fa-solid fa-circle-info mr-1 text-[9px]"></i>Mohon segera diberi peringatan oleh ${roleTitle.toLowerCase()}.</div>
+                <div class="text-[9.5px] text-rose-700 dark:text-rose-300 font-semibold truncate">${p.pelList.length ? escHtml(p.pelList[0]) : `Segera beri peringatan (${roleTitle.toLowerCase()})`}</div>
               </div>`;
             }).join('')}
           </div>
         </div>`;
       } else {
-        alertHtml = `<div class="bento-card p-3.5 flex items-center justify-between gap-3 border border-emerald-200/70 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20">
-          <div class="flex items-center gap-3 min-w-0">
-            <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0"><i class="fa-solid fa-shield-heart text-sm"></i></div>
+        alertHtml = `<div class="bento-card px-3 py-2 flex items-center justify-between gap-2 border border-emerald-200/70 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0"><i class="fa-solid fa-shield-heart text-xs"></i></div>
             <div class="min-w-0">
-              <div class="text-xs font-bold text-emerald-800 dark:text-emerald-300">Kondisi ${escHtml(assign.label)} Aman &amp; Tertib</div>
-              <div class="text-[11px] text-slate-500">Belum ada santri bermasalah (alpa/pelanggaran) bulan ini pada ${role === 'musyrif' ? 'kamar' : 'kelas'} Anda.</div>
+              <div class="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 truncate">${escHtml(assign.label)} Tertib &amp; Aman</div>
+              <div class="text-[10px] text-slate-500 truncate">Tidak ada santri alpa/melanggar bulan ${escHtml(monthLabel)}.</div>
             </div>
           </div>
-          <span class="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 shrink-0"><i class="fa-solid fa-lock mr-1"></i>Terkunci</span>
+          <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 shrink-0"><i class="fa-solid fa-check mr-0.5"></i>Valid</span>
         </div>`;
       }
 
@@ -2219,31 +2394,26 @@
         : (dlInfo.passed ? 'border-red-300/70 bg-red-50/60 dark:bg-red-950/30' : '');
       const showStaffIzinCard = hasAccessIzin();
 
-      root.innerHTML = `<div class="space-y-3">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button type="button" onclick="window.AlRifaieSmart.startQuickScanForStaff('${actType}', '${safeTargetAttr}')" class="bento-card p-4 text-left bg-gradient-to-br from-emerald-600 via-teal-600 to-indigo-700 text-white border-0 shadow-lg hover:brightness-105 active:scale-[0.98] transition-all flex items-center justify-between gap-3">
+      root.innerHTML = `<div class="space-y-2">
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="window.AlRifaieSmart.startQuickScanForStaff('${actType}', '${safeTargetAttr}')" class="bento-card p-3 text-left bg-gradient-to-br from-emerald-600 via-teal-600 to-indigo-700 text-white border-0 shadow-md hover:brightness-105 active:scale-[0.98] transition-all flex items-center justify-between gap-2 min-h-[68px]">
             <div class="min-w-0">
-              <span class="px-2 py-0.5 rounded-full bg-white/15 text-[9.5px] font-extrabold uppercase tracking-wider">Aksi Cepat 1 Ketukan</span>
-              <div class="text-sm font-extrabold mt-1.5">Mulai Scan QR / Tap NFC</div>
-              <div class="text-[11px] text-emerald-100 truncate mt-0.5">${actType === 'wb' ? 'Wajib Belajar' : 'Takhassus'} &bull; ${escHtml(assign.label)}</div>
+              <div class="text-[9px] font-extrabold uppercase tracking-wider text-emerald-100">Aksi Cepat</div>
+              <div class="text-xs sm:text-sm font-extrabold leading-tight mt-0.5">Scan QR / NFC</div>
+              <div class="text-[10px] text-emerald-100/90 truncate mt-0.5">${escHtml(assign.label)}</div>
             </div>
-            <div class="w-12 h-12 rounded-2xl bg-white/15 border border-white/25 flex items-center justify-center text-xl shrink-0">
+            <div class="w-9 h-9 rounded-xl bg-white/15 border border-white/25 flex items-center justify-center text-base shrink-0">
               <i class="fa-solid fa-qrcode"></i>
             </div>
           </button>
 
-          <div class="bento-card p-4 flex items-center justify-between gap-3 ${deadlineCardCls}">
-            <div class="min-w-0">
-              <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Batas Waktu Absen</span>
-              <div id="bentoDeadlineCountdownText" class="text-base font-extrabold ${dlInfo.urgent ? 'text-amber-700 dark:text-amber-300' : (dlInfo.passed ? 'text-red-600 dark:text-red-400' : 'text-indigo-700 dark:text-indigo-300')} mt-0.5">${escHtml(dlInfo.text)}</div>
-              <div class="text-[11px] text-slate-500 mt-0.5">Batas: <b>${escHtml(dlInfo.time || '-')} WIB</b></div>
+          <div class="bento-card p-3 flex flex-col justify-between gap-1 min-h-[68px] ${deadlineCardCls}">
+            <div class="flex items-center justify-between gap-1">
+              <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 truncate">Batas ${escHtml(dlInfo.time || '-')} WIB</span>
+              ${showStaffIzinCard ? `<button type="button" onclick="window.AlRifaieSmart.openIzinFormSheet()" class="px-2 py-0.5 rounded-md bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 text-[9.5px] font-extrabold shrink-0 hover:bg-emerald-200">Izin</button>` : `<i class="fa-solid fa-stopwatch text-xs text-indigo-500"></i>`}
             </div>
-            <div class="flex flex-col items-end gap-1.5 shrink-0">
-              <div class="w-10 h-10 rounded-2xl ${dlInfo.urgent ? 'bg-amber-500 text-white animate-bounce' : 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-300'} flex items-center justify-center text-sm">
-                <i class="fa-solid fa-stopwatch"></i>
-              </div>
-              ${showStaffIzinCard ? `<button type="button" onclick="window.AlRifaieSmart.openIzinFormSheet()" class="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold inline-flex items-center gap-1 hover:bg-emerald-100 transition-colors"><i class="fa-solid fa-paper-plane text-[9px]"></i><span>Ajukan Izin</span></button>` : ''}
-            </div>
+            <div id="bentoDeadlineCountdownText" class="text-xs sm:text-sm font-extrabold truncate ${dlInfo.urgent ? 'text-amber-700 dark:text-amber-300' : (dlInfo.passed ? 'text-red-600 dark:text-red-400' : 'text-indigo-700 dark:text-indigo-300')}">${escHtml(dlInfo.text)}</div>
+            <div class="text-[9.5px] text-slate-500 truncate">${actType === 'wb' ? 'Wajib Belajar' : 'Takhassus'}</div>
           </div>
         </div>
         ${alertHtml}
@@ -2251,12 +2421,11 @@
       return;
     }
 
-    // ===== 3. BERANDA ADMIN & PENGURUS (SOFT BENTO OPERATIONAL KPI — TERSINKRON DENGAN REKAP & TUNGGAKAN) =====
+    // ===== 3. BERANDA ADMIN & PENGURUS (SINGLE-ROW COMPACT KPI STRIP — HEMAT RUANG VERTIKAL) =====
     if (role === 'admin' || role === 'user') {
       const isAdmin = role === 'admin';
       const syncedMissing = getLatestSyncedMissingToday();
       if (syncedMissing) cachedMissingToday = syncedMissing;
-      // Segarkan diam-diam di latar belakang jika data sudah > 90 detik saat membuka Beranda
       if ((Date.now() - lastHomeMissingRefreshAt) > 90000) {
         setTimeout(() => refreshMissingMonitor(false), 120);
       }
@@ -2264,9 +2433,6 @@
       const missingWb = cachedMissingToday ? (cachedMissingToday.wb || []).length : null;
       const missingTk = cachedMissingToday ? (cachedMissingToday.takhassus || []).length : null;
       const totalMissing = missingWb !== null ? (missingWb + missingTk) : '...';
-      const missingSubLabel = missingWb !== null
-        ? (totalMissing === 0 ? 'Semua Lengkap' : `WB ${missingWb} • TK ${missingTk}`)
-        : 'Menyinkronkan...';
       const pendingIzin = (izinListCache.length ? izinListCache : readLocalIzin()).filter(x => x.status === 'Menunggu').length;
       let offlinePending = 0;
       try {
@@ -2278,54 +2444,48 @@
 
       const canOpenAdmin = isAdmin || (typeof global.hasPerm === 'function' && global.hasPerm('admin'));
       const fourthTileHtml = canOpenAdmin
-        ? `<button type="button" onclick="switchTab('admin'); setTimeout(() => window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.switchAdminCategory('offline'), 120);" class="bento-card p-3.5 text-left hover:border-amber-400 active:scale-[0.98] transition-all">
+        ? `<button type="button" onclick="switchTab('admin'); setTimeout(() => window.AlRifaieAdminSettings && window.AlRifaieAdminSettings.switchAdminCategory('offline'), 120);" class="bento-card p-2.5 text-left hover:border-amber-400 active:scale-[0.98] transition-all min-h-[68px] flex flex-col justify-between">
             <div class="flex items-center justify-between">
-              <span class="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center text-sm"><i class="fa-solid fa-cloud-arrow-up"></i></span>
-              <span class="text-[10px] font-bold ${offlinePending > 0 ? 'text-amber-600' : 'text-emerald-600'}">${offlinePending > 0 ? 'Antrean' : 'Tersinkron'}</span>
+              <span class="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+              <span class="text-base font-extrabold text-slate-900 dark:text-white leading-none">${offlinePending}</span>
             </div>
-            <div class="text-xl font-extrabold text-slate-900 dark:text-white mt-2.5">${offlinePending}</div>
-            <div class="text-[11px] font-bold text-slate-600 dark:text-slate-300">Data Offline</div>
+            <div class="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate mt-1.5">${offlinePending > 0 ? 'Antrean' : 'Sync OK'}</div>
           </button>`
-        : `<button type="button" onclick="switchTab('tunggakan')" class="bento-card p-3.5 text-left hover:border-amber-400 active:scale-[0.98] transition-all">
+        : `<button type="button" onclick="switchTab('tunggakan')" class="bento-card p-2.5 text-left hover:border-amber-400 active:scale-[0.98] transition-all min-h-[68px] flex flex-col justify-between">
             <div class="flex items-center justify-between">
-              <span class="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center text-sm"><i class="fa-solid fa-list-check"></i></span>
-              <span class="text-[10px] font-bold text-emerald-600">Pantau</span>
+              <span class="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs"><i class="fa-solid fa-list-check"></i></span>
+              <span class="text-[9px] font-bold text-emerald-600">Pantau</span>
             </div>
-            <div class="text-sm font-extrabold text-slate-900 dark:text-white mt-3 leading-tight">Pantauan</div>
-            <div class="text-[11px] font-semibold text-slate-500">Status Harian</div>
+            <div class="text-[10px] font-bold text-slate-700 dark:text-slate-200 truncate mt-1.5">Tunggakan</div>
           </button>`;
 
-      root.innerHTML = `<div class="space-y-3">
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <button type="button" onclick="window.AlRifaieSmart.openMissingMonitorSheet()" class="bento-card p-3.5 text-left hover:border-red-400 active:scale-[0.98] transition-all">
-            <div class="flex items-center justify-between">
-              <span class="w-9 h-9 rounded-xl ${totalMissing === 0 ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400' : 'bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400'} flex items-center justify-center text-sm"><i class="fa-solid ${totalMissing === 0 ? 'fa-circle-check' : 'fa-clock-rotate-left'}"></i></span>
-              <span class="text-[10px] font-bold ${totalMissing === 0 ? 'text-emerald-600' : 'text-slate-400'}">${escHtml(missingSubLabel)}</span>
-            </div>
-            <div class="text-xl font-extrabold text-slate-900 dark:text-white mt-2.5">${escHtml(String(totalMissing))}</div>
-            <div class="text-[11px] font-bold text-slate-600 dark:text-slate-300">Belum Absen</div>
-          </button>
+      const colsCls = isAdmin ? 'grid-cols-4' : 'grid-cols-2';
+      root.innerHTML = `<div class="grid ${colsCls} gap-2">
+        <button type="button" onclick="window.AlRifaieSmart.openMissingMonitorSheet()" class="bento-card p-2.5 text-left hover:border-red-400 active:scale-[0.98] transition-all min-h-[68px] flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="w-7 h-7 rounded-lg ${totalMissing === 0 ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400' : 'bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400'} flex items-center justify-center text-xs"><i class="fa-solid ${totalMissing === 0 ? 'fa-circle-check' : 'fa-clock-rotate-left'}"></i></span>
+            <span class="text-base font-extrabold text-slate-900 dark:text-white leading-none">${escHtml(String(totalMissing))}</span>
+          </div>
+          <div class="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate mt-1.5">Belum Absen</div>
+        </button>
 
-          ${isAdmin ? `<button type="button" onclick="switchTab('izin')" class="bento-card p-3.5 text-left hover:border-emerald-400 active:scale-[0.98] transition-all">
-            <div class="flex items-center justify-between">
-              <span class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-sm"><i class="fa-solid fa-file-circle-check"></i></span>
-              ${pendingIzin > 0 ? '<span class="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-extrabold">Perlu ACC</span>' : '<span class="text-[10px] font-bold text-emerald-600">Aman</span>'}
-            </div>
-            <div class="text-xl font-extrabold text-slate-900 dark:text-white mt-2.5">${pendingIzin}</div>
-            <div class="text-[11px] font-bold text-slate-600 dark:text-slate-300">Izin Musyrif/Pengajar</div>
-          </button>` : ''}
+        ${isAdmin ? `<button type="button" onclick="switchTab('izin')" class="bento-card p-2.5 text-left hover:border-emerald-400 active:scale-[0.98] transition-all min-h-[68px] flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs"><i class="fa-solid fa-file-circle-check"></i></span>
+            <span class="text-base font-extrabold ${pendingIzin > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'} leading-none">${pendingIzin}</span>
+          </div>
+          <div class="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate mt-1.5">Izin Staf</div>
+        </button>` : ''}
 
-          ${isAdmin ? `<button type="button" onclick="window.AlRifaieSmart.openSuratDisiplinForPerson('santri','')" class="bento-card p-3.5 text-left hover:border-indigo-400 active:scale-[0.98] transition-all">
-            <div class="flex items-center justify-between">
-              <span class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 flex items-center justify-center text-sm"><i class="fa-solid fa-file-signature"></i></span>
-              <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">PDF Admin</span>
-            </div>
-            <div class="text-sm font-extrabold text-slate-900 dark:text-white mt-3 leading-tight">Surat Alpa</div>
-            <div class="text-[11px] font-semibold text-slate-500">Santri &amp; Musyrif</div>
-          </button>` : ''}
+        ${isAdmin ? `<button type="button" onclick="window.AlRifaieSmart.openSuratDisiplinForPerson('santri','')" class="bento-card p-2.5 text-left hover:border-indigo-400 active:scale-[0.98] transition-all min-h-[68px] flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 flex items-center justify-center text-xs"><i class="fa-solid fa-file-signature"></i></span>
+            <span class="text-[9px] font-extrabold text-indigo-600 dark:text-indigo-400">PDF</span>
+          </div>
+          <div class="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate mt-1.5">Surat Alpa</div>
+        </button>` : ''}
 
-          ${fourthTileHtml}
-        </div>
+        ${fourthTileHtml}
       </div>`;
     }
   }
@@ -2532,6 +2692,8 @@
     generateSuratDisiplinPdf: generateSuratDisiplinPdf,
     downloadOfficialRekapPdf: downloadOfficialRekapPdf,
     startQuickScanForStaff: startQuickScanForStaff,
+    openStaffWarningDetailSheet: openStaffWarningDetailSheet,
+    refreshStaffWarningData: refreshStaffWarningData,
     openTindakanSheet: openTindakanSheet,
     saveTindakanForm: saveTindakanForm,
     openMissingMonitorSheet: openMissingMonitorSheet,

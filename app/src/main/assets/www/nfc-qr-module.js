@@ -141,34 +141,47 @@
     return 'pukul ' + hh + ' lewat ' + mm;
   }
 
+  let lastAlreadyVoiceKey = '';
+  let lastAlreadyVoiceAt = 0;
+
+  function formatUnitForIndonesianSpeech(match) {
+    const rawTarget = String((match && match.target) || '').trim();
+    const type = String((match && match.type) || '').toLowerCase();
+    if (type === 'wb') {
+      return rawTarget ? (/^kamar\b/i.test(rawTarget) ? rawTarget : ('Kamar ' + rawTarget)) : '';
+    }
+    if (type === 'takhassus') {
+      return rawTarget ? (/^kelas\b/i.test(rawTarget) ? rawTarget : ('Kelas ' + rawTarget)) : '';
+    }
+    if (type === 'musyrif') return 'Musyrif';
+    if (type === 'pengajar') return 'Pengajar';
+    return rawTarget;
+  }
+
   function buildAttendanceVoicePhrase(match, waktuScan, isUpdateExisting) {
     const nama = String((match && match.nama) || '').trim();
     if (!nama) return '';
-    const rawTarget = String((match && match.target) || '').trim();
-    const type = String((match && match.type) || '').toLowerCase();
-
-    let unitText = '';
-    if (type === 'wb') {
-      unitText = rawTarget
-        ? (/^kamar\b/i.test(rawTarget) ? rawTarget : ('Kamar ' + rawTarget))
-        : '';
-    } else if (type === 'takhassus') {
-      unitText = rawTarget
-        ? (/^kelas\b/i.test(rawTarget) ? rawTarget : ('Kelas ' + rawTarget))
-        : '';
-    } else if (type === 'musyrif') {
-      unitText = 'Musyrif';
-    } else if (type === 'pengajar') {
-      unitText = 'Pengajar';
-    } else if (rawTarget) {
-      unitText = rawTarget;
-    }
-
+    const unitText = formatUnitForIndonesianSpeech(match);
     const subject = unitText ? (nama + ', ' + unitText) : nama;
     if (isUpdateExisting) {
       return subject + ', data pelanggaran diperbarui';
     }
     return subject + ', telah hadir ' + formatTimeForIndonesianSpeech(waktuScan);
+  }
+
+  function buildAlreadyAttendedVoicePhrase(match, existingRec) {
+    const nama = String((match && match.nama) || '').trim();
+    if (!nama) return '';
+    const unitText = formatUnitForIndonesianSpeech(match);
+    const subject = unitText ? (nama + ', ' + unitText) : nama;
+    const status = String((existingRec && existingRec.status) || 'Hadir').trim();
+    const waktu = String((existingRec && existingRec.waktuScan) || '').trim();
+    if (status === 'Hadir') {
+      return waktu
+        ? (subject + ', sudah diabsen ' + formatTimeForIndonesianSpeech(waktu))
+        : (subject + ', sudah diabsen hari ini');
+    }
+    return subject + ', sudah tercatat ' + status + ' hari ini';
   }
 
   function speakTextIndonesian(text) {
@@ -199,6 +212,17 @@
   function speakAttendanceAnnouncement(match, waktuScan, isUpdateExisting) {
     if (!isScanVoiceEnabled()) return;
     const phrase = buildAttendanceVoicePhrase(match, waktuScan, isUpdateExisting);
+    if (phrase) speakTextIndonesian(phrase);
+  }
+
+  function speakAlreadyAttendedAnnouncement(match, existingRec) {
+    if (!isScanVoiceEnabled()) return;
+    const key = String((match && match.type) || '') + '|' + normText((match && match.nama) || '');
+    const now = Date.now();
+    if (lastAlreadyVoiceKey === key && (now - lastAlreadyVoiceAt) < 2200) return;
+    lastAlreadyVoiceKey = key;
+    lastAlreadyVoiceAt = now;
+    const phrase = buildAlreadyAttendedVoicePhrase(match, existingRec);
     if (phrase) speakTextIndonesian(phrase);
   }
 
@@ -455,15 +479,142 @@
     return [tglSesi || getTodayDateStr(), type, String(target || '').trim(), normText(nama)].join('|');
   }
 
+  function findServerVerifiedRecord(tglSesi, type, target, nama) {
+    const dStr = String(tglSesi || getTodayDateStr()).slice(0, 10);
+    const rows = (global.rekCache && Array.isArray(global.rekCache[type])) ? global.rekCache[type] : [];
+    if (!rows.length) return null;
+    const nameNorm = normText(nama);
+    const tgtTok = normalizeScopeToken(target);
+    let found = null;
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const r = rows[i];
+      if (!r || String(r.tanggal || '').slice(0, 10) !== dStr) continue;
+      if (normText(r.nama) !== nameNorm) continue;
+      const rTgtTok = normalizeScopeToken(r.target);
+      if (tgtTok && rTgtTok && rTgtTok !== tgtTok && type !== 'musyrif' && type !== 'pengajar') continue;
+      const keh = String(r.kehadiran || '').trim();
+      if (!keh) continue;
+      const pelArr = String(r.pelanggaran || '').split(',').map(x => x.trim()).filter(Boolean);
+      found = {
+        status: keh,
+        method: String(r.metode || 'Server').trim() || 'Server',
+        nfcCode: String(r.nfcCode || '').trim(),
+        qrCode: String(r.qrCode || '').trim(),
+        waktuScan: String(r.waktuScan || '').trim(),
+        pelanggaran: pelArr,
+        synced: true
+      };
+      break;
+    }
+    return found;
+  }
+
   function getVerifiedRecord(tglSesi, type, target, nama) {
     const map = loadVerifiedToday();
-    return map[verifiedKey(tglSesi, type, target, nama)] || null;
+    const localRec = map[verifiedKey(tglSesi, type, target, nama)];
+    if (localRec) return localRec;
+    // Fallback cek berdasarkan nama+tanggal pada tipe sama (antisipasi perbedaan awalan "Kamar ")
+    const dPrefix = String(tglSesi || getTodayDateStr()) + '|' + type + '|';
+    const nameSuffix = '|' + normText(nama);
+    const keys = Object.keys(map);
+    for (let i = 0; i < keys.length; i++) {
+      if (keys[i].indexOf(dPrefix) === 0 && keys[i].endsWith(nameSuffix)) {
+        return map[keys[i]];
+      }
+    }
+    return findServerVerifiedRecord(tglSesi, type, target, nama);
   }
 
   function setVerifiedRecord(tglSesi, type, target, nama, rec) {
     const map = loadVerifiedToday();
     map[verifiedKey(tglSesi, type, target, nama)] = rec;
     saveVerifiedToday(map);
+  }
+
+  function getVerifiedSnapshotForDate(tglSesi, type) {
+    const dStr = String(tglSesi || getTodayDateStr()).slice(0, 10);
+    const prefix = dStr + '|' + type + '|';
+    const map = loadVerifiedToday();
+    const list = [];
+    Object.keys(map).forEach(k => {
+      if (k.indexOf(prefix) !== 0) return;
+      const parts = k.split('|');
+      const rec = map[k];
+      if (!rec) return;
+      list.push({
+        tanggal: dStr,
+        type: type,
+        target: parts[2] || '',
+        namaNorm: parts[3] || '',
+        kehadiran: rec.status || 'Hadir',
+        pelanggaran: Array.isArray(rec.pelanggaran) ? rec.pelanggaran.join(', ') : String(rec.pelanggaran || ''),
+        waktuScan: rec.waktuScan || ''
+      });
+    });
+    return list;
+  }
+
+  const hydratedTodayStamp = {};
+  function hydrateVerifiedFromServer(type, tglSesi, force) {
+    if (!type || !['wb', 'takhassus', 'musyrif', 'pengajar'].includes(type)) return;
+    const dStr = String(tglSesi || getActiveDateForType(type) || getTodayDateStr()).slice(0, 10);
+    const stampKey = type + '|' + dStr;
+    if (!force && hydratedTodayStamp[stampKey] && (Date.now() - hydratedTodayStamp[stampKey]) < 35000) {
+      return;
+    }
+    hydratedTodayStamp[stampKey] = Date.now();
+
+    const absorbRows = (rows) => {
+      if (!Array.isArray(rows) || !rows.length) return;
+      const map = loadVerifiedToday();
+      let changed = false;
+      rows.forEach(r => {
+        if (!r || String(r.tanggal || '').slice(0, 10) !== dStr) return;
+        const nama = String(r.nama || '').trim();
+        const keh = String(r.kehadiran || '').trim();
+        if (!nama || !keh) return;
+        const targetVal = type === 'musyrif' ? 'Data Musyrif' : (type === 'pengajar' ? 'Data Pengajar' : String(r.target || '').trim());
+        const key = verifiedKey(dStr, type, targetVal, nama);
+        const pelArr = String(r.pelanggaran || '').split(',').map(x => x.trim()).filter(Boolean);
+        const nextRec = {
+          status: keh,
+          method: String(r.metode || 'Server').trim() || 'Server',
+          nfcCode: String(r.nfcCode || '').trim(),
+          qrCode: String(r.qrCode || '').trim(),
+          waktuScan: String(r.waktuScan || '').trim(),
+          pelanggaran: pelArr,
+          synced: true
+        };
+        const prev = map[key];
+        if (!prev || prev.status !== nextRec.status || JSON.stringify(prev.pelanggaran || []) !== JSON.stringify(nextRec.pelanggaran)) {
+          map[key] = nextRec;
+          changed = true;
+        }
+      });
+      if (changed) {
+        saveVerifiedToday(map);
+        if (activeTabName === type) {
+          loadMembersEnhanced(type);
+        }
+        if (global.AlRifaieSmart && typeof global.AlRifaieSmart.renderRoleBentoDashboard === 'function') {
+          global.AlRifaieSmart.renderRoleBentoDashboard();
+        }
+      }
+    };
+
+    // Cepat: serap dulu dari rekCache memori jika ada
+    if (global.rekCache && Array.isArray(global.rekCache[type]) && global.rekCache[type].length > 0) {
+      absorbRows(global.rekCache[type]);
+    }
+
+    try {
+      if (global.google && global.google.script && global.google.script.run && typeof global.google.script.run.getTodayAttendanceSnapshot === 'function') {
+        global.google.script.run
+          .withSuccessHandler(rows => absorbRows(rows))
+          .withFailureHandler(() => {})
+          .getTodayAttendanceSnapshot(type, dStr);
+      }
+    } catch (e) {}
   }
 
   // ===================== 3. STATUS & KUNCI NFC ANDROID NATIVE =====================
@@ -790,12 +941,15 @@
 
     const pillStyles = {
       success: 'bg-emerald-600/95 text-white border-emerald-400/60',
+      already: 'bg-sky-600/95 text-white border-sky-300/70',
       info: 'bg-indigo-600/95 text-white border-indigo-400/60',
       warn: 'bg-amber-600/95 text-white border-amber-400/60'
     };
     const iconCls = variant === 'success'
       ? 'fa-circle-check'
-      : (variant === 'warn' ? 'fa-triangle-exclamation' : 'fa-circle-info');
+      : (variant === 'already'
+        ? 'fa-check-double'
+        : (variant === 'warn' ? 'fa-triangle-exclamation' : 'fa-circle-info'));
 
     toast.innerHTML = `<div class="px-3.5 py-2.5 rounded-2xl border shadow-xl backdrop-blur-md text-xs font-bold flex items-center gap-2 ${pillStyles[variant] || pillStyles.info}">
       <i class="fa-solid ${iconCls} shrink-0 text-sm"></i>
@@ -809,7 +963,7 @@
     toast._hideTimer = setTimeout(() => {
       toast.classList.remove('opacity-100', 'translate-y-0');
       toast.classList.add('opacity-0', '-translate-y-2');
-    }, 2400);
+    }, variant === 'already' ? 3200 : 2400);
 
     // Pastikan banner lama di dalam kartu & layar kamera tetap tersembunyi agar tidak menggeser/memotong tampilan scan
     const inlineEl = document.getElementById(scopeType + 'ScanFeedback');
@@ -983,18 +1137,21 @@
     if (nameEl) nameEl.innerText = match.nama;
     if (subEl) {
       const waktuLabel = isUpdateExisting && existingRecord && existingRecord.waktuScan
-        ? ('Hadir ' + existingRecord.waktuScan)
+        ? ('Sudah Absen ' + existingRecord.waktuScan)
         : getWibTimeStr();
       subEl.innerText = (match.target || match.type.toUpperCase()) + ' • ' + waktuLabel;
     }
     if (badgeEl) {
       badgeEl.innerHTML = isUpdateExisting
-        ? `<i class="fa-solid ${source === 'NFC' ? 'fa-wifi rotate-90' : 'fa-qrcode'}"></i><span>${source} • Edit Pelanggaran</span>`
+        ? `<i class="fa-solid fa-check-double"></i><span>Sudah Diabsen • Edit Pelanggaran</span>`
         : `<i class="fa-solid ${source === 'NFC' ? 'fa-wifi rotate-90' : 'fa-qrcode'}"></i><span>${source} Terdeteksi</span>`;
     }
 
     if (lateBadgeEl) {
-      if (lateInfo && lateInfo.isLate) {
+      if (isUpdateExisting) {
+        lateBadgeEl.classList.remove('hidden');
+        lateBadgeEl.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>Sudah Hadir${existingRecord && existingRecord.waktuScan ? (' Pukul ' + escAttr(existingRecord.waktuScan)) : ' Hari Ini'}</span>`;
+      } else if (lateInfo && lateInfo.isLate) {
         lateBadgeEl.classList.remove('hidden');
         lateBadgeEl.innerHTML = `<i class="fa-solid fa-clock"></i><span>Terlambat +${lateInfo.diffMinutes}m (Batas ${escAttr(lateInfo.deadlineTime)})</span>`;
       } else {
@@ -1145,6 +1302,9 @@
 
     vibrateSafe(45);
     speakAttendanceAnnouncement(match, waktuScan, isUpdateExisting);
+    if (global.AlRifaieSmart && typeof global.AlRifaieSmart.renderRoleBentoDashboard === 'function') {
+      global.AlRifaieSmart.renderRoleBentoDashboard();
+    }
     const sameRoom = activeTargetNow === match.target;
     const pelText = selectedPel.length ? (' • ' + selectedPel.join(', ')) : '';
     const msg = isUpdateExisting
@@ -1220,16 +1380,37 @@
       return true;
     }
 
-    // Jeda anti-pantulan 3.5 detik khusus untuk kartu yang BARU SAJA disimpan/dibatalkan
-    if (lastHandledPersonKey === personKey && (Date.now() - lastHandledPersonTime) < 3500) {
+    const tglSesi = getActiveDateForType(match.type);
+    const existing = getVerifiedRecord(tglSesi, match.type, match.target, match.nama);
+    const alreadyDone = Boolean(existing && (existing.status === 'Hadir' || existing.status === 'Izin' || existing.status === 'Alpa'));
+
+    // Jeda anti-pantulan: bila kartu orang yang SAMA baru saja dikonfirmasi <1.6 detik lalu, abaikan getaran bacaan ganda.
+    // Namun jika sudah >1.6 detik dan sudah tercatat absen, beri pemberitahuan TEKS + SUARA "Sudah Diabsen"!
+    const sinceHandled = Date.now() - lastHandledPersonTime;
+    if (lastHandledPersonKey === personKey && sinceHandled < 1600) {
       return true;
     }
 
-    const tglSesi = getActiveDateForType(match.type);
-    const existing = getVerifiedRecord(tglSesi, match.type, match.target, match.nama);
-    if (existing && (existing.status || 'Hadir') === 'Hadir') {
+    if (alreadyDone) {
       vibrateSafe(40);
-      openScanConfirmPopup(match, source, preferredType, rawCode, existing);
+      const stLbl = existing.status || 'Hadir';
+      const jamLbl = existing.waktuScan ? (' pukul ' + existing.waktuScan) : ' hari ini';
+      const unitInfo = match.target ? (' (' + match.target + ')') : '';
+      showScanBanner(
+        preferredType,
+        'already',
+        'Sudah Diabsen • ' + match.nama + unitInfo + ' sudah ' + stLbl + jamLbl
+      );
+      speakAlreadyAttendedAnnouncement(match, existing);
+
+      // Jika status sudah Hadir dan di-tap ulang setelah >3.2 detik, tetap buka popup edit pelanggaran (opsional)
+      if (stLbl === 'Hadir' && (lastHandledPersonKey !== personKey || sinceHandled >= 3200)) {
+        openScanConfirmPopup(match, source, preferredType, rawCode, existing);
+      }
+      return true;
+    }
+
+    if (lastHandledPersonKey === personKey && sinceHandled < 3200) {
       return true;
     }
 
@@ -1311,7 +1492,14 @@
 
     const unverifiedRows = allRows.filter(tr => tr.dataset.verified !== '1');
     if (unverifiedRows.length === 0) {
-      return global.Swal.fire('Semua Sudah Terverifikasi', 'Seluruh nama pada daftar ini sudah tercatat Hadir / Izin / Alpa dan masuk ke database.', 'success');
+      const unitPhrase = type === 'wb'
+        ? (/^kamar\b/i.test(target) ? target : ('Kamar ' + target))
+        : (type === 'takhassus' ? (/^kelas\b/i.test(target) ? target : ('Kelas ' + target)) : target);
+      if (isScanVoiceEnabled()) {
+        speakTextIndonesian(unitPhrase + ', sudah diabsen semua hari ini');
+      }
+      showScanBanner(type, 'already', 'Sudah Diabsen • Seluruh anggota ' + target + ' sudah tercatat hari ini.');
+      return global.Swal.fire('Sudah Diabsen Semua', 'Seluruh nama pada ' + target + ' sudah tercatat Hadir / Izin / Alpa dan masuk ke database.', 'success');
     }
 
     activeIzinAlpaContext = {
@@ -1452,6 +1640,9 @@
         if (typeof global.missingCache !== 'undefined') global.missingCache = null;
         if (typeof global.markTargetSubmittedInMissingCache === 'function') {
           global.markTargetSubmittedInMissingCache(type, target, tglSesi);
+        }
+        if (global.AlRifaieSmart && typeof global.AlRifaieSmart.renderRoleBentoDashboard === 'function') {
+          global.AlRifaieSmart.renderRoleBentoDashboard();
         }
 
         global.Swal.fire(
@@ -2300,6 +2491,7 @@
       syncNfcLockForCurrentContext();
       if (tabId === 'wb' || tabId === 'takhassus' || tabId === 'musyrif' || tabId === 'pengajar') {
         refreshNfcStatusFromNative();
+        hydrateVerifiedFromServer(tabId, getActiveDateForType(tabId), false);
         if (global.AlRifaieAdminSettings && typeof global.AlRifaieAdminSettings.renderDeadlineBadges === 'function') {
           global.AlRifaieAdminSettings.renderDeadlineBadges();
         }
@@ -2311,6 +2503,9 @@
     onBundleApplied: function () {
       syncServerCoreDataToRegistry();
     },
+    getVerifiedSnapshotForDate: getVerifiedSnapshotForDate,
+    hydrateVerifiedFromServer: hydrateVerifiedFromServer,
+    speakTextIndonesian: speakTextIndonesian,
     loadMembers: loadMembersEnhanced,
     onPelanggaranUpdated: onPelanggaranUpdated,
     // Tombol header daftar nama kini langsung membuka modal Input Izin / Alpa (khusus yang belum terverifikasi)
